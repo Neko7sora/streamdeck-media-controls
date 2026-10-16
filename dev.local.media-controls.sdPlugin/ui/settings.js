@@ -1,5 +1,6 @@
 let socket,context,action,settings={},sessions=[];
 const media=document.getElementById("media"),audio=document.getElementById("audio"),global=document.getElementById("global"),details=document.getElementById("details");
+const dialMode=document.getElementById("dial-mode"),seekStep=document.getElementById("seek-step");
 function send(event,payload){if(socket?.readyState===WebSocket.OPEN) socket.send(JSON.stringify({event,context,action,payload}));}
 function populate(select,items,current,defaultValue,defaultLabel){
   select.replaceChildren();
@@ -11,6 +12,10 @@ function populate(select,items,current,defaultValue,defaultLabel){
 }
 function show(){
   media.value=settings.mediaTarget??"auto";audio.value=settings.audioTarget??"master";global.checked=settings.globalKeys===true;
+  dialMode.value=settings.dialMode==="volume"?"volume":"seek";
+  seekStep.value=String([1,5,10,30,60].includes(settings.seekStep)?settings.seekStep:5);
+  document.getElementById("dial-settings").hidden=action!=="dev.local.media-controls.now-playing-dial";
+  document.getElementById("seek-settings").hidden=dialMode.value!=="seek";
   details.textContent=sessions.find(s=>s.id===media.value)?.details??"自動選択、または対象なし。セッションを選択すると全取得項目を確認できます。";
 }
 window.connectElgatoStreamDeckSocket=(port,uuid,registerEvent,_info,actionInfo)=>{
@@ -30,7 +35,7 @@ window.connectElgatoStreamDeckSocket=(port,uuid,registerEvent,_info,actionInfo)=
   };
   socket.onclose=()=>{document.getElementById("status").textContent="プラグインとの接続が切れました";};
 };
-for(const element of [media,audio,global]) element.addEventListener("change",()=>{
-  settings={...settings,mediaTarget:media.value,audioTarget:audio.value,globalKeys:global.checked};send("setSettings",settings);show();
+for(const element of [media,audio,global,dialMode,seekStep]) element.addEventListener("change",()=>{
+  settings={...settings,mediaTarget:media.value,audioTarget:audio.value,globalKeys:global.checked,dialMode:dialMode.value,seekStep:Number(seekStep.value)};send("setSettings",settings);show();
 });
-setInterval(()=>send("sendToPlugin",{request:"options"}),2000);
+setInterval(()=>send("sendToPlugin",{request:"options"}),1000);

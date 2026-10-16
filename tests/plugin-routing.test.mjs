@@ -20,7 +20,7 @@ test("Now Playing operates the session last sent to the display, and never falls
   let alerts=0;
   const key={id:"key",isKey:()=>true,isDial:()=>false,async setImage(){},async setTitle(){},async showAlert(){alerts++;}};
   action.actions.push(key);await action.onWillAppear({action:key,payload:{settings:{}}});
-  await new Promise(resolve=>setTimeout(resolve,10));
+  while(action.refreshing) await new Promise(resolve=>setTimeout(resolve,1));
   driver.current=b;
   await action.onKeyDown({action:key,payload:{settings:{}}});
   assert.equal(driver.commands.at(-1).session_id,"A");
@@ -37,7 +37,7 @@ test("Now Playing operates the session last sent to the display, and never falls
     const dial=name==="NowPlayingDial";
     let fail=false, pending=null;
     const instance={id:`retry-${name}`,isKey:()=>!dial,isDial:()=>dial,
-      async setImage(){},async setTitle(){await send();},async setFeedback(){await send();},async showAlert(){alerts++;}};
+      async setImage(){await send();},async setTitle(){await send();},async setFeedback(){await send();},async showAlert(){alerts++;}};
     async function send(){if(fail) throw Error("Display disconnected");if(pending) await pending;}
     const press=()=>visual[dial?"onDialDown":"onKeyDown"]({action:instance,payload:{settings:{}}});
     const settle=async()=>{while(visual.refreshing) await new Promise(resolve=>setTimeout(resolve,1));};
@@ -55,5 +55,47 @@ test("Now Playing operates the session last sent to the display, and never falls
     await press();assert.equal(driver.commands.at(-1).session_id,"B",`${name}: successful retry`);
     visual.actions.splice(visual.actions.indexOf(instance),1);
   }
+  const seeking=driver.instances.find(x=>x.constructor.name==="NowPlayingDial");
+  const seekMedia={...a,playback_state:"paused",controls:{toggle:true,seek:true},timeline:{position_sec:50,start_sec:0,end_sec:100,min_seek_sec:0,max_seek_sec:100}};
+  driver.sessions=[seekMedia,b];driver.current=seekMedia;
+  const dial={id:"seek-dial",isKey:()=>false,isDial:()=>true,async setFeedback(){},async showAlert(){alerts++;}};
+  await seeking.render(dial,{});
+  driver.current=b; // Auto selection changed since the last display.
+  const rotate=(ticks,settings={})=>seeking.onDialRotate({action:dial,payload:{ticks,settings}});
+  await rotate(1);assert.deepEqual(driver.commands.at(-1),{command:"seek",session_id:"A",position:55});
+  await rotate(-2);assert.equal(driver.commands.at(-1).position,45);
+  await rotate(2,{seekStep:10});assert.equal(driver.commands.at(-1).position,65);
+  await rotate(100);assert.equal(driver.commands.at(-1).position,100);
+  await rotate(-100);assert.equal(driver.commands.at(-1).position,0);
+  await rotate(1,{dialMode:"volume",audioTarget:"per-app"});
+  assert.deepEqual(driver.commands.at(-1),{command:"volume",target:"per-app",delta:0.02});
+  const before=driver.commands.length,previousAlerts=alerts;
+  driver.sessions=[b];await rotate(1);
+  assert.equal(driver.commands.length,before);assert.equal(alerts,previousAlerts+1);
+  driver.sessions=[{...seekMedia,controls:{toggle:true}}];await rotate(1);
+  assert.equal(driver.commands.length,before);assert.equal(alerts,previousAlerts+2);
+  const long={...a,title:"春夏秋冬東西南北朝昼夕夜一二三四五六七八九十",artist:"あいうえおかきくけこさしすせそ",playback_state:"playing"};
+  driver.current=long;driver.sessions=[long];
+  let clock=0;const images=[],titles=[],feedback=[],updates=[];
+  const scrollKey={...key,id:"long-key",async setImage(value){images.push(value);},async setTitle(value){titles.push(value);}};
+  const scrollDial={...dial,id:"long-dial",async setFeedback(value){updates.push(value);feedback.push({...feedback.at(-1),...value});}};
+  for(const visual of [action,seeking]) {
+    const frame=visual.scrolling.frame.bind(visual.scrolling);
+    visual.scrolling.frame=(...args)=>frame(...args,clock);
+  }
+  await action.render(scrollKey,{});await seeking.render(scrollDial,{});
+  assert.equal(titles.at(-1),"");
+  assert.match(images.at(-1),/^data:image\/png;base64,/);
+  assert.match(feedback.at(-1).trackTitle,/^data:image\/png;base64,/);
+  const firstKey=images.at(-1),firstTitle=feedback.at(-1).trackTitle;
+  clock=1534;await action.render(scrollKey,{});await seeking.render(scrollDial,{});
+  assert.notEqual(images.at(-1),firstKey);assert.notEqual(feedback.at(-1).trackTitle,firstTitle);
+  assert.equal(updates.at(-1).artwork,undefined,"text animation must not resend the artwork");
+  const movingTitle=feedback.at(-1).trackTitle;
+  driver.current={...long,playback_state:"paused"};
+  await seeking.render(scrollDial,{});assert.equal(feedback.at(-1).trackTitle,movingTitle);
+  driver.current={...long,session_id:"different-session"};
+  await action.render(scrollKey,{});await seeking.render(scrollDial,{});
+  assert.equal(images.at(-1),firstKey);assert.equal(feedback.at(-1).trackTitle,firstTitle);
   delete globalThis.__mediaTest;
 });

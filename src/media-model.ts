@@ -36,6 +36,7 @@ export interface MediaItem {
     volume?: number;
     loop?: boolean;
     ended?: boolean;
+    seeking?: boolean;
     ready_state?: number;
     picture_in_picture?: boolean;
     buffered_ranges?: Array<[number,number]>;
@@ -116,10 +117,31 @@ export function chooseCurrent(windows: MediaSnapshot, chrome: MediaItem[], selec
   return mergedCurrent(fallback, matches.length === 1 ? matches[0]! : null);
 }
 
-export function progress(media: MediaItem | null): { position: number | null; duration: number | null; percent: number | null } {
+/** Absolute media time. Provider samples stay intact; only the display/seek base is projected. */
+export function playbackPosition(media: MediaItem | null, now = Date.now()): number | null {
+  const t = media?.timeline;
+  if (typeof t?.position_sec !== "number" || !Number.isFinite(t.position_sec)) return null;
+  let position = t.position_sec;
+  // GSMTC Position is current as of LastUpdatedTime, not the time we polled it.
+  const updated = media?.source === "windows" ? t.updated_at : t.updated_at ?? media?.observed_at;
+  const browser = media?.source === "chrome" ? media.browser_media : undefined;
+  const advancing = media?.playback_state === "playing" && !browser?.ended && !browser?.seeking &&
+    (browser?.ready_state === undefined || browser.ready_state >= 3);
+  if (advancing && typeof updated === "number" && Number.isFinite(updated) && updated > 0) {
+    const rate = media?.playback_rate ?? 1;
+    if (Number.isFinite(rate)) position += Math.max(0, now - updated) / 1000 * rate;
+  }
+  const start = t.start_sec ?? 0;
+  position = Math.max(start, position);
+  if (typeof t.end_sec === "number" && t.end_sec > start) position = Math.min(t.end_sec, position);
+  return position;
+}
+
+export function progress(media: MediaItem | null, now = Date.now()): { position: number | null; duration: number | null; percent: number | null } {
   const t = media?.timeline;
   const start = t?.start_sec ?? 0;
-  const position = typeof t?.position_sec === "number" ? Math.max(0, t.position_sec - start) : null;
+  const absolute = playbackPosition(media, now);
+  const position = absolute === null ? null : absolute - start;
   const duration = typeof t?.end_sec === "number" && t.end_sec > start ? t.end_sec - start : null;
   return {position, duration, percent: position !== null && duration !== null ? Math.min(100, position / duration * 100) : null};
 }

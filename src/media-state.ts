@@ -33,6 +33,6 @@ export function ingestChrome(tabId:number,frameId:number,data:unknown,sequence=0
 }
 export function startMediaPolling(onError:(s:string)=>void):()=>void {
   const stop=startNative(s=>{windows=s;publish();},onError);
-  const interval=setInterval(()=>{chromeSessions();publish();},1000);
+  const interval=setInterval(()=>{chromeSessions();publish();},250);
   return ()=>{clearInterval(interval);stop();};
 }

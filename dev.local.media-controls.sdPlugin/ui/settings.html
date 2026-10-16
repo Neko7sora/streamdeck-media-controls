@@ -6,6 +6,11 @@ body{font:13px system-ui;color:#eee;background:#282828;margin:12px}label{display
 <label for="audio">音量の操作対象（再生セッションとは独立）</label><select id="audio"><option value="master">マスター（既定のマルチメディア出力）</option></select>
 <label><input type="checkbox" id="global">従来のグローバルメディアキーを使用</label>
 <p>グローバル設定は基本操作7個と Volume Dial に適用されます。Now Playing は常に表示対象へ操作します。接続が切れた対象は再選択してください。</p>
-<p>Now Playing +：回転＝選択音量、押下＝再生/一時停止、進捗バーをタップ＝シーク（対応時）、長押し＝次のセッション。</p>
+<div id="dial-settings" hidden>
+<label for="dial-mode">Now Playing + のダイヤル回転</label><select id="dial-mode"><option value="seek">巻き戻し・早送り</option><option value="volume">音量</option></select>
+<div id="seek-settings"><label for="seek-step">1目盛りあたりの移動秒数</label><select id="seek-step"><option value="1">1秒</option><option value="5">5秒</option><option value="10">10秒</option><option value="30">30秒</option><option value="60">60秒</option></select></div>
+</div>
+<p>Now Playing +：右回転＝早送り、左回転＝巻き戻し（初期値5秒/目盛り、音量へ変更可）、押下＝再生/一時停止、進捗バーをタップ＝シーク（対応時）、長押し＝次のセッション。</p>
+<p>長い曲名・アーティスト名はピクセル単位で滑らかにスクロールし、末尾まで表示します。先頭と末尾で少し止まり、曲が変わると先頭から表示します。通常キーの文字も画像内に描画します。</p>
 <details><summary>取得情報・取得元・観測時刻</summary><pre id="details">情報待ち</pre></details>
 <p id="status" role="status"></p><script src="settings.js"></script></html>

@@ -5,7 +5,7 @@
   "Category": "Media Controls",
   "Author": "Local Developer",
   "Description": "Windows and Chrome metadata, album artwork, playback timeline, media and volume control.",
-  "Version": "0.3.0.0",
+  "Version": "0.4.3.0",
   "SDKVersion": 3,
   "Software": {
     "MinimumVersion": "7.1"
@@ -165,7 +165,7 @@
       "States": [
         {
           "Image": "imgs/actions/play-pause",
-          "ShowTitle": true
+          "ShowTitle": false
         }
       ],
       "Tooltip": "Shows artwork and title; press to toggle playback",
@@ -184,14 +184,14 @@
           "ShowTitle": false
         }
       ],
-      "Tooltip": "Shows media position and artwork; rotate volume, press play/pause",
+      "Tooltip": "Shows live position and duration; rotate to seek, press play/pause (volume mode in settings)",
       "Controllers": [
         "Encoder"
       ],
       "Encoder": {
         "layout": "layouts/now-playing.json",
         "TriggerDescription": {
-          "Rotate": "Adjust volume",
+          "Rotate": "Seek backward / forward (or volume in settings)",
           "Push": "Play / Pause",
           "Touch": "Tap progress to seek; hold to change session"
         }

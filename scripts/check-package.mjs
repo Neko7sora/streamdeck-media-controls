@@ -1,6 +1,7 @@
 import { readFileSync, existsSync } from "node:fs";
 import { join, resolve } from "node:path";
 import {createRequire} from "node:module";
+import {displayFont} from "../src/display-font.ts";
 const plugin = resolve("dev.local.media-controls.sdPlugin");
 const m = JSON.parse(readFileSync(join(plugin, "manifest.json"), "utf8"));
 const actions = new Set();
@@ -28,4 +29,6 @@ if(!require.resolve("sharp").startsWith(join(plugin,"node_modules"))) throw new 
 if(process.platform==="win32"&&!existsSync(join(plugin,`node_modules/@img/sharp-win32-${process.arch}/package.json`))) throw new Error("Native image runtime missing");
 const sharp=require("sharp");
 await sharp({create:{width:2,height:2,channels:3,background:"black"}}).png().toBuffer();
+const font=displayFont();
+await sharp({text:{text:'<span foreground="white">日本語 &amp; Music 🎵</span>',font:`${font.family} 14`,fontfile:font.fontfile,dpi:72,rgba:true}}).png().toBuffer();
 console.log("Bundled native image runtime: OK");

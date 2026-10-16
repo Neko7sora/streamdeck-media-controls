@@ -57,3 +57,34 @@ test('image validation only permits bounded safe formats',()=>{
  assert.equal(model.safeImage('https://example.org/image.png'),undefined);
  assert.equal(model.safeImage('data:image/png;base64,AAAA?'),undefined);
 });
+
+test('live Windows position uses provider time and rate, never the poll time',()=>{
+ const media={source:'windows',title:'Track',playback_state:'playing',playback_rate:2,observed_at:12000,
+  timeline:{updated_at:10000,start_sec:60,position_sec:70,end_sec:120}};
+ assert.deepEqual(model.progress(media,13000),{position:16,duration:60,percent:16/60*100});
+ assert.equal(model.playbackPosition({...media,observed_at:14000},14000),78);
+ assert.equal(model.playbackPosition({...media,browser_media:{ready_state:2,seeking:true}},14000),78);
+ assert.equal(media.timeline.position_sec,70);
+ assert.equal(model.playbackPosition({...media,playback_state:'paused'},14000),70);
+ assert.equal(model.playbackPosition({...media,playback_state:'stopped'},14000),70);
+ assert.equal(model.playbackPosition({...media,timeline:{...media.timeline,updated_at:null}},14000),70);
+});
+
+test('position handles unknown values, future clocks, bounds and reverse playback',()=>{
+ const media={source:'windows',title:'Track',playback_state:'playing',timeline:{updated_at:10000,position_sec:5,end_sec:10}};
+ assert.equal(model.playbackPosition(media,9000),5);
+ assert.equal(model.playbackPosition(media,30000),10);
+ assert.equal(model.playbackPosition({...media,playback_rate:-2},14000),0);
+ assert.equal(model.playbackPosition({...media,playback_rate:0},14000),5);
+ assert.equal(model.playbackPosition({...media,timeline:{...media.timeline,position_sec:null}},14000),null);
+ assert.equal(model.progress({...media,timeline:{position_sec:5}},14000).duration,null);
+});
+
+test('Chrome position projects sample time and stops during buffering, seeking or end',()=>{
+ const media={source:'chrome',title:'Track',playback_state:'playing',observed_at:13000,
+  timeline:{updated_at:10000,position_sec:5,end_sec:100},browser_media:{ready_state:4}};
+ assert.equal(model.playbackPosition(media,14000),9);
+ for(const state of [{ready_state:2},{seeking:true},{ended:true}]) {
+  assert.equal(model.playbackPosition({...media,browser_media:state},14000),5);
+ }
+});

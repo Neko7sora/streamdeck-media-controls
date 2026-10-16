@@ -15,13 +15,16 @@
         const result = original(...arguments);
         lastPositionState = undefined;
         positionMetadata = JSON.stringify([session.metadata?.title,session.metadata?.artist,session.metadata?.album]);
-        if(state && typeof state === "object") {
+        if(state && typeof state === "object" && "duration" in state) {
           lastPositionState = {
-            position: Number.isFinite(state.position) ? state.position : undefined,
+            position: Number.isFinite(state.position) ? state.position : 0,
             duration: Number.isFinite(state.duration) ? state.duration : undefined,
-            playbackRate: Number.isFinite(state.playbackRate) ? state.playbackRate : undefined
+            playbackRate: Number.isFinite(state.playbackRate) ? state.playbackRate : 1,
+            updatedAt: Date.now(),
+            playing: session.playbackState === "playing"
           };
         }
+        send();
         return result;
       };
     }
@@ -35,9 +38,18 @@
     return a;
   };
   function snapshot() {
+    const observed = Date.now();
     const session = navigator.mediaSession;
     const meta = session?.metadata;
     if(positionMetadata!==JSON.stringify([meta?.title,meta?.artist,meta?.album])) lastPositionState=undefined;
+    if(lastPositionState) {
+      // Keep a clock for the observed Media Session sample across pause/resume.
+      if(lastPositionState.playing) lastPositionState.position += Math.max(0,observed-lastPositionState.updatedAt)/1000*lastPositionState.playbackRate;
+      lastPositionState.position = Math.max(0,lastPositionState.position);
+      if(lastPositionState.duration!==undefined) lastPositionState.position=Math.min(lastPositionState.duration,lastPositionState.position);
+      lastPositionState.updatedAt=observed;
+      lastPositionState.playing=session?.playbackState==="playing";
+    }
     const players = Array.from(document.querySelectorAll("audio,video"))
       .filter(p => p.currentSrc || p.src || p.readyState > 0);
     const active = players.filter(p=>!p.paused && !p.ended);
@@ -55,11 +67,11 @@
       artwork_candidates:artwork,
       playback_state:playing ? (playing.paused ? "paused" : "playing") : session?.playbackState,
       playback_rate:playing?.playbackRate ?? lastPositionState?.playbackRate,
-      timeline:{start_sec:0,position_sec:position,end_sec:duration,min_seek_sec:playing?.seekable.length?playing.seekable.start(0):undefined,max_seek_sec:playing?.seekable.length?playing.seekable.end(playing.seekable.length-1):undefined},
+      timeline:{updated_at:observed,start_sec:0,position_sec:position,end_sec:duration,min_seek_sec:playing?.seekable.length?playing.seekable.start(0):undefined,max_seek_sec:playing?.seekable.length?playing.seekable.end(playing.seekable.length-1):undefined},
       controls:{toggle:!!playing,play:!!playing,pause:!!playing,stop:!!playing,seek:!!playing && playing.seekable.length>0,next:false,previous:false},
       browser_media:playing ? {
         element_type:playing.tagName.toLowerCase(), muted:playing.muted,
-        volume:playing.volume,loop:playing.loop,ended:playing.ended,
+        volume:playing.volume,loop:playing.loop,ended:playing.ended,seeking:playing.seeking,
         ready_state:playing.readyState,
         picture_in_picture:document.pictureInPictureElement===playing,
         buffered_ranges:ranges(playing.buffered),seekable_ranges:ranges(playing.seekable)
@@ -90,10 +102,10 @@
     try { window.postMessage({kind:TAG,media:snapshot()}, location.origin); }
     catch { /* inaccessible site; ignore */ }
   }
-  setInterval(send,2000);
+  setInterval(send,1000);
   document.addEventListener("play",send,true);
   document.addEventListener("pause",send,true);
   document.addEventListener("loadedmetadata",send,true);
-  for(const event of ["emptied","ended","seeked","ratechange","volumechange","durationchange"]) document.addEventListener(event,send,true);
+  for(const event of ["emptied","ended","seeking","seeked","waiting","playing","timeupdate","ratechange","volumechange","durationchange"]) document.addEventListener(event,send,true);
   send();
 })();

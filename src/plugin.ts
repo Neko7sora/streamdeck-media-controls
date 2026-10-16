@@ -5,13 +5,17 @@ import {startMediaPolling,subscribe,currentMedia,audioTarget,availableSessions,a
 import {nativeCommand} from "./native-client.js";
 import {artwork} from "./artwork.js";
 import {progress} from "./media-model.js";
+import {DialSeeking,seekPosition,trackIdentity} from "./media-seek.js";
+import {ScrollingText,ANIMATION_INTERVAL_MS} from "./scrolling-text.js";
+import {nowPlayingImage} from "./now-playing-image.js";
 
 const UUID="dev.local.media-controls";
-type Settings={mediaTarget?:string;audioTarget?:string;globalKeys?:boolean};
+type Settings={mediaTarget?:string;audioTarget?:string;globalKeys?:boolean;dialMode?:string;seekStep?:number};
 type Instance=KeyAction<Settings>|DialAction<Settings>;
 const short=(s:string,n=28)=>[...s].length>n?[...s].slice(0,n-1).join("")+"…":s;
 const time=(s:number|null)=>s===null?"--:--":`${Math.floor(Math.max(0,s)/60)}:${String(Math.floor(Math.max(0,s))%60).padStart(2,"0")}`;
 const playbackLabel=(state?:string)=>({playing:"Playing",paused:"Paused",stopped:"Stopped",opened:"Opened",changing:"Loading",closed:"Closed"}[state??""]??"Unavailable");
+const seekStep=(s:Settings)=>typeof s.seekStep==="number"&&Number.isFinite(s.seekStep)&&s.seekStep>=1&&s.seekStep<=60?s.seekStep:5;
 async function guarded(instance:Instance,fn:()=>Promise<void>):Promise<void> {
   try {await fn();} catch(e) {streamDeck.logger.warn(String(e));await instance.showAlert();}
 }
@@ -30,22 +34,26 @@ async function transport(settings:Settings,command:string,position?:number):Prom
 const visualActions:ConfiguredAction[]=[];
 abstract class ConfiguredAction extends SingletonAction<Settings> {
   private readonly settings=new Map<string,Settings>();
-  private readonly hashes=new Map<string,string>();
+  private readonly hashes=new Map<string,Map<string,string>>();
+  protected readonly scrolling=new ScrollingText();
   private readonly displayedSessions=new Map<string,string>();
   private refreshing=false;
   private dirty=false;
   constructor(){super();visualActions.push(this);}
   override async onWillAppear(ev:WillAppearEvent<Settings>):Promise<void> {this.settings.set(ev.action.id,ev.payload.settings);this.refresh();}
-  override onWillDisappear(ev:WillDisappearEvent<Settings>):void {this.settings.delete(ev.action.id);this.hashes.delete(ev.action.id);this.displayedSessions.delete(ev.action.id);}
+  override onWillDisappear(ev:WillDisappearEvent<Settings>):void {this.settings.delete(ev.action.id);this.hashes.delete(ev.action.id);this.displayedSessions.delete(ev.action.id);this.scrolling.clear(ev.action.id);}
   override onDidReceiveSettings(ev:DidReceiveSettingsEvent<Settings>):void {this.settings.set(ev.action.id,ev.payload.settings);this.hashes.delete(ev.action.id);this.refresh();}
   protected async render(_instance:Instance,_settings:Settings):Promise<unknown> {return null;}
   protected displaySession(instance:Instance,session:string|undefined):void {this.displayedSessions.set(instance.id,session??"unavailable");}
   protected displayedSettings(instance:Instance,settings:Settings):Settings {return {...settings,mediaTarget:this.displayedSessions.get(instance.id)??"unavailable"};}
   protected async saveSettings(instance:Instance,settings:Settings):Promise<void> {await instance.setSettings(settings);this.settings.set(instance.id,settings);this.hashes.delete(instance.id);this.refresh();}
-  protected changed(instance:Instance,payload:unknown):boolean {
-    const hash=JSON.stringify(payload);if(this.hashes.get(instance.id)===hash) return false;
-    this.hashes.set(instance.id,hash);return true;
+  protected changed(instance:Instance,payload:unknown,part="default"):boolean {
+    let hashes=this.hashes.get(instance.id);
+    if(!hashes) {hashes=new Map();this.hashes.set(instance.id,hashes);}
+    const hash=JSON.stringify(payload)??"undefined";if(hashes.get(part)===hash) return false;
+    hashes.set(part,hash);return true;
   }
+  animate():void {if(this.scrolling.active) this.refresh();}
   refresh():void {
     this.dirty=true;if(this.refreshing) return;this.refreshing=true;
     void (async()=>{try {while(this.dirty) {
@@ -92,29 +100,58 @@ class NowPlaying extends ConfiguredAction {
   protected override async render(a:Instance,s:Settings):Promise<void> {
     if(!a.isKey()) return;
     const m=currentMedia(s.mediaTarget),image=(await artwork(m?.artwork_data_url))??await artwork(m?.fallback_artwork_data_url);
-    const title=m?`${m.playback_state==="playing"?"▶":m.playback_state==="paused"?"Ⅱ":"?"} ${short(m.title||"Title unavailable",22)}\n${short(m.artist??"",22)}`:"No media";
-    if(this.changed(a,{image,title})) {await a.setImage(image);await a.setTitle(title);}
+    const identity=m?trackIdentity(m):"unavailable";
+    const [title,artist,status]=await Promise.all([
+      this.scrolling.frame(a.id,"title",m?.title||(m?"Title unavailable":"No media"),{width:128,height:30,fontSize:24,scale:2},identity),
+      this.scrolling.frame(a.id,"artist",m?.artist??"",{width:128,height:28,fontSize:22,scale:2},identity),
+      this.scrolling.frame(a.id,"status",m?.playback_state==="playing"?"▶":m?.playback_state==="paused"?"Ⅱ":"?",{width:24,height:24,fontSize:18},identity)
+    ]);
+    if(this.changed(a,{image,title:title.image,artist:artist.image,status:status.image},"image"))
+      await a.setImage(await nowPlayingImage(image,title.image,artist.image,status.image));
+    if(this.changed(a,"","title")) await a.setTitle("");
     this.displaySession(a,m?.session_id);
   }
   override async onKeyDown(ev:KeyDownEvent<Settings>):Promise<void> {await guarded(ev.action,()=>transport(this.displayedSettings(ev.action,ev.payload.settings),"play-pause"));}
 }
 @action({UUID:`${UUID}.now-playing-dial`})
 class NowPlayingDial extends ConfiguredAction {
+  private readonly seeking=new DialSeeking();
+  override onWillDisappear(ev:WillDisappearEvent<Settings>):void {this.seeking.clear(ev.action.id);super.onWillDisappear(ev);}
+  override onDidReceiveSettings(ev:DidReceiveSettingsEvent<Settings>):void {this.seeking.clear(ev.action.id);super.onDidReceiveSettings(ev);}
   protected override async render(a:Instance,s:Settings):Promise<void> {
     if(!a.isDial()) return;
     const m=currentMedia(s.mediaTarget), p=progress(m), v=audioTarget(s.audioTarget);
+    const identity=m?trackIdentity(m):"unavailable";
+    const [title,artist]=await Promise.all([
+      this.scrolling.frame(a.id,"title",m?.title||(m?"Title unavailable":"No media"),{width:188,height:22,fontSize:14},identity),
+      this.scrolling.frame(a.id,"artist",m?.artist??"",{width:142,height:18,fontSize:12},identity)
+    ]);
     const payload={
-      title:short(m?.title|| (m?"Title unavailable":"No media"),24),artist:short(m?.artist??"",26),
+      trackTitle:title.image,artist:artist.image,
       status:playbackLabel(m?.playback_state),
       position:`${time(p.position)} / ${time(p.duration)}`,
       indicator:{value:p.percent??0,enabled:p.percent!==null},
-      volume:v?.volume==null?"Vol --":`${v.muted?"Mute ":"Vol "}${Math.round(v.volume*100)}%`,
+      volume:s.dialMode!=="volume"?`±${seekStep(s)}s`:v?.volume==null?"Vol --":`${v.muted?"Mute ":"Vol "}${Math.round(v.volume*100)}%`,
       artwork:(await artwork(m?.artwork_data_url,72))??(await artwork(m?.fallback_artwork_data_url,72))??"imgs/actions/play-pause.png"
     };
-    if(this.changed(a,payload)) await a.setFeedback(payload);
+    const changes=Object.fromEntries(Object.entries(payload).filter(([key,value])=>this.changed(a,value,`feedback:${key}`)));
+    if(Object.keys(changes).length) await a.setFeedback(changes);
     this.displaySession(a,m?.session_id);
   }
-  override async onDialRotate(ev:DialRotateEvent<Settings>):Promise<void> {if(ev.payload.ticks) await guarded(ev.action,()=>volume(ev.payload.settings,ev.payload.ticks));}
+  override async onDialRotate(ev:DialRotateEvent<Settings>):Promise<void> {
+    if(!ev.payload.ticks) return;
+    await guarded(ev.action,async()=>{
+      if(ev.payload.settings.dialMode==="volume") {await volume(ev.payload.settings,ev.payload.ticks);return;}
+      const settings=this.displayedSettings(ev.action,ev.payload.settings),media=currentMedia(settings.mediaTarget);
+      if(!media) throw new Error("Selected media session unavailable");
+      const track=trackIdentity(media);
+      await this.seeking.rotate(ev.action.id,media,ev.payload.ticks*seekStep(settings),async position=>{
+        const latest=currentMedia(settings.mediaTarget);
+        if(!latest||trackIdentity(latest)!==track) throw new Error("Media changed while seeking");
+        await transport(settings,"seek",seekPosition(latest,position));
+      });
+    });
+  }
   override async onDialDown(ev:DialDownEvent<Settings>):Promise<void> {await guarded(ev.action,()=>transport(this.displayedSettings(ev.action,ev.payload.settings),"play-pause"));}
   override async onTouchTap(ev:TouchTapEvent<Settings>):Promise<void> {
     await guarded(ev.action,async()=>{
@@ -123,6 +160,7 @@ class NowPlayingDial extends ConfiguredAction {
       if(ev.payload.hold) {
         const sessions=availableSessions(), index=sessions.findIndex(s=>s.session_id===m?.session_id);
         if(!sessions.length) throw new Error("No sessions");
+        this.seeking.clear(ev.action.id);
         await this.saveSettings(ev.action,{...ev.payload.settings,mediaTarget:sessions[(index+1)%sessions.length]!.session_id});
         return;
       }
@@ -130,7 +168,8 @@ class NowPlayingDial extends ConfiguredAction {
         if(!m?.controls?.seek) throw new Error("Seek unavailable");
         const t=m.timeline;
         if(t?.min_seek_sec==null||t.max_seek_sec==null||t.max_seek_sec<=t.min_seek_sec) throw new Error("Seek unavailable");
-        await transport(settings,"seek",t.min_seek_sec+Math.max(0,Math.min(1,(x-6)/188))*(t.max_seek_sec-t.min_seek_sec));
+        this.seeking.clear(ev.action.id);
+        await transport(settings,"seek",seekPosition(m,t.min_seek_sec+Math.max(0,Math.min(1,(x-6)/188))*(t.max_seek_sec-t.min_seek_sec)));
       } else await transport(settings,"play-pause");
     });
   }
@@ -145,9 +184,11 @@ streamDeck.ui.onSendToPlugin(ev=>{
   });})().catch(e=>streamDeck.logger.warn(String(e)));
 });
 const stop=startMediaPolling(msg=>streamDeck.logger.warn(msg));
+const animation=setInterval(()=>{for(const a of visualActions) a.animate();},ANIMATION_INTERVAL_MS);
+animation.unref();
 let closeBridge=()=>{};
 try {const server=startChromeServer(msg=>streamDeck.logger.info(msg));closeBridge=()=>{server.close();server.closeAllConnections();};}
 catch(e) {streamDeck.logger.error(`Chrome bridge: ${String(e)}`);}
-process.once("exit",stop);
-for(const signal of ["SIGINT","SIGTERM"] as const) process.once(signal,()=>{stop();closeBridge();process.exit(0);});
+process.once("exit",()=>{clearInterval(animation);stop();});
+for(const signal of ["SIGINT","SIGTERM"] as const) process.once(signal,()=>{clearInterval(animation);stop();closeBridge();process.exit(0);});
 await streamDeck.connect();

@@ -3,10 +3,10 @@
   "id":"now-playing",
   "controller":"Encoder",
   "items":[
-    {"key":"artwork","type":"pixmap","rect":[6,6,60,60]},
-    {"key":"title","type":"text","rect":[72,5,122,21],"font":{"size":14,"weight":600},"alignment":"left"},
-    {"key":"artist","type":"text","rect":[72,27,122,18],"font":{"size":12},"alignment":"left"},
-    {"key":"status","type":"text","rect":[72,47,122,18],"font":{"size":12},"alignment":"left"},
+    {"key":"trackTitle","type":"pixmap","rect":[6,4,188,22]},
+    {"key":"artwork","type":"pixmap","rect":[6,28,40,40]},
+    {"key":"artist","type":"pixmap","rect":[52,28,142,18]},
+    {"key":"status","type":"text","rect":[52,48,142,18],"font":{"size":12},"alignment":"left"},
     {"key":"position","type":"text","rect":[6,68,118,17],"font":{"size":12},"alignment":"left"},
     {"key":"volume","type":"text","rect":[126,68,68,17],"font":{"size":12},"alignment":"right"},
     {"key":"indicator","type":"bar","rect":[6,88,188,8],"value":0,"subtype":4,"border_w":0}
