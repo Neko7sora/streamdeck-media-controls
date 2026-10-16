@@ -99,3 +99,50 @@ test('clearing an in-flight dial prevents queued seeks after disappearance',asyn
  dial.clear('dial');release();await Promise.all([first,second]);
  assert.deepEqual(sent,[55]);
 });
+
+test('track changes wait for the previous seek and discard its accumulated destination',async()=>{
+ const dial=new DialSeeking(),sent=[];let release;
+ const first=dial.rotate('dial',media,5,async p=>{sent.push(['old',p]);await new Promise(resolve=>{release=resolve;});},10000);
+ const queued=dial.rotate('dial',media,10,async()=>assert.fail('old queued callback'),10001);
+ const changed={...media,title:'New track',timeline:{...media.timeline,position_sec:20}};
+ const next=dial.rotate('dial',changed,5,async p=>{sent.push(['new',p]);},10002);
+ assert.deepEqual(sent,[['old',55]]);
+ release();await Promise.all([first,queued,next]);
+ assert.deepEqual(sent,[['old',55],['new',25]]);
+});
+
+test('clearing and reusing a dial waits for its in-flight command',async()=>{
+ const dial=new DialSeeking(),sent=[];let release;
+ const first=dial.rotate('dial',media,5,async p=>{sent.push(p);await new Promise(resolve=>{release=resolve;});},10000);
+ const queued=dial.rotate('dial',media,5,async()=>assert.fail('old queued callback'),10001);
+ dial.clear('dial');
+ const next=dial.rotate('dial',media,15,async p=>{sent.push(p);},10002);
+ assert.deepEqual(sent,[55]);
+ release();await Promise.all([first,queued,next]);
+ assert.deepEqual(sent,[55,65]);
+});
+
+test('an older failed seek cannot delete a replacement or reject its waiting ticks',async()=>{
+ const dial=new DialSeeking(),sent=[];let reject;
+ const first=dial.rotate('dial',media,5,async p=>{sent.push(['old',p]);await new Promise((_resolve,rejectSeek)=>{reject=rejectSeek;});},10000);
+ const failed=assert.rejects(first,/old seek failed/);
+ const changed={...media,title:'New track',timeline:{...media.timeline,position_sec:20}};
+ const next=dial.rotate('dial',changed,5,async p=>{sent.push(['new',p]);},10001);
+ const ticks=dial.rotate('dial',changed,5,async()=>assert.fail('overlapping replacement'),10002);
+ assert.deepEqual(sent,[['old',55]]);
+ reject(new Error('old seek failed'));await Promise.all([failed,next,ticks]);
+ assert.deepEqual(sent,[['old',55],['new',30]]);
+ await dial.rotate('dial',changed,5,async p=>{sent.push(['new',p]);},10003);
+ assert.deepEqual(sent,[['old',55],['new',30],['new',35]]);
+});
+
+test('a replacement cleared while waiting never sends its queued seek',async()=>{
+ const dial=new DialSeeking(),sent=[];let release;
+ const first=dial.rotate('dial',media,5,async p=>{sent.push(p);await new Promise(resolve=>{release=resolve;});},10000);
+ dial.clear('dial');
+ const discarded=dial.rotate('dial',media,15,async()=>assert.fail('cleared replacement'),10001);
+ dial.clear('dial');
+ const latest=dial.rotate('dial',media,-5,async p=>{sent.push(p);},10002);
+ release();await Promise.all([first,discarded,latest]);
+ assert.deepEqual(sent,[55,45]);
+});

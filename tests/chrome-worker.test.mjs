@@ -4,9 +4,10 @@ import {readFileSync} from "node:fs";
 import vm from "node:vm";
 const source=readFileSync(new URL("../chrome-extension/background.js",import.meta.url),"utf8");
 function worker(enabled=true,imageResponse,hooks={}){
-  let listener,access,removed;
+  let listener,access,removed,settingsChanged;
+  const settings={enabled,token:"a".repeat(64)};
   const requests=[],commands=[],images=[];
-  const chrome={storage:{local:{async setAccessLevel(v){access=v.accessLevel;},async get(){return {enabled,token:"a".repeat(64)};}},onChanged:{addListener(){}}},runtime:{onMessage:{addListener(fn){listener=fn;}}},tabs:{onRemoved:{addListener(fn){removed=fn;}},async sendMessage(tab,message,options){commands.push({tab,message,options});return {ok:true};}}};
+  const chrome={storage:{local:{async setAccessLevel(v){access=v.accessLevel;},async get(){return {...settings};}},onChanged:{addListener(fn){settingsChanged=fn;}}},runtime:{onMessage:{addListener(fn){listener=fn;}}},tabs:{onRemoved:{addListener(fn){removed=fn;}},async sendMessage(tab,message,options){commands.push({tab,message,options});if(hooks.sendMessage) return hooks.sendMessage(tab,message,options);return {ok:true};}}};
   const fetch=async(url,options)=>{
     if(!String(url).startsWith("http://127.0.0.1:39761/chrome")) {
       images.push({url,options});
@@ -21,7 +22,7 @@ function worker(enabled=true,imageResponse,hooks={}){
   };
   class OffscreenCanvas {getContext(){return {drawImage(){}};}async convertToBlob(){return new Blob([new Uint8Array([137,80,78,71])],{type:'image/png'});}}
   vm.runInNewContext(source,{chrome,fetch,URL,AbortSignal,Map,Date,Number,JSON,Uint8Array,btoa,console,Headers,Blob,OffscreenCanvas,async createImageBitmap(){return {width:32,height:32,close(){}};}});
-  return {send:(media,frame=0,tab=4)=>listener({type:"MEDIA_UPDATE",media},{tab:{id:tab,title:"Tab"},frameId:frame,documentId:`doc-${frame}`,url:`https://user:password@site.test/frame-${frame}?access_token=private#secret`}),remove:id=>removed(id),requests,commands,images,access:()=>access};
+  return {send:(media,frame=0,tab=4)=>listener({type:"MEDIA_UPDATE",media},{tab:{id:tab,title:"Tab"},frameId:frame,documentId:`doc-${frame}`,url:`https://user:password@site.test/frame-${frame}?access_token=private#secret`}),remove:id=>removed(id),changeSettings(values){const changes={};for(const [key,value] of Object.entries(values)) {changes[key]={oldValue:settings[key],newValue:value};settings[key]=value;}settingsChanged(changes,"local");},requests,commands,images,access:()=>access};
 }
 const settle=()=>new Promise(resolve=>setTimeout(resolve,30));
 const flush=()=>new Promise(setImmediate);
@@ -36,6 +37,37 @@ test("MV3 worker uses trusted storage, routes per document, and resumes from sto
 });
 test("disabled extension sends neither metadata nor artwork requests",async()=>{
   const w=worker(false);w.send({title:"Track",artwork_candidates:[{src:"https://cdn.test/a.png"}],favicon_candidates:[{src:"https://cdn.test/favicon.ico"}]});await settle();assert.equal(w.requests.length,0);assert.equal(w.images.length,0);
+});
+
+test('settings changes discard commands returned to an earlier opt-in session',async()=>{
+ for(const change of ['disable','token','token-restore','disable-enable']) {
+  const gate=deferred();
+  const w=worker(true,undefined,{async bridgeResponse(url,body){
+   if(url.endsWith('/result')) return {ok:true,json:async()=>({})};
+   await gate.promise;
+   return {ok:true,json:async()=>({commands:[{id:'old',title:'Track',command:'play-pause',tab_id:body.tab_id,frame_id:body.frame_id,document_id:body.document_id}]})};
+  }});
+  w.send({title:'Track'});await flush();assert.equal(w.requests.length,1);
+  if(change.startsWith('token')) {w.changeSettings({token:'b'.repeat(64)});if(change==='token-restore') w.changeSettings({token:'a'.repeat(64)});}
+  else {w.changeSettings({enabled:false});if(change==='disable-enable') w.changeSettings({enabled:true});}
+  gate.resolve();await flush();
+  assert.equal(w.commands.length,0,change);
+  assert.equal(w.requests.length,1,change);
+  if(change==='disable') w.changeSettings({enabled:true});
+  w.send({title:'Track'});await flush();
+  assert.equal(w.commands.length,1,`${change}: fresh samples resume`);
+ }
+});
+
+test('disabling while one command runs prevents dispatch of later commands',async()=>{
+ const gate=deferred();
+ const w=worker(true,undefined,{
+  async bridgeResponse(url){return {ok:true,json:async()=>({commands:url.endsWith('/result')?[]:[{id:'first',title:'Track',command:'play-pause'},{id:'second',title:'Track',command:'stop'}]})};},
+  async sendMessage(){await gate.promise;return {ok:true};}
+ });
+ w.send({title:'Track'});await flush();assert.equal(w.commands.length,1);
+ w.changeSettings({enabled:false});gate.resolve();await flush();
+ assert.equal(w.commands.length,1);
 });
 
 test('worker normalizes ICO favicons, caches them separately, and ignores forged image fields',async()=>{

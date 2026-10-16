@@ -180,8 +180,14 @@ class NowPlayingDial extends ConfiguredAction {
 for(const instance of [new PlayPause(),new Previous(),new Next(),new Stop(),new Mute(),new VolumeUp(),new VolumeDown(),new VolumeDial(),new NowPlaying(),new NowPlayingDial()]) streamDeck.actions.registerAction(instance);
 subscribe(()=>{for(const a of visualActions) a.refresh();});
 streamDeck.ui.onSendToPlugin(ev=>{
-  void (async()=>{const settings=await ev.action.getSettings();await streamDeck.ui.sendToPropertyInspector({
-    settings,
+  const request=ev.payload;
+  if(!request||typeof request!=="object"||Array.isArray(request)||request.request!=="options") return;
+  const settingsRevision=request.settingsRevision;
+  if(typeof settingsRevision!=="number"||!Number.isSafeInteger(settingsRevision)||settingsRevision<0) return;
+  void (async()=>{const settings=await ev.action.getSettings();
+    if(streamDeck.ui.action?.id!==ev.action.id) return;
+    await streamDeck.ui.sendToPropertyInspector({
+    settings,settingsRevision,
     sessions:availableSessions().map(s=>({id:s.session_id??"",label:`${s.source}: ${s.title||s.page_title||"Title unavailable"} (${s.app_id||s.tab_id||""})`,details:JSON.stringify({...s,artwork_data_url:s.artwork_data_url?"[image available]":null,fallback_artwork_data_url:s.fallback_artwork_data_url?"[Windows fallback available]":null,app_icon_data_url:s.app_icon_data_url?"[app icon available]":null,favicon_data_url:s.favicon_data_url?"[favicon available]":null},null,2)})),
     audio:audioTargets().map(v=>({id:v.id,label:`${v.name||"Unknown app"}${v.pid!==undefined?` (PID ${v.pid})`:""}`,volume:v.volume,muted:v.muted}))
   });})().catch(e=>streamDeck.logger.warn(String(e)));

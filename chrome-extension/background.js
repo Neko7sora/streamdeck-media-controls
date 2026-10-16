@@ -1,5 +1,6 @@
 const ENDPOINT="http://127.0.0.1:39761/chrome";
 const cachedArtwork=new Map();
+let settingsGeneration=0;
 // Content scripts never receive the pairing token.
 const storageReady=chrome.storage.local.setAccessLevel({accessLevel:"TRUSTED_CONTEXTS"});
 async function artworkFor(tab,media,icon=false) {
@@ -103,17 +104,18 @@ function drainFrames() {
 }
 async function processFrame(state) {
   const key=state.key,frame=state.frame;
+  const generation=settingsGeneration;
   const update=state.latest;state.latest=null;
   await storageReady;
   const {enabled=false,token=""}=await chrome.storage.local.get(["enabled","token"]);
-  if(!currentFrame(state) || !enabled || !/^[a-f0-9]{64}$/.test(token)) return;
+  if(!currentFrame(state) || generation!==settingsGeneration || !enabled || !/^[a-f0-9]{64}$/.test(token)) return;
   const media=update.media;
   if(!media || typeof media!=="object" || Array.isArray(media) || JSON.stringify(media).length>64000) return;
   const faviconCandidates=Array.isArray(media.favicon_candidates)?media.favicon_candidates.slice(0,16):[];
   // The sender address provides the conventional fallback, never an unrelated tab/frame.
   try {const url=new URL(update.sender.url);faviconCandidates.push({src:new URL("/favicon.ico",url.origin).href});} catch {}
   const artwork=await artworkFor(key,media);
-  if(!currentFrame(state)) return;
+  if(!currentFrame(state) || generation!==settingsGeneration) return;
   const favicon=await artworkFor(`favicon:${key}`,{favicon_candidates:faviconCandidates},true);
   const payload={
     ...media,
@@ -125,10 +127,11 @@ async function processFrame(state) {
   };
   try {
     const current=await chrome.storage.local.get(["enabled","token"]);
-    if(!currentFrame(state) || !current.enabled || current.token!==token) return;
+    if(!currentFrame(state) || generation!==settingsGeneration || !current.enabled || current.token!==token) return;
     const response=await post("",token,{tab_id:state.tab,frame_id:frame,document_id:update.sender.documentId,sequence:Date.now(),media:payload});
     for(const command of response.commands??[]) {
-      if(!currentFrame(state)) return;
+      const current=await chrome.storage.local.get(["enabled","token"]);
+      if(!currentFrame(state) || generation!==settingsGeneration || !current.enabled || current.token!==token) return;
       let result={ok:false};
       try {result=await chrome.tabs.sendMessage(state.tab,{type:"MEDIA_COMMAND",command},{documentId:update.sender.documentId,frameId:frame});} catch {}
       await post("/result",token,{id:command.id,ok:result?.ok===true});
@@ -153,4 +156,8 @@ chrome.tabs.onRemoved.addListener(id=>{
   for(const key of cachedArtwork.keys()) if(key.startsWith(`${id}:`) || key.startsWith(`favicon:${id}:`)) cachedArtwork.delete(key);
   drainFrames();
 });
-chrome.storage.onChanged.addListener(()=>cachedArtwork.clear());
+chrome.storage.onChanged.addListener((changes,area)=>{
+  cachedArtwork.clear();
+  // An interrupted opt-in session stays invalid even if the same settings return.
+  if(area==="local" && (changes.enabled || changes.token)) settingsGeneration++;
+});

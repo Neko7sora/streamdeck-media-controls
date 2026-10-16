@@ -3,9 +3,9 @@ import assert from "node:assert/strict";
 import {load} from "./load.mjs";
 test("Now Playing operates the session last sent to the display, and never falls back after removal",async()=>{
   const a={source:"windows",session_id:"A",title:"Track",controls:{toggle:true}},b={...a,session_id:"B"};
-  const driver={instances:[],commands:[],audioRequests:[],current:a,sessions:[a,b]};globalThis.__mediaTest=driver;
+  const driver={instances:[],commands:[],audioRequests:[],inspectorReplies:[],current:a,sessions:[a,b]};globalThis.__mediaTest=driver;
   const mocks={
-    sdk:`const d=globalThis.__mediaTest;export class SingletonAction{actions=[];} export function action(){return c=>c;} export default {actions:{registerAction(a){d.instances.push(a);}},ui:{onSendToPlugin(){}},logger:{warn(){},error(){},info(){}},async connect(){}};`,
+    sdk:`const d=globalThis.__mediaTest;export class SingletonAction{actions=[];} export function action(){return c=>c;} export default {actions:{registerAction(a){d.instances.push(a);}},ui:{get action(){return d.inspectorAction;},onSendToPlugin(fn){d.onSendToPlugin=fn;},async sendToPropertyInspector(payload){d.inspectorReplies.push(payload);}},logger:{warn(){},error(){},info(){}},async connect(){}};`,
     state:`const d=globalThis.__mediaTest;export function currentMedia(id="auto"){return id==="auto"?d.current:d.sessions.find(x=>x.session_id===id)??null;}export function availableSessions(){return d.sessions;}export function audioTarget(id){d.audioRequests.push(id);return {name:id,volume:0.5,muted:false};}export function audioTargets(){return [];}export function subscribe(){}export function startMediaPolling(){return ()=>{};}`,
     native:`export async function nativeCommand(c){globalThis.__mediaTest.commands.push(c);}`,
     chrome:`export function startChromeServer(){return {close(){},closeAllConnections(){}};}export async function chromeCommand(){throw Error("Unexpected Chrome command");}`,
@@ -16,6 +16,27 @@ test("Now Playing operates the session last sent to the display, and never falls
     build.onLoad({filter:/.*/,namespace:"test"},args=>({contents:mocks[args.path],loader:"js"}));
   }};
   await load("plugin",[plugin]);
+  const nextTurn=()=>new Promise(resolve=>setImmediate(resolve));
+  let releaseSettings;
+  const settingsRead=new Promise(resolve=>{releaseSettings=resolve;});
+  const inspectorAction={id:"inspector-A",getSettings:()=>settingsRead};
+  driver.inspectorAction=inspectorAction;
+  driver.onSendToPlugin({action:inspectorAction,payload:{request:"options",settingsRevision:7}});
+  driver.inspectorAction={id:"inspector-B"};
+  releaseSettings({mediaTarget:"A"});await nextTurn();
+  assert.equal(driver.inspectorReplies.length,0,"an old options request cannot be routed to another inspector");
+  const currentInspector={id:"inspector-B",async getSettings(){return {mediaTarget:"B"};}};
+  driver.inspectorAction=currentInspector;
+  driver.onSendToPlugin({action:currentInspector,payload:{request:"options",settingsRevision:8}});await nextTurn();
+  assert.equal(driver.inspectorReplies.at(-1).settingsRevision,8);
+  assert.deepEqual(driver.inspectorReplies.at(-1).settings,{mediaTarget:"B"});
+  assert.equal(driver.inspectorReplies.at(-1).sessions.length,2);
+  let closeSettings;
+  const closingInspector={id:"inspector-B",getSettings:()=>new Promise(resolve=>{closeSettings=resolve;})};
+  driver.onSendToPlugin({action:closingInspector,payload:{request:"options",settingsRevision:9}});
+  driver.inspectorAction=undefined;
+  closeSettings({mediaTarget:"B"});await nextTurn();
+  assert.equal(driver.inspectorReplies.length,1,"closing the inspector drops its pending options response");
   const action=driver.instances.find(x=>x.constructor.name==="NowPlaying");
   let alerts=0;
   const key={id:"key",isKey:()=>true,isDial:()=>false,async setImage(){},async setTitle(){},async showAlert(){alerts++;}};

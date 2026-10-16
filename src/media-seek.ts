@@ -29,6 +29,7 @@ type PendingSeek = {
 /** Accumulate rapid ticks while a command is pending; send only one seek at a time. */
 export class DialSeeking {
   private readonly pending = new Map<string, PendingSeek>();
+  private readonly running = new Map<string, Promise<void>>();
 
   clear(id: string): void {this.pending.delete(id);}
 
@@ -58,7 +59,11 @@ export class DialSeeking {
     if (state.running) return state.running;
     if (state.sent === destination) return;
     const current = state;
-    current.running = (async () => {
+    const previous = this.running.get(id);
+    const operation = (async () => {
+      // A replaced or cleared target can still have an in-flight command.
+      // Wait for it without carrying its failure into the new target.
+      if (previous) {try {await previous;} catch {}}
       try {
         let sent: number;
         do {
@@ -70,8 +75,14 @@ export class DialSeeking {
       } catch (error) {
         if (this.pending.get(id) === current) this.pending.delete(id);
         throw error;
-      } finally {current.running = undefined;}
+      }
     })();
-    return current.running;
+    current.running = operation;
+    this.running.set(id, operation);
+    try {await operation;}
+    finally {
+      current.running = undefined;
+      if (this.running.get(id) === operation) this.running.delete(id);
+    }
   }
 }
