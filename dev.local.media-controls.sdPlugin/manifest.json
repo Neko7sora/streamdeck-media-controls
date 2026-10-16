@@ -1,0 +1,191 @@
+{
+  "$schema": "https://schemas.elgato.com/streamdeck/plugins/manifest.json",
+  "UUID": "dev.local.media-controls",
+  "Name": "Media Controls",
+  "Category": "Media Controls",
+  "Author": "Local Developer",
+  "Description": "Windows and Chrome metadata, album artwork, playback timeline, media and volume control.",
+  "Version": "0.2.0.0",
+  "SDKVersion": 3,
+  "Software": {
+    "MinimumVersion": "7.1"
+  },
+  "Nodejs": {
+    "Version": "24"
+  },
+  "OS": [
+    {
+      "Platform": "windows",
+      "MinimumVersion": "10"
+    }
+  ],
+  "CodePath": "bin/plugin.js",
+  "Icon": "imgs/plugin-icon",
+  "CategoryIcon": "imgs/category-icon",
+  "Actions": [
+    {
+      "Name": "Play / Pause",
+      "UUID": "dev.local.media-controls.play-pause",
+      "Icon": "imgs/actions/play-pause-icon",
+      "States": [
+        {
+          "Image": "imgs/actions/play-pause",
+          "ShowTitle": false
+        }
+      ],
+      "Tooltip": "Toggle playback",
+      "Controllers": [
+        "Keypad"
+      ]
+    },
+    {
+      "Name": "Previous Track",
+      "UUID": "dev.local.media-controls.previous",
+      "Icon": "imgs/actions/previous-icon",
+      "States": [
+        {
+          "Image": "imgs/actions/previous",
+          "ShowTitle": false
+        }
+      ],
+      "Tooltip": "Skip to the previous track",
+      "Controllers": [
+        "Keypad"
+      ]
+    },
+    {
+      "Name": "Next Track",
+      "UUID": "dev.local.media-controls.next",
+      "Icon": "imgs/actions/next-icon",
+      "States": [
+        {
+          "Image": "imgs/actions/next",
+          "ShowTitle": false
+        }
+      ],
+      "Tooltip": "Skip to the next track",
+      "Controllers": [
+        "Keypad"
+      ]
+    },
+    {
+      "Name": "Stop",
+      "UUID": "dev.local.media-controls.stop",
+      "Icon": "imgs/actions/stop-icon",
+      "States": [
+        {
+          "Image": "imgs/actions/stop",
+          "ShowTitle": false
+        }
+      ],
+      "Tooltip": "Stop playback",
+      "Controllers": [
+        "Keypad"
+      ]
+    },
+    {
+      "Name": "Toggle Mute",
+      "UUID": "dev.local.media-controls.mute",
+      "Icon": "imgs/actions/mute-icon",
+      "States": [
+        {
+          "Image": "imgs/actions/mute",
+          "ShowTitle": false
+        }
+      ],
+      "Tooltip": "Toggle system mute",
+      "Controllers": [
+        "Keypad"
+      ]
+    },
+    {
+      "Name": "Volume Up",
+      "UUID": "dev.local.media-controls.volume-up",
+      "Icon": "imgs/actions/volume-up-icon",
+      "States": [
+        {
+          "Image": "imgs/actions/volume-up",
+          "ShowTitle": false
+        }
+      ],
+      "Tooltip": "Increase system volume",
+      "Controllers": [
+        "Keypad"
+      ]
+    },
+    {
+      "Name": "Volume Down",
+      "UUID": "dev.local.media-controls.volume-down",
+      "Icon": "imgs/actions/volume-down-icon",
+      "States": [
+        {
+          "Image": "imgs/actions/volume-down",
+          "ShowTitle": false
+        }
+      ],
+      "Tooltip": "Decrease system volume",
+      "Controllers": [
+        "Keypad"
+      ]
+    },
+    {
+      "Name": "Volume Dial",
+      "UUID": "dev.local.media-controls.volume-dial",
+      "Icon": "imgs/actions/volume-dial-icon",
+      "States": [
+        {
+          "Image": "imgs/actions/volume-dial",
+          "ShowTitle": false
+        }
+      ],
+      "Tooltip": "Rotate for volume, press for mute",
+      "Controllers": [
+        "Encoder"
+      ],
+      "Encoder": {
+        "layout": "$B1",
+        "TriggerDescription": {
+          "Rotate": "Adjust volume",
+          "Push": "Toggle mute"
+        }
+      }
+    },
+    {
+      "Name": "Now Playing (Artwork)",
+      "UUID": "dev.local.media-controls.now-playing",
+      "Icon": "imgs/actions/play-pause-icon",
+      "States": [
+        {
+          "Image": "imgs/actions/play-pause",
+          "ShowTitle": true
+        }
+      ],
+      "Tooltip": "Shows artwork and title; press to toggle playback",
+      "Controllers": [
+        "Keypad"
+      ]
+    },
+    {
+      "Name": "Now Playing +",
+      "UUID": "dev.local.media-controls.now-playing-dial",
+      "Icon": "imgs/actions/play-pause-icon",
+      "States": [
+        {
+          "Image": "imgs/actions/play-pause",
+          "ShowTitle": false
+        }
+      ],
+      "Tooltip": "Shows media position and artwork; rotate volume, press play/pause",
+      "Controllers": [
+        "Encoder"
+      ],
+      "Encoder": {
+        "layout": "$B1",
+        "TriggerDescription": {
+          "Rotate": "Adjust volume",
+          "Push": "Play / Pause"
+        }
+      }
+    }
+  ]
+}

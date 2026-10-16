@@ -1,0 +1,8 @@
+const enable=document.getElementById("enabled"), token=document.getElementById("token"), status=document.getElementById("status");
+chrome.storage.local.get(["enabled","token"]).then(v=>{enable.checked=Boolean(v.enabled);token.value=v.token||"";});
+document.getElementById("save").addEventListener("click",async()=>{
+  const value=token.value.trim();
+  if(enable.checked && !/^[0-9a-f]{64}$/i.test(value)){status.textContent="認証トークンは64桁の16進文字列です。";return;}
+  await chrome.storage.local.set({enabled:enable.checked,token:value.toLowerCase()});
+  status.textContent="設定を保存しました。";
+});
