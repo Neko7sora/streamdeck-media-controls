@@ -23,7 +23,7 @@ export function seekPosition(media: MediaItem | null, position: number): number 
 }
 
 type PendingSeek = {
-  track: string; sample: string; target: number; touched: number; running?: Promise<void>;
+  track: string; sample: string; target: number; destination: number; touched: number; sent?: number; running?: Promise<void>;
 };
 
 /** Accumulate rapid ticks while a command is pending; send only one seek at a time. */
@@ -39,24 +39,34 @@ export class DialSeeking {
     if (position === null) throw new Error("Playback position unavailable");
     const track = trackIdentity(media);
     // observed_at changes on every poll, even when GSMTC's actual sample is unchanged.
-    const sample = JSON.stringify([media.timeline, media.playback_state, media.playback_rate]);
+    // A paused browser also timestamps identical positions on every heartbeat.
+    const timeline = media.source === "chrome" && media.playback_state === "paused" && media.timeline
+      ? {...media.timeline, updated_at: undefined} : media.timeline;
+    const sample = JSON.stringify([timeline, media.playback_state, media.playback_rate, media.browser_media?.seekable_ranges]);
     let state = this.pending.get(id);
     if (!state || state.track !== track || (!state.running && (state.sample !== sample || now - state.touched > 2000))) {
-      state = {track, sample, target: position, touched: now};
+      state = {track, sample, target: position, destination: position, touched: now};
       this.pending.set(id, state);
     }
-    state.target = seekPosition(media, state.target + delta);
+    const requested = state.target + delta;
+    const destination = seekPosition(media, requested);
+    state.destination = destination;
+    // Keep accumulated time inside a gap so small ticks can reach the next range.
+    // Only the outer bounds discard overshoot, allowing an immediate reversal.
+    state.target = Math.max(media.timeline!.min_seek_sec!, Math.min(media.timeline!.max_seek_sec!, requested));
     state.touched = now;
     if (state.running) return state.running;
+    if (state.sent === destination) return;
     const current = state;
     current.running = (async () => {
       try {
         let sent: number;
         do {
           if (this.pending.get(id) !== current) return;
-          sent = current.target;
+          sent = current.destination;
           await send(sent);
-        } while (current.target !== sent);
+          current.sent = sent;
+        } while (current.destination !== sent);
       } catch (error) {
         if (this.pending.get(id) === current) this.pending.delete(id);
         throw error;

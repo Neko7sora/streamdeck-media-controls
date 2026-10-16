@@ -34,6 +34,52 @@ test('seek bounds respect nonzero starts, browser gaps and unsupported sessions'
  assert.throws(()=>seekPosition(media,NaN),/unavailable/);
 });
 
+test('small ticks accumulate across browser seek gaps without repeating the same command',async()=>{
+ const dial=new DialSeeking(),sent=[],send=async p=>{sent.push(p);};
+ const browser={...media,source:'chrome',timeline:{...media.timeline,position_sec:30},
+  browser_media:{seekable_ranges:[[10,30],[60,110]]}};
+ for(let tick=0;tick<4;tick++) await dial.rotate('dial',browser,5,send,10000+tick);
+ assert.deepEqual(sent,[30,60]);
+ for(let tick=0;tick<4;tick++) await dial.rotate('dial',browser,-5,send,10010+tick);
+ assert.deepEqual(sent,[30,60,30]);
+ // Overshooting the outer limits must not accumulate unreachable time.
+ await dial.rotate('dial',browser,500,send,10020);
+ await dial.rotate('dial',browser,-5,send,10021);
+ assert.deepEqual(sent.slice(-2),[110,105]);
+ await dial.rotate('dial',browser,-500,send,10022);
+ await dial.rotate('dial',browser,5,send,10023);
+ assert.deepEqual(sent.slice(-2),[10,15]);
+});
+
+test('paused browser heartbeats preserve gap accumulation until the position or ranges change',async()=>{
+ const dial=new DialSeeking(),sent=[],send=async p=>{sent.push(p);};
+ const browser={...media,source:'chrome',timeline:{...media.timeline,position_sec:30},
+  browser_media:{seekable_ranges:[[10,30],[60,110]]}};
+ for(let tick=0;tick<4;tick++) {
+  const now=10000+tick*1000;
+  await dial.rotate('dial',{...browser,timeline:{...browser.timeline,updated_at:now}},5,send,now);
+ }
+ assert.deepEqual(sent,[30,60]);
+ const moved={...browser,timeline:{...browser.timeline,position_sec:80,updated_at:14000}};
+ await dial.rotate('dial',moved,-5,send,14000);
+ assert.equal(sent.at(-1),75);
+ const newRanges={...moved,browser_media:{seekable_ranges:[[10,30],[80,110]]}};
+ await dial.rotate('dial',newRanges,5,send,14001);
+ assert.equal(sent.at(-1),85);
+});
+
+test('queued seeks use the latest browser ranges while a command is pending',async()=>{
+ const dial=new DialSeeking(),sent=[];let release;
+ const browser={...media,source:'chrome',timeline:{...media.timeline,position_sec:30},
+  browser_media:{seekable_ranges:[[10,30],[60,110]]}};
+ const send=async p=>{sent.push(p);if(sent.length===1) await new Promise(resolve=>{release=resolve;});};
+ const first=dial.rotate('dial',browser,5,send,10000);
+ const next={...browser,browser_media:{seekable_ranges:[[10,30],[80,110]]}};
+ const second=dial.rotate('dial',next,30,send,10001);
+ release();await Promise.all([first,second]);
+ assert.deepEqual(sent,[30,80]);
+});
+
 test('failed operations, track changes, disappearance and stale targets reset the base',async()=>{
  const dial=new DialSeeking(),sent=[],send=async p=>{sent.push(p);};
  await assert.rejects(dial.rotate('dial',media,5,async()=>{throw Error('rejected');},10000),/rejected/);

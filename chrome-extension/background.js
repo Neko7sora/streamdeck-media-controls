@@ -63,6 +63,7 @@ async function artworkFor(tab,media,icon=false) {
   return data;
 }
 const frames=new Map();
+const queuedFrames=[];
 let activeJobs=0;
 let lastErrorLog=0;
 function logUnavailable(){if(Date.now()-lastErrorLog>30000){lastErrorLog=Date.now();console.warn("Local media bridge unavailable; retrying on the next update.");}}
@@ -72,47 +73,84 @@ async function post(path,token,body) {
   return r.json();
 }
 function pageAddress(value){try{const u=new URL(value);return /^https?:$/.test(u.protocol)?u.origin+u.pathname:"";}catch{return "";}}
+function currentFrame(state){return !state.closed && frames.get(state.key)===state;}
+function queueFrame(state) {
+  if(!currentFrame(state) || state.running || state.queued || !state.latest) return;
+  state.queued=true;
+  queuedFrames.push(state);
+}
+function drainFrames() {
+  while(activeJobs<8 && queuedFrames.length) {
+    const state=queuedFrames.shift();
+    state.queued=false;
+    if(!currentFrame(state) || !state.latest) continue;
+    activeJobs++;
+    state.running=true;
+    // Process one sample per turn so a busy frame cannot starve other frames.
+    void processFrame(state).catch(logUnavailable).finally(()=>{
+      state.running=false;
+      activeJobs--;
+      if(currentFrame(state)) {
+        if(state.latest) queueFrame(state);
+        else frames.delete(state.key);
+      } else {
+        cachedArtwork.delete(state.key);
+        cachedArtwork.delete(`favicon:${state.key}`);
+      }
+      drainFrames();
+    });
+  }
+}
+async function processFrame(state) {
+  const key=state.key,frame=state.frame;
+  const update=state.latest;state.latest=null;
+  await storageReady;
+  const {enabled=false,token=""}=await chrome.storage.local.get(["enabled","token"]);
+  if(!currentFrame(state) || !enabled || !/^[a-f0-9]{64}$/.test(token)) return;
+  const media=update.media;
+  if(!media || typeof media!=="object" || Array.isArray(media) || JSON.stringify(media).length>64000) return;
+  const faviconCandidates=Array.isArray(media.favicon_candidates)?media.favicon_candidates.slice(0,16):[];
+  // The sender address provides the conventional fallback, never an unrelated tab/frame.
+  try {const url=new URL(update.sender.url);faviconCandidates.push({src:new URL("/favicon.ico",url.origin).href});} catch {}
+  const artwork=await artworkFor(key,media);
+  if(!currentFrame(state)) return;
+  const favicon=await artworkFor(`favicon:${key}`,{favicon_candidates:faviconCandidates},true);
+  const payload={
+    ...media,
+    page_url:pageAddress(update.sender.url),
+    page_title:update.sender.tab.title??"",
+    artwork_data_url:artwork,
+    app_icon_data_url:null,
+    favicon_data_url:favicon
+  };
+  try {
+    const current=await chrome.storage.local.get(["enabled","token"]);
+    if(!currentFrame(state) || !current.enabled || current.token!==token) return;
+    const response=await post("",token,{tab_id:state.tab,frame_id:frame,document_id:update.sender.documentId,sequence:Date.now(),media:payload});
+    for(const command of response.commands??[]) {
+      if(!currentFrame(state)) return;
+      let result={ok:false};
+      try {result=await chrome.tabs.sendMessage(state.tab,{type:"MEDIA_COMMAND",command},{documentId:update.sender.documentId,frameId:frame});} catch {}
+      await post("/result",token,{id:command.id,ok:result?.ok===true});
+    }
+  } catch {logUnavailable();}
+}
 chrome.runtime.onMessage.addListener((message,sender,_reply)=>{
   if(message?.type!=="MEDIA_UPDATE" || !Number.isSafeInteger(sender.tab?.id)) return;
   const frame=sender.frameId??0, key=`${sender.tab.id}:${frame}`;
   let state=frames.get(key);
   if(!state && frames.size>=256) return;
-  if(!state) {state={running:false,latest:null};frames.set(key,state);}
+  if(!state) {state={key,tab:sender.tab.id,frame,running:false,queued:false,closed:false,latest:null};frames.set(key,state);}
   state.latest={media:message.media,sender};
-  if(state.running) return;
-  if(activeJobs>=8) return;
-  activeJobs++;
-  state.running=true;
-  void (async()=>{try {while(state.latest) {
-    const update=state.latest;state.latest=null;
-    await storageReady;
-    const {enabled=false,token=""}=await chrome.storage.local.get(["enabled","token"]);
-    if(!enabled || !/^[a-f0-9]{64}$/.test(token)) continue;
-    const media=update.media;
-    if(!media || typeof media!=="object" || Array.isArray(media) || JSON.stringify(media).length>64000) continue;
-    const faviconCandidates=Array.isArray(media.favicon_candidates)?media.favicon_candidates.slice(0,16):[];
-    // The sender address provides the conventional fallback, never an unrelated tab/frame.
-    try {const url=new URL(update.sender.url);faviconCandidates.push({src:new URL("/favicon.ico",url.origin).href});} catch {}
-    const payload={
-      ...media,
-      page_url:pageAddress(update.sender.url),
-      page_title:update.sender.tab.title??"",
-      artwork_data_url:await artworkFor(key,media),
-      app_icon_data_url:null,
-      favicon_data_url:await artworkFor(`favicon:${key}`,{favicon_candidates:faviconCandidates},true)
-    };
-    try {
-      const current=await chrome.storage.local.get(["enabled","token"]);
-      if(!current.enabled || current.token!==token) continue;
-      const response=await post("",token,{tab_id:sender.tab.id,frame_id:frame,document_id:update.sender.documentId,sequence:Date.now(),media:payload});
-      for(const command of response.commands??[]) {
-        let result={ok:false};
-        try {result=await chrome.tabs.sendMessage(sender.tab.id,{type:"MEDIA_COMMAND",command},{documentId:update.sender.documentId,frameId:frame});} catch {}
-        await post("/result",token,{id:command.id,ok:result?.ok===true});
-      }
-    } catch {logUnavailable();}
-  }} finally {state.running=false;activeJobs--;}})().catch(()=>{state.running=false;logUnavailable();});
-  if(frames.size>256) {for(const [k,v] of frames) if(!v.running) {frames.delete(k);break;}}
+  queueFrame(state);
+  drainFrames();
 });
-chrome.tabs.onRemoved.addListener(id=>{for(const key of frames.keys()) if(key.startsWith(`${id}:`)) {frames.delete(key);cachedArtwork.delete(key);cachedArtwork.delete(`favicon:${key}`);}});
+chrome.tabs.onRemoved.addListener(id=>{
+  for(const [key,state] of frames) if(state.tab===id) {
+    state.closed=true;state.latest=null;frames.delete(key);
+  }
+  for(let i=queuedFrames.length-1;i>=0;i--) if(queuedFrames[i].tab===id) queuedFrames.splice(i,1);
+  for(const key of cachedArtwork.keys()) if(key.startsWith(`${id}:`) || key.startsWith(`favicon:${id}:`)) cachedArtwork.delete(key);
+  drainFrames();
+});
 chrome.storage.onChanged.addListener(()=>cachedArtwork.clear());
