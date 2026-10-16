@@ -93,8 +93,8 @@ class NowPlaying extends ConfiguredAction {
     if(!a.isKey()) return;
     const m=currentMedia(s.mediaTarget),image=(await artwork(m?.artwork_data_url))??await artwork(m?.fallback_artwork_data_url);
     const title=m?`${m.playback_state==="playing"?"▶":m.playback_state==="paused"?"Ⅱ":"?"} ${short(m.title||"Title unavailable",22)}\n${short(m.artist??"",22)}`:"No media";
-    this.displaySession(a,m?.session_id);
     if(this.changed(a,{image,title})) {await a.setImage(image);await a.setTitle(title);}
+    this.displaySession(a,m?.session_id);
   }
   override async onKeyDown(ev:KeyDownEvent<Settings>):Promise<void> {await guarded(ev.action,()=>transport(this.displayedSettings(ev.action,ev.payload.settings),"play-pause"));}
 }
@@ -111,8 +111,8 @@ class NowPlayingDial extends ConfiguredAction {
       volume:v?.volume==null?"Vol --":`${v.muted?"Mute ":"Vol "}${Math.round(v.volume*100)}%`,
       artwork:(await artwork(m?.artwork_data_url,72))??(await artwork(m?.fallback_artwork_data_url,72))??"imgs/actions/play-pause.png"
     };
-    this.displaySession(a,m?.session_id);
     if(this.changed(a,payload)) await a.setFeedback(payload);
+    this.displaySession(a,m?.session_id);
   }
   override async onDialRotate(ev:DialRotateEvent<Settings>):Promise<void> {if(ev.payload.ticks) await guarded(ev.action,()=>volume(ev.payload.settings,ev.payload.ticks));}
   override async onDialDown(ev:DialDownEvent<Settings>):Promise<void> {await guarded(ev.action,()=>transport(this.displayedSettings(ev.action,ev.payload.settings),"play-pause"));}

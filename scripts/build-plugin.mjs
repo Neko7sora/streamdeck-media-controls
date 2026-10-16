@@ -21,7 +21,8 @@ function copy(name,from=process.cwd()) {
   for(const dependency of Object.keys(pkg.optionalDependencies??{})) if(existsSync(resolve("node_modules",dependency))) copy(dependency,dir);
 }
 copy("sharp");
-const options={entryPoints:["src/plugin.ts"],bundle:true,platform:"node",format:"esm",target:"node24",external:["sharp"],outfile:resolve(root,"bin/plugin.js")};
+// Bundled CommonJS dependencies (including ws) still require Node built-ins.
+const options={entryPoints:["src/plugin.ts"],bundle:true,platform:"node",format:"esm",target:"node24",banner:{js:'import { createRequire as createBundleRequire } from "node:module"; const require = createBundleRequire(import.meta.url);'},external:["sharp"],outfile:resolve(root,"bin/plugin.js")};
 if(process.argv.includes("--watch")) {const ctx=await context(options);await ctx.watch();}
 else await build(options);
 console.log(`Plugin built; ${copied.size} image runtime packages included.`);

@@ -30,5 +30,30 @@ test("Now Playing operates the session last sent to the display, and never falls
   const volume=driver.instances.find(x=>x.constructor.name==="VolumeDial");
   await volume.render({...key,id:"dial",isDial:()=>true,async setFeedback(){}},{globalKeys:true,audioTarget:"per-app"});
   assert.equal(driver.audioRequests.at(-1),"master");
+  // A failed or pending display update must not redirect a press to another session.
+  driver.sessions=[a,{...b,title:"New track"}];
+  for(const name of ["NowPlaying","NowPlayingDial"]) {
+    const visual=driver.instances.find(x=>x.constructor.name===name);
+    const dial=name==="NowPlayingDial";
+    let fail=false, pending=null;
+    const instance={id:`retry-${name}`,isKey:()=>!dial,isDial:()=>dial,
+      async setImage(){},async setTitle(){await send();},async setFeedback(){await send();},async showAlert(){alerts++;}};
+    async function send(){if(fail) throw Error("Display disconnected");if(pending) await pending;}
+    const press=()=>visual[dial?"onDialDown":"onKeyDown"]({action:instance,payload:{settings:{}}});
+    const settle=async()=>{while(visual.refreshing) await new Promise(resolve=>setTimeout(resolve,1));};
+    visual.actions.push(instance);
+    driver.current=a;
+    await visual.onWillAppear({action:instance,payload:{settings:{}}});await settle();
+    driver.current=driver.sessions[1];fail=true;
+    visual.refresh();await settle();
+    await press();assert.equal(driver.commands.at(-1).session_id,"A",`${name}: failed update`);
+    fail=false;
+    let release;pending=new Promise(resolve=>{release=resolve;});
+    visual.refresh();await new Promise(resolve=>setTimeout(resolve,10));
+    await press();assert.equal(driver.commands.at(-1).session_id,"A",`${name}: pending update`);
+    release();await settle();
+    await press();assert.equal(driver.commands.at(-1).session_id,"B",`${name}: successful retry`);
+    visual.actions.splice(visual.actions.indexOf(instance),1);
+  }
   delete globalThis.__mediaTest;
 });

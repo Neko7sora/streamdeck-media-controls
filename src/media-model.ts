@@ -104,7 +104,16 @@ export function chooseCurrent(windows: MediaSnapshot, chrome: MediaItem[], selec
     const matches = chrome.filter(c => sameTrack(windows.current!, c));
     return mergedCurrent(windows.current, matches.length === 1 ? matches[0]! : null);
   }
-  return [...chrome].sort((a,b) => Number(b.playback_state === "playing") - Number(a.playback_state === "playing") || (b.observed_at ?? 0) - (a.observed_at ?? 0))[0] ?? null;
+  // Windows can enumerate sessions without designating a current session.
+  // Use provider update time, not polling time, to rank Windows sessions.
+  const updated = (item: MediaItem) => item.source === "windows" ? item.timeline?.updated_at ?? 0 : item.observed_at ?? 0;
+  const fallback = [...windows.sessions, ...chrome].sort((a,b) =>
+    Number(b.playback_state === "playing") - Number(a.playback_state === "playing") || updated(b) - updated(a)
+  )[0];
+  if (!fallback) return null;
+  if (fallback.source === "chrome") return fallback;
+  const matches = chrome.filter(c => sameTrack(fallback, c));
+  return mergedCurrent(fallback, matches.length === 1 ? matches[0]! : null);
 }
 
 export function progress(media: MediaItem | null): { position: number | null; duration: number | null; percent: number | null } {

@@ -8,6 +8,27 @@ const source = readFileSync(new URL('../src/media-model.ts',import.meta.url),'ut
 const js = ts.transpileModule(source,{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.ESNext}}).outputText;
 const model=await import(`data:text/javascript;base64,${Buffer.from(js).toString('base64')}`);
 
+test('auto selects Windows sessions when the OS has no current session',()=>{
+ const old={source:'windows',session_id:'old',title:'Old',playback_state:'paused',timeline:{updated_at:10},observed_at:999};
+ const recent={...old,session_id:'recent',title:'Recent',timeline:{updated_at:20},observed_at:1};
+ const snapshot={current:null,sessions:[old,recent]};
+ assert.equal(model.chooseCurrent(snapshot,[]),recent);
+ const playing={...old,playback_state:'playing'};
+ assert.equal(model.chooseCurrent({...snapshot,sessions:[playing,recent]},[]),playing);
+ assert.equal(model.chooseCurrent({...snapshot,current:old},[]),old);
+ assert.equal(model.chooseCurrent(snapshot,[],'removed'),null);
+ assert.equal(model.chooseCurrent(snapshot,[],'old'),old);
+ assert.equal(model.chooseCurrent({current:null,sessions:[]},[]),null);
+});
+
+test('fallback Windows selection retains Chrome metadata enrichment',()=>{
+ const win={source:'windows',session_id:'w',app_id:'Chrome',title:'Song',artist:'Artist',playback_state:'playing'};
+ const chrome={source:'chrome',session_id:'c',title:'Song',artist:'Artist',album:'Album'};
+ const selected=model.chooseCurrent({current:null,sessions:[win]},[chrome]);
+ assert.equal(selected.session_id,'w');
+ assert.equal(selected.album,'Album');
+});
+
 test('matches exact music with normalized names',()=>{
  assert.equal(model.sameTrack({source:'windows',title:' Song ',artist:'Artist'},{source:'chrome',title:'song',artist:'artist'}),true);
  assert.equal(model.sameTrack({source:'windows',title:'Song A'},{source:'chrome',title:'Song B'}),false);
