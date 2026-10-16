@@ -1,0 +1,36 @@
+let socket,context,action,settings={},sessions=[];
+const media=document.getElementById("media"),audio=document.getElementById("audio"),global=document.getElementById("global"),details=document.getElementById("details");
+function send(event,payload){if(socket?.readyState===WebSocket.OPEN) socket.send(JSON.stringify({event,context,action,payload}));}
+function populate(select,items,current,defaultValue,defaultLabel){
+  select.replaceChildren();
+  const add=(id,label)=>{const option=document.createElement("option");option.value=id;option.textContent=label;select.append(option);};
+  add(defaultValue,defaultLabel);
+  for(const item of items) if(item.id!==defaultValue) add(item.id,item.label);
+  if(current!==defaultValue&&!items.some(x=>x.id===current)) add(current,"切断済み — 対象を再選択してください");
+  select.value=current;
+}
+function show(){
+  media.value=settings.mediaTarget??"auto";audio.value=settings.audioTarget??"master";global.checked=settings.globalKeys===true;
+  details.textContent=sessions.find(s=>s.id===media.value)?.details??"自動選択、または対象なし。セッションを選択すると全取得項目を確認できます。";
+}
+window.connectElgatoStreamDeckSocket=(port,uuid,registerEvent,_info,actionInfo)=>{
+  const info=JSON.parse(actionInfo);context=uuid;action=info.action;settings=info.payload.settings??{};
+  socket=new WebSocket(`ws://127.0.0.1:${port}`);
+  socket.onopen=()=>{socket.send(JSON.stringify({event:registerEvent,uuid}));send("sendToPlugin",{request:"options"});};
+  socket.onmessage=event=>{
+    const msg=JSON.parse(event.data);
+    if(msg.event==="didReceiveSettings"){settings=msg.payload.settings??{};show();}
+    if(msg.event==="sendToPropertyInspector"){
+      settings=msg.payload.settings??settings;
+      sessions=msg.payload.sessions??[];
+      populate(media,sessions,settings.mediaTarget??"auto","auto","自動（Windows 現在セッション優先）");
+      populate(audio,msg.payload.audio??[],settings.audioTarget??"master","master","マスター（既定のマルチメディア出力）");
+      show();
+    }
+  };
+  socket.onclose=()=>{document.getElementById("status").textContent="プラグインとの接続が切れました";};
+};
+for(const element of [media,audio,global]) element.addEventListener("change",()=>{
+  settings={...settings,mediaTarget:media.value,audioTarget:audio.value,globalKeys:global.checked};send("setSettings",settings);show();
+});
+setInterval(()=>send("sendToPlugin",{request:"options"}),2000);

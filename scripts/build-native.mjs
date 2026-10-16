@@ -8,7 +8,7 @@ if (process.platform !== "win32") {
 }
 
 const project = resolve("native/media-keys");
-execFileSync("cargo", ["build", "--release", "--manifest-path", resolve(project, "Cargo.toml")], {
+execFileSync("cargo", ["build", "--locked", "--release", "--manifest-path", resolve(project, "Cargo.toml")], {
   stdio: "inherit",
   windowsHide: true
 });
@@ -19,7 +19,7 @@ mkdirSync(target, { recursive: true });
 copyFileSync(source, resolve(target, "media-keys.exe"));
 
 const infoProject = resolve("native/media-info");
-execFileSync("cargo", ["build", "--release", "--manifest-path", resolve(infoProject, "Cargo.toml")], {
+execFileSync("cargo", ["build", "--locked", "--release", "--manifest-path", resolve(infoProject, "Cargo.toml")], {
   stdio: "inherit", windowsHide: true
 });
 const infoSource = resolve(infoProject, "target/release/media-info.exe");

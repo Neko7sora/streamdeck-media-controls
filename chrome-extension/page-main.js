@@ -6,12 +6,15 @@
   // MediaSession has no public getter for the last setPositionState argument.
   // Capture future calls opportunistically; never break playback if wrapping fails.
   let lastPositionState;
+  let positionMetadata;
   try {
     const session = navigator.mediaSession;
     if(session && typeof session.setPositionState === "function") {
       const original = session.setPositionState.bind(session);
       session.setPositionState = function(state) {
         const result = original(...arguments);
+        lastPositionState = undefined;
+        positionMetadata = JSON.stringify([session.metadata?.title,session.metadata?.artist,session.metadata?.album]);
         if(state && typeof state === "object") {
           lastPositionState = {
             position: Number.isFinite(state.position) ? state.position : undefined,
@@ -34,9 +37,12 @@
   function snapshot() {
     const session = navigator.mediaSession;
     const meta = session?.metadata;
+    if(positionMetadata!==JSON.stringify([meta?.title,meta?.artist,meta?.album])) lastPositionState=undefined;
     const players = Array.from(document.querySelectorAll("audio,video"))
       .filter(p => p.currentSrc || p.src || p.readyState > 0);
-    const playing = players.find(p=>!p.paused && !p.ended) ?? players[0];
+    const active = players.filter(p=>!p.paused && !p.ended);
+    // Multiple active elements are ambiguous; don't attach an arbitrary element to Media Session metadata.
+    const playing = active.length===1 ? active[0] : players.length===1 ? players[0] : undefined;
     if(!meta?.title && !playing) return {title:""};
     const artwork = (meta?.artwork ?? []).slice(0,16).map(a=>({
       src:clean(a.src,2048), sizes:clean(a.sizes,50), type:clean(a.type,50)
@@ -44,12 +50,13 @@
     const duration = playing && Number.isFinite(playing.duration) && playing.duration>=0 ? playing.duration : lastPositionState?.duration;
     const position = playing && Number.isFinite(playing.currentTime) ? playing.currentTime : lastPositionState?.position;
     return {
-      title:clean(meta?.title || document.title),
+      title:clean(meta?.title),
       artist:clean(meta?.artist), album:clean(meta?.album),
       artwork_candidates:artwork,
       playback_state:playing ? (playing.paused ? "paused" : "playing") : session?.playbackState,
       playback_rate:playing?.playbackRate ?? lastPositionState?.playbackRate,
-      timeline:{position_sec:position,end_sec:duration},
+      timeline:{start_sec:0,position_sec:position,end_sec:duration,min_seek_sec:playing?.seekable.length?playing.seekable.start(0):undefined,max_seek_sec:playing?.seekable.length?playing.seekable.end(playing.seekable.length-1):undefined},
+      controls:{toggle:!!playing,play:!!playing,pause:!!playing,stop:!!playing,seek:!!playing && playing.seekable.length>0,next:false,previous:false},
       browser_media:playing ? {
         element_type:playing.tagName.toLowerCase(), muted:playing.muted,
         volume:playing.volume,loop:playing.loop,ended:playing.ended,
@@ -59,6 +66,26 @@
       } : undefined
     };
   }
+  window.addEventListener("message",async event=>{
+    if(event.source!==window || event.origin!==location.origin || event.data?.kind!==TAG+"_command") return;
+    const c=event.data.command;
+    if(!c || typeof c.id!=="string") return;
+    let ok=false;
+    try {
+      const media=snapshot();
+      if(c.title!==media.title) throw new Error("Media changed");
+      const players=Array.from(document.querySelectorAll("audio,video")).filter(p=>p.currentSrc||p.src||p.readyState>0);
+      const active=players.filter(p=>!p.paused&&!p.ended);
+      const player=active.length===1?active[0]:players.length===1?players[0]:undefined;
+      if(!player) throw new Error("No accessible player");
+      if(c.command==="play-pause") {if(player.paused) await player.play();else player.pause();}
+      else if(c.command==="stop") {player.pause();if(player.seekable.length) player.currentTime=player.seekable.start(0);}
+      else if(c.command==="seek" && Number.isFinite(c.position) && ranges(player.seekable).some(([a,b])=>c.position>=a&&c.position<=b)) player.currentTime=c.position;
+      else throw new Error("Unavailable operation");
+      ok=true;send();
+    } catch { /* Result is returned to the plugin, without a global-key fallback. */ }
+    window.postMessage({kind:TAG+"_result",id:c.id,ok},location.origin);
+  });
   function send() {
     try { window.postMessage({kind:TAG,media:snapshot()}, location.origin); }
     catch { /* inaccessible site; ignore */ }
@@ -67,5 +94,6 @@
   document.addEventListener("play",send,true);
   document.addEventListener("pause",send,true);
   document.addEventListener("loadedmetadata",send,true);
+  for(const event of ["emptied","ended","seeked","ratechange","volumechange","durationchange"]) document.addEventListener(event,send,true);
   send();
 })();

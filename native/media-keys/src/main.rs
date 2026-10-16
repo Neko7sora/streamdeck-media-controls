@@ -4,13 +4,13 @@ use std::{env, error::Error};
 
 fn virtual_key(command: &str) -> Option<u16> {
     match command {
-        "play-pause" => Some(0xB3), // VK_MEDIA_PLAY_PAUSE
-        "previous" => Some(0xB1),   // VK_MEDIA_PREV_TRACK
-        "next" => Some(0xB0),       // VK_MEDIA_NEXT_TRACK
-        "stop" => Some(0xB2),       // VK_MEDIA_STOP
-        "mute" => Some(0xAD),       // VK_VOLUME_MUTE
-        "volume-down" => Some(0xAE),// VK_VOLUME_DOWN
-        "volume-up" => Some(0xAF),  // VK_VOLUME_UP
+        "play-pause" => Some(0xB3),  // VK_MEDIA_PLAY_PAUSE
+        "previous" => Some(0xB1),    // VK_MEDIA_PREV_TRACK
+        "next" => Some(0xB0),        // VK_MEDIA_NEXT_TRACK
+        "stop" => Some(0xB2),        // VK_MEDIA_STOP
+        "mute" => Some(0xAD),        // VK_VOLUME_MUTE
+        "volume-down" => Some(0xAE), // VK_VOLUME_DOWN
+        "volume-up" => Some(0xAF),   // VK_VOLUME_UP
         _ => None,
     }
 }
@@ -108,7 +108,15 @@ mod win32 {
             let events = [key_input(vk, false), key_input(vk, true)];
             let written = unsafe { SendInput(2, events.as_ptr(), size_of::<Input>() as i32) };
             if written != 2 {
-                return Err(io::Error::last_os_error());
+                let error = io::Error::last_os_error();
+                if written == 1 {
+                    unsafe {
+                        SendInput(1, &events[1], size_of::<Input>() as i32);
+                    }
+                }
+                return Err(io::Error::other(format!(
+                    "SendInput inserted {written}/2 events: {error}"
+                )));
             }
         }
         Ok(())
@@ -117,7 +125,14 @@ mod win32 {
     #[cfg(test)]
     #[test]
     fn win32_input_size_is_correct() {
-        assert_eq!(size_of::<Input>(), if cfg!(target_pointer_width = "64") { 40 } else { 28 });
+        assert_eq!(
+            size_of::<Input>(),
+            if cfg!(target_pointer_width = "64") {
+                40
+            } else {
+                28
+            }
+        );
     }
 }
 
@@ -140,7 +155,15 @@ mod tests {
     use super::*;
     #[test]
     fn media_keys_are_mapped() {
-        for name in ["play-pause", "previous", "next", "stop", "mute", "volume-up", "volume-down"] {
+        for name in [
+            "play-pause",
+            "previous",
+            "next",
+            "stop",
+            "mute",
+            "volume-up",
+            "volume-down",
+        ] {
             assert!(virtual_key(name).is_some());
         }
         assert!(virtual_key("unknown").is_none());

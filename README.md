@@ -1,95 +1,117 @@
-# Stream Deck Media Controls v0.2 (Windows + Chrome metadata)
+# Stream Deck Media Controls v0.3.0
 
-A source-only prototype of Stream Deck media controls that displays **Windows GSMTC and optional Chrome Media Session metadata**. It extends the earlier 8 media-key actions with **Now Playing (artwork)** and **Now Playing + (dial/seek-progress view)**.
+Windows + Chrome 向けの Stream Deck プラグインです。既存の10アクションを維持し、GSMTC の対象指定操作、独立した Core Audio 音量制御、セッション選択、アートワーク検証、Stream Deck + 用レイアウトを追加しました。
 
-> Status: Chrome JavaScript syntax, JSON manifests and asset references were checked in the author's non-Windows environment. **Windows Rust compilation, Stream Deck SDK TypeScript compilation, Chrome integration and real device operation have NOT been tested.** This ZIP is **source code, not a ready-to-install `.streamDeckPlugin` package**. Treat it as a development preview.
+**開発・検証候補です。Windows x64 のビルド・API 読み取り・自動テストは確認済みですが、物理 Stream Deck / Stream Deck + と実 Chrome 拡張を通した実サイト操作は未確認です。** 検証時には再生中の GSMTC セッションがなかったため、曲メタデータ・ネイティブサムネイルの取得成功は確認できていません。監査の詳細は [AUDIT.md](AUDIT.md) を参照してください。
 
-## Scope
+## 取得・表示・操作
 
-- Windows: GSMTC current session and available sessions, app user model ID, title, subtitle, artist, album artist, album title, track number/count, genres, playback type, playback status/rate, shuffle, repeat, available playback controls, seek timeline and native thumbnail if present.
-- Chrome extension (optional): page Media Session title/artist/album, artwork candidates (size and MIME), playback state, playback rate, position/duration (HTML media or `setPositionState` when observable), tab URL/title, HTML media element's muted/volume/loop/ended/readiness/PiP/buffered/seekable (when accessible).
-- Merged primary display: Windows current session is authoritative. Chrome can fill missing artist/album and improve artwork **only when the Windows current session is Chrome and the titles/available artists match**. When Windows has no current session, Chrome metadata is shown on its own.
-- Stream Deck: `Now Playing` (artwork, title, key to play/pause), `Now Playing +` (artwork/position/progress with encoder; rotate volume, press play/pause), and the original 8 actions.
-- The collected data is a *superset* of what can fit on one Stream Deck key. For diagnostics the `media-info.exe` native helper prints JSON including all GSMTC sessions.
+アプリやサイトが公開した情報だけを扱います。欠損メタデータは内部で `null`、未知の数値は `null`、UI では `Unavailable` / `--:--` として扱います。ページタイトルを曲名として代用しません。API が返す空文字やゼロ値はネイティブ JSON にそのまま残る場合があります。
 
-**Not implemented in this prototype:** Windows Core Audio endpoint volume read-back / per-process volume mixing, selectable multiple media sessions, website-specific metadata scrapers, accurate buffered/seek UI per site, direct per-session transport commands, cover art for every site, lyrics/chapter support, sound capture or DRM bypass. The existing media controls use global media key events, not exact-session targeting.
+| 情報・機能 | Windows | Chrome | Stream Deck での利用 |
+|---|---|---|---|
+| アートワーク | GSMTC Thumbnail | Media Session artwork、サイズ・MIME 候補 | 通常キー / + に縦横比を維持して表示。Chrome 画像失敗時は Windows 画像、それもない場合は既定アイコン |
+| 曲名・アーティスト | GSMTC | Media Session | 通常キー / +。欠損をページ名から推測しない |
+| アルバム | GSMTC | Media Session | 設定画面の取得情報 |
+| サブタイトル・アルバムアーティスト・ジャンル・トラック番号/総数・メディア種別 | 公開時のみ | 共通 API からは取得しない | 設定画面の取得情報 / native JSON |
+| 再生状態 | GSMTC enum と表示用状態 | Media Session / アクセス可能な HTMLMediaElement | キーの状態記号 / + の状態文字 |
+| 位置・長さ・シーク可能範囲 | GSMTC Timeline | HTMLMediaElement、観測後の setPositionState | + に実測位置と進捗。範囲公開時のみバーのタップでシーク |
+| 再生速度 | GSMTC | HTMLMediaElement / 観測した setPositionState | 取得情報。速度変更 UI は未実装 |
+| シャッフル・リピート | GSMTC | HTMLMediaElement の loop のみ（同義とは扱わない） | 取得情報。変更 UI は未実装 |
+| 利用可能な操作 | GSMTC Controls | アクセスできる HTMLMediaElement の操作だけ | 未対応操作を拒否してアラート。ブラウザの次/前は直接操作しない |
+| 再生 / 一時停止・停止・次/前 | 指定した GSMTC オブジェクトへ Try*Async | 再生/一時停止・停止・シークのみ、対象ドキュメントの HTML 要素へ | 基本操作 / Now Playing。従来のグローバルキーも設定で選択可 |
+| 複数セッション・アプリ情報 | WinRT オブジェクト単位の一時 ID、AUMID | タブ + frame + document ID、ページ URL / タイトル | 各アクションの設定で選択。+ の長押しで順に切替 |
+| マスター音量・ミュート | Core Audio、既定のマルチメディア出力 | ブラウザ要素の volume / muted は別の情報 | Volume Dial / + に Windows の選択対象の音量。回転で2%/tick、Volume Dial 押下/タップでミュート |
+| アプリ別音量・ミュート | 同じ出力デバイスの Audio Session、PID / 実行ファイル名 | GSMTC やタブとは自動対応付けしない | 独立した音量対象リストで明示選択して変更 |
+| buffered / seekable、ended、readyState、PiP、loop | 対応する共通 GSMTC 情報なし | アクセス可能な HTMLMediaElement | 設定画面の取得情報。専用の操作 UI は未実装 |
+| 取得元・観測時刻 | observed_at、Timeline 更新時刻 | 受信時刻、補完時刻 | 取得情報。補完したフィールドの取得元も記録 |
 
-## Requirements
+## Windows x64 ビルド
 
-- Windows 10 **1809 or later**, Windows 11 recommended
-- Stream Deck software 7.1+
-- Node.js 24 and npm
-- Rust stable (`cargo`) with Windows MSVC build tools / matching toolchain
-- Stream Deck CLI `@elgato/cli`
-- Chrome / Chromium for optional browser enrichment
+Windows 10 1809+ / Windows 11、Stream Deck 7.1+、Node.js 24、Rust MSVC toolchain と Visual Studio C++ Build Tools / Windows SDK が必要です。CLI はプロジェクト依存に含まれます。
 
-## Build on Windows
+**Developer PowerShell for Visual Studio（x64）** でリポジトリを開きます。`cargo` / `node` / `npm` が PATH にあることを確認してください。
 
 ```powershell
-npm install
-npm install -g @elgato/cli@latest
+npm ci
 npm run check
+npm run test:native
+npm run test:smoke
+npm run validate
+npm run pack
+```
+
+`check` は JS 構文、TypeScript の SDK 型、JS テスト、Rust release ビルド、パッケージ資産と同梱画像ランタイムを検証します。`test:native` は API を操作しない Rust テスト、`test:smoke` は実際の Windows API 読み取り・存在しない対象の操作拒否・終了確認です。再生や音量は変更しません。
+
+Cargo.lock / package-lock.json を固定してビルドします。`link.exe not found` は C++ ツール未導入か開発用シェルの環境設定不備を確認してください。GSMTC が `0x80070005` を返す制限付きシェルでは、通常の対話 Windows ユーザー環境で実行してください。スキーマ取得エラーがある場合、CLI の「成功」表示だけを正式な検証成功と扱わないでください。
+
+生成した `.streamDeckPlugin` をダブルクリックして導入できます。開発中は次も使用できます。
+
+```powershell
 npm run link
 npm run restart
 ```
 
-If the GSMTC Rust binary fails to compile, inspect `native/media-info/src/main.rs` and its `windows = "0.62.2"` API version. The Windows compile step must be executed on Windows; the source-only ZIP contains no EXEs.
+プラグインの `.sdPlugin/node_modules` は sharp のネイティブ画像処理ランタイムです。`bin` / `native` と一緒に配布してください。ビルドはその生成済み node_modules を毎回作り直します。依存のライセンスファイルも同梱します。
 
-Check the native information stream after a successful build:
+## 設定と操作
 
-```powershell
-.\dev.local.media-controls.sdPlugin\native\media-info.exe
-```
+各アクションを選択すると、表示・再生対象と音量対象を別々に選べます。
 
-This prints one JSON object containing `current` and `sessions`. An application may omit fields; a missing thumbnail is represented as `null`. Unlike the Stream Deck visual surface, this JSON can preserve all supported fields.
+- 自動表示は Windows 現在セッションを優先し、それがないときは Chrome の playing 状態・受信時刻の順で選びます。複数タブが同時再生している場合は明示選択を推奨します。
+- Chrome 補完には「Chrome の Windows セッション」「空でない同じ曲名・アーティスト」「アルバムが競合しない」「一致候補が1個」の条件が必要です。タイトルだけの一致では補完しません。
+- 選択対象が消えた場合やヘルパー再起動後には、別セッションへ自動で切り替えません。設定画面で再選択してください。GSMTC の ID はヘルパー存続期間内だけ有効です。
+- Now Playing はアートワーク・曲名・アーティスト・状態を表示し、押すと表示用に最後に送信したセッションへ再生/一時停止を要求します。
+- Now Playing + はアートワーク・曲名・アーティスト・状態・位置/長さ・進捗・選択した Windows 音量を表示します。回転＝音量、押下＝再生/一時停止、進捗バーをタップ＝対応時だけシーク、長押し＝セッション切替です。
+- Volume Dial は回転＝音量、押下またはタップ＝ミュートです。
+- 基本7操作と Volume Dial で「従来のグローバルメディアキー」を有効にすると SendInput を使用します。このモードでは OS が操作対象を決めます。Now Playing にはこの設定を適用しません。
+- 対象指定モードの基本操作は同じ対象設定にしてください。個々のキーとダイヤルはそれぞれ独立した設定を持ちます。
 
-## Optional Chrome extension setup
+## Chrome 拡張（任意・オプトイン）
 
-1. Start the Stream Deck plugin. This starts a **localhost-only** receiver on `127.0.0.1:39761`.
-2. In Chrome open `chrome://extensions`, enable **Developer mode**, click **Load unpacked**, and choose the folder `chrome-extension`.
-3. Open the extension's **Options**.
-4. On Windows, open `%LOCALAPPDATA%\StreamDeckMediaControls\chrome-token.txt`, copy its 64-character hexadecimal token into extension Options and enable bridge sending.
-5. Open an audio/video site. Start playback and place the `Now Playing` action on your Stream Deck. The extension provides extra details and images if available.
+1. プラグインを起動します。`127.0.0.1:39761` にだけ待ち受けます。
+2. `chrome://extensions` の開発者モードで `chrome-extension` を「パッケージ化されていない拡張機能」として読み込みます。
+3. 拡張のオプションで `%LOCALAPPDATA%\StreamDeckMediaControls\chrome-token.txt` の64桁トークンを登録し、送信を有効にします。
+4. 既に開いていたメディアページを再読み込みして、再生を開始します。Stream Deck の設定に Chrome の各フレームが現れるか確認してください。
+5. 拡張やプラグインを更新した場合、両方を更新して再起動してください。v0.2 の旧通信形式とは互換ではありません。
 
-The connection token is a local bearer secret. **Do not share it** or commit it to a public Git repository. The Chrome extension has **broad website access** to capture Media Session metadata on arbitrary sites. It sends **only extracted media metadata and artwork bytes** to loopback, never audio/video stream bytes, cookies or saved credentials. Remote image fetches may contact the original image CDN; large images and unsupported MIME types are skipped. You can disable sending in Options or remove the extension.
+Web サイト全般の Media Session と CDN 画像を扱うため HTTP / HTTPS の広いホストアクセスを宣言しています。`tabs`、Cookie、履歴、webRequest、scripting、音声キャプチャの権限は使いません。Chrome のサイトアクセス設定で対象サイトを絞れます。無効時にはメタデータや画像を送信・取得しません。既存の表示は最長約15秒で失効します。
 
-## Design and limitations
+トークンはページへ渡さず、Chrome storage.local のアクセスも TRUSTED_CONTEXTS に制限します。Windows のフォルダー/既存トークンには現在のユーザーと SYSTEM の DACL を設定します（ローカル管理者に対する秘匿機能ではありません）。読み込み・ACL 設定に失敗した場合、ブリッジを起動しません。不正な既存トークンをリセットする場合は、プラグイン停止後にファイルを削除して再起動・再ペアリングしてください。トークンを共有・コミットしないでください。
 
-```mermaid
-flowchart LR
-    Win[Windows apps incl. Chrome] --> GSMTC[Windows GSMTC]
-    GSMTC --> Rust[media-info.exe JSON]
-    Rust --> State[Media state & source matching]
-    Chrome[Chrome web page] --> Main[Media Session API in MAIN world]
-    Main --> Bridge[Isolated content script]
-    Bridge --> Worker[MV3 background]
-    Worker -->|Bearer token, localhost only| State
-    State --> Deck[Stream Deck key & dial]
-```
+ページ URL の userinfo・クエリ・フラグメントは送信前に除去します。画像取得は公開 HTTPS URL の上位3候補まで、credentials omit / redirect error / no-referrer、350,000 byte 上限・タイムアウト付きです。既知のプライベート IP・非標準ポート等を拒否します。認証 Cookie、保存認証情報、音声/映像ストリーム、DRM データは取得しません。画像 CDN が認証を要求する場合は取得失敗として扱います。
 
-The Chrome bridge uses separate `MAIN` and `ISOLATED` world content scripts because the latter cannot directly inspect a page's JavaScript Media Session state. Sources are **not** merged merely because they both say they are Chrome: the title and available artist must match.
+## 更新・復旧・制限
 
-The `Media Session API` is populated voluntarily by websites. Chrome does not expose one universal, privileged API for obtaining high-resolution art or arbitrary playback metadata from every tab. Some streaming sites provide incomplete artwork, some CDNs reject requests, some browser contexts are inaccessible, and Windows can display an older thumbnail. The extension does not bypass site restrictions.
+GSMTC は常駐ヘルパーでセッション/現在対象・メタデータ・再生・タイムラインの変更通知を購読し、約1秒のポーリングで補います。Core Audio は約1秒ポーリングで変更を通知します。Core Audio のネイティブ callback、全出力デバイスの列挙、音量の絶対値入力 UI は未実装です。
 
-Current snapshots are polled every ~2.5 s. A future native GSMTC event subscriber would reduce polling; timelines currently reflect the most recent snapshot, not frame-accurate playback. Only supported PNG/JPEG/WEBP thumbnails of up to 1 MiB are used. Chrome remote thumbnails are additionally limited to 350 KiB per request. Metadata is not written to a history database.
+Chrome はページイベントと約2秒間隔のスナップショットを使います。MV3 worker は再起動ごとに設定を読み直します。処理はフレームごとに直列化し、document ID を使って移動前のページへの誤操作を避けます。worker 停止・ネットワーク失敗時は次のメッセージで再接続します。バックグラウンドタブのタイマー制限では15秒の TTL を超えて表示が消える場合があります。操作の結果が不明な場合、再生トグルを自動再送しません。
 
-Windows Core Audio endpoint and per-session volume is a **separate API**, and is not included in the metadata helper yet. System volume actions still use `SendInput` media keys. Control feedback therefore does not display a numeric Windows volume percentage.
+ネイティブ応答停止は約12秒でプロセスを終了し、状態消去後に再起動します。タイムアウトした対象指定操作をグローバルキーへ置き換えません。UI は同じ内容の再送を抑止します。
 
-## Testing checklist on Windows
+Windows 画像は1 MiB、デコードは PNG/JPEG/WebP・約16.8メガピクセルまでです。アニメーション・SVG・破損画像は表示しません。Windows スナップショットの画像予算、キャッシュ件数/容量、Chrome タブ状態、同時処理数、HTTP 本文に上限があります。失敗画像のキャッシュは再試行期限付きです。GSMTC の全プロパティは完全な OS トランザクションとして読み取れないため、厳密な同時刻性は保証しません。
 
-- `npm run check` completes including cargo builds and TypeScript compilation.
-- `media-info.exe` produces parseable JSON while Chrome is playing media.
-- With Chrome extension disabled, Windows-supplied album art still appears when GSMTC exposes it.
-- With Chrome extension enabled, metadata from the playing tab appears and the artwork updates when a song changes.
-- Check multiple media apps and tabs: Windows current-session precedence and conservative merging should avoid cross-track artwork.
-- Check missing art, paused media, seekable and non-seekable streams, disconnect/reconnect, 4K thumbnails, permissions and Stream Deck + feedback.
-- Verify media key behavior with multiple apps open; the global OS target is not guaranteed to equal the displayed session.
-- Confirm Chrome Options enable/disable, incorrect token rejection, and loopback-only listener.
+Media Session にはサイトの action handler を外部から呼び出す標準 API がありません。Chrome 直接操作は一意に選べる HTMLMediaElement に限り、次/前、Web Audio のみの再生制御、閉じた Shadow DOM、アクセス不能なフレーム、非対応画像は unavailable です。`setPositionState` はページへの挿入後に成功した呼び出しだけを観測し、未観測の位置を推測しません。複数の HTML メディア要素が同時再生して一意に選べない場合は要素情報・操作を付けません。
 
-## References
+## 実機の受け入れ確認
 
-- Microsoft GSMTC API: https://learn.microsoft.com/en-us/uwp/api/windows.media.control.globalsystemmediatransportcontrolssession
-- GSMTC media properties: https://learn.microsoft.com/en-us/uwp/api/windows.media.control.globalsystemmediatransportcontrolssessionmediaproperties
-- Chrome Media Session: https://developer.mozilla.org/en-US/docs/Web/API/Media_Session_API
-- Chrome extension content scripts: https://developer.chrome.com/docs/extensions/reference/manifest/content-scripts
-- Stream Deck SDK layouts: https://docs.elgato.com/streamdeck/sdk/guides/dials/
+Chrome の複数タブと Windows の2種類以上のメディアアプリで、次を確認してください。
+
+1. 拡張なしで GSMTC の曲名・画像・位置・操作可否が取得できる。
+2. 拡張ありで一致する曲だけを補完し、違う曲や曖昧な候補は混合しない。
+3. 曲送り・アート更新・欠損画像・縦長画像・ライブ配信・停止・再生速度変更が表示に反映する。
+4. 再生対象と音量対象を別々に選び、意図した対象だけを操作する。未対応操作はアラートになる。
+5. + の押下・回転・バーのタップ・長押しと、無効なシーク範囲を確認する。
+6. タブ移動/終了、worker 停止、プラグイン再起動、誤トークン、音声デバイス切替から復旧する。
+
+## 公式資料
+
+- [Elgato SDK 3・ダイヤルとタッチストリップ](https://docs.elgato.com/streamdeck/sdk/guides/dials/)
+- [Microsoft GSMTC](https://learn.microsoft.com/en-us/uwp/api/windows.media.control.globalsystemmediatransportcontrolssession)
+- [Microsoft Core Audio endpoint volume](https://learn.microsoft.com/en-us/windows/win32/coreaudio/endpoint-volume-controls)
+- [Microsoft Audio Session identifiers](https://learn.microsoft.com/en-us/windows/win32/api/audiopolicy/nn-audiopolicy-iaudiosessioncontrol2)
+- [Chrome content scripts](https://developer.chrome.com/docs/extensions/develop/concepts/content-scripts)
+- [Chrome storage access control](https://developer.chrome.com/docs/extensions/reference/api/storage)
+- [Chrome extension network requests](https://developer.chrome.com/docs/extensions/develop/concepts/network-requests)
+- [Media Session position state](https://developer.mozilla.org/en-US/docs/Web/API/MediaSession/setPositionState)
+- [sharp packaging](https://sharp.pixelplumbing.com/install/)

@@ -1,6 +1,6 @@
 {
   "name": "streamdeck-media-controls",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "private": true,
   "type": "module",
   "engines": {
@@ -8,20 +8,24 @@
   },
   "scripts": {
     "native:build": "node scripts/build-native.mjs",
-    "plugin:build": "esbuild src/plugin.ts --bundle --platform=node --format=esm --target=node24 --outfile=dev.local.media-controls.sdPlugin/bin/plugin.js",
+    "plugin:build": "node scripts/build-plugin.mjs",
     "build": "npm run native:build && npm run plugin:build",
-    "watch": "esbuild src/plugin.ts --bundle --platform=node --format=esm --target=node24 --outfile=dev.local.media-controls.sdPlugin/bin/plugin.js --watch",
+    "watch": "node scripts/build-plugin.mjs --watch",
     "typecheck": "tsc --noEmit",
     "check": "npm run chrome:check && npm run test:unit && npm run typecheck && npm run build && node scripts/check-package.mjs",
     "link": "streamdeck link ./dev.local.media-controls.sdPlugin",
     "restart": "streamdeck restart dev.local.media-controls",
     "validate": "streamdeck validate ./dev.local.media-controls.sdPlugin",
     "pack": "npm run check && streamdeck validate ./dev.local.media-controls.sdPlugin && streamdeck pack ./dev.local.media-controls.sdPlugin",
-    "chrome:check": "node --check chrome-extension/background.js && node --check chrome-extension/page-main.js && node --check chrome-extension/bridge-isolated.js && node --check chrome-extension/options.js",
-    "test:unit": "node --test tests/*.test.mjs"
+    "chrome:check": "node --check chrome-extension/background.js && node --check chrome-extension/page-main.js && node --check chrome-extension/bridge-isolated.js && node --check chrome-extension/options.js && node --check dev.local.media-controls.sdPlugin/ui/settings.js",
+    "test:unit": "node --test tests/*.test.mjs",
+    "test:native": "cargo test --locked --manifest-path native/media-info/Cargo.toml && cargo test --locked --manifest-path native/media-keys/Cargo.toml",
+    "test:smoke": "node tests/native-smoke.mjs"
   },
   "dependencies": {
-    "@elgato/streamdeck": "^3.0.2"
+    "@elgato/cli": "^1.10.2",
+    "@elgato/streamdeck": "^3.0.2",
+    "sharp": "^0.35.5"
   },
   "devDependencies": {
     "@types/node": "^24.0.0",

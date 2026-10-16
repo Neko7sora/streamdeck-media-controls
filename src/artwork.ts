@@ -1,0 +1,30 @@
+import sharp from "sharp";
+import { createHash } from "node:crypto";
+import { safeImage } from "./media-model.js";
+
+sharp.cache({memory:8, files:0, items:16});
+sharp.concurrency(1);
+const cache = new Map<string, Promise<string | undefined>>();
+/** Decode before sending to Stream Deck; disallow SVG, animation and pixel bombs. */
+export async function artwork(data: unknown, size = 144): Promise<string | undefined> {
+  const safe = safeImage(data); if (!safe) return undefined;
+  const key = `${size}:${createHash("sha256").update(safe).digest("hex")}`;
+  const cached = cache.get(key); if (cached) return cached;
+  const result = (async () => {
+    try {
+      const input = Buffer.from(safe.slice(safe.indexOf(",")+1),"base64");
+      const png=input.subarray(0,8).equals(Buffer.from([137,80,78,71,13,10,26,10]));
+      const jpeg=input[0]===255&&input[1]===216&&input[2]===255;
+      const webp=input.toString("ascii",0,4)==="RIFF"&&input.toString("ascii",8,12)==="WEBP";
+      if(!png&&!jpeg&&!webp) return undefined;
+      const image = sharp(input,{limitInputPixels:16_777_216,failOn:"warning",animated:false});
+      const meta = await image.metadata();
+      if (!["png","jpeg","webp"].includes(meta.format ?? "") || (meta.pages ?? 1) > 1) return undefined;
+      const bytes = await image.resize(size,size,{fit:"contain",background:"#101018",withoutEnlargement:false}).png().toBuffer();
+      return `data:image/png;base64,${bytes.toString("base64")}`;
+    } catch {return undefined;}
+  })();
+  cache.set(key,result);
+  if (cache.size > 48) cache.delete(cache.keys().next().value!);
+  return result;
+}

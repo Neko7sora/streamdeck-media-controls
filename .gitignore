@@ -4,4 +4,6 @@ node_modules/
 *.sdPlugin/bin/
 *.sdPlugin/native/
 *.sdPlugin/logs/
+*.sdPlugin/node_modules/
 .DS_Store
+tests/.generated/

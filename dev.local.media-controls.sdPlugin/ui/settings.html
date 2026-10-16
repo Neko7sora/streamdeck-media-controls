@@ -1,0 +1,11 @@
+<!doctype html><html lang="ja"><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Media Controls 設定</title><style>
+body{font:13px system-ui;color:#eee;background:#282828;margin:12px}label{display:block;margin:12px 0 5px}select,button{width:100%;padding:6px;color:inherit;background:#444;border:1px solid #666}pre{white-space:pre-wrap;overflow-wrap:anywhere;font-size:11px}p{line-height:1.6;color:#ccc}
+</style>
+<label for="media">表示・再生操作のセッション</label><select id="media"><option value="auto">自動（Windows 現在セッション優先）</option></select>
+<label for="audio">音量の操作対象（再生セッションとは独立）</label><select id="audio"><option value="master">マスター（既定のマルチメディア出力）</option></select>
+<label><input type="checkbox" id="global">従来のグローバルメディアキーを使用</label>
+<p>グローバル設定は基本操作7個と Volume Dial に適用されます。Now Playing は常に表示対象へ操作します。接続が切れた対象は再選択してください。</p>
+<p>Now Playing +：回転＝選択音量、押下＝再生/一時停止、進捗バーをタップ＝シーク（対応時）、長押し＝次のセッション。</p>
+<details><summary>取得情報・取得元・観測時刻</summary><pre id="details">情報待ち</pre></details>
+<p id="status" role="status"></p><script src="settings.js"></script></html>

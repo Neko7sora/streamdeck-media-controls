@@ -5,7 +5,7 @@
   "Category": "Media Controls",
   "Author": "Local Developer",
   "Description": "Windows and Chrome metadata, album artwork, playback timeline, media and volume control.",
-  "Version": "0.2.0.0",
+  "Version": "0.3.0.0",
   "SDKVersion": 3,
   "Software": {
     "MinimumVersion": "7.1"
@@ -36,7 +36,8 @@
       "Tooltip": "Toggle playback",
       "Controllers": [
         "Keypad"
-      ]
+      ],
+      "PropertyInspectorPath": "ui/settings.html"
     },
     {
       "Name": "Previous Track",
@@ -51,7 +52,8 @@
       "Tooltip": "Skip to the previous track",
       "Controllers": [
         "Keypad"
-      ]
+      ],
+      "PropertyInspectorPath": "ui/settings.html"
     },
     {
       "Name": "Next Track",
@@ -66,7 +68,8 @@
       "Tooltip": "Skip to the next track",
       "Controllers": [
         "Keypad"
-      ]
+      ],
+      "PropertyInspectorPath": "ui/settings.html"
     },
     {
       "Name": "Stop",
@@ -81,7 +84,8 @@
       "Tooltip": "Stop playback",
       "Controllers": [
         "Keypad"
-      ]
+      ],
+      "PropertyInspectorPath": "ui/settings.html"
     },
     {
       "Name": "Toggle Mute",
@@ -93,10 +97,11 @@
           "ShowTitle": false
         }
       ],
-      "Tooltip": "Toggle system mute",
+      "Tooltip": "Toggle selected Core Audio target mute",
       "Controllers": [
         "Keypad"
-      ]
+      ],
+      "PropertyInspectorPath": "ui/settings.html"
     },
     {
       "Name": "Volume Up",
@@ -108,10 +113,11 @@
           "ShowTitle": false
         }
       ],
-      "Tooltip": "Increase system volume",
+      "Tooltip": "Increase selected Core Audio target volume",
       "Controllers": [
         "Keypad"
-      ]
+      ],
+      "PropertyInspectorPath": "ui/settings.html"
     },
     {
       "Name": "Volume Down",
@@ -123,10 +129,11 @@
           "ShowTitle": false
         }
       ],
-      "Tooltip": "Decrease system volume",
+      "Tooltip": "Decrease selected Core Audio target volume",
       "Controllers": [
         "Keypad"
-      ]
+      ],
+      "PropertyInspectorPath": "ui/settings.html"
     },
     {
       "Name": "Volume Dial",
@@ -148,7 +155,8 @@
           "Rotate": "Adjust volume",
           "Push": "Toggle mute"
         }
-      }
+      },
+      "PropertyInspectorPath": "ui/settings.html"
     },
     {
       "Name": "Now Playing (Artwork)",
@@ -163,7 +171,8 @@
       "Tooltip": "Shows artwork and title; press to toggle playback",
       "Controllers": [
         "Keypad"
-      ]
+      ],
+      "PropertyInspectorPath": "ui/settings.html"
     },
     {
       "Name": "Now Playing +",
@@ -180,12 +189,14 @@
         "Encoder"
       ],
       "Encoder": {
-        "layout": "$B1",
+        "layout": "layouts/now-playing.json",
         "TriggerDescription": {
           "Rotate": "Adjust volume",
-          "Push": "Play / Pause"
+          "Push": "Play / Pause",
+          "Touch": "Tap progress to seek; hold to change session"
         }
-      }
+      },
+      "PropertyInspectorPath": "ui/settings.html"
     }
   ]
 }
