@@ -3,13 +3,14 @@ import {sendMediaKey,type MediaCommand} from "./windows-media.js";
 import {startChromeServer,chromeCommand} from "./chrome-server.js";
 import {startMediaPolling,subscribe,currentMedia,audioTarget,availableSessions,audioTargets} from "./media-state.js";
 import {nativeCommand} from "./native-client.js";
-import {artwork} from "./artwork.js";
+import {artwork,applicationIcon} from "./artwork.js";
 import {progress} from "./media-model.js";
 import {DialSeeking,seekPosition,trackIdentity} from "./media-seek.js";
 import {ScrollingText,ANIMATION_INTERVAL_MS} from "./scrolling-text.js";
 import {nowPlayingImage} from "./now-playing-image.js";
 
 const UUID="dev.local.media-controls";
+const EMPTY_ICON="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAAC0lEQVR42mNgAAIAAAUAAen63NgAAAAASUVORK5CYII=";
 type Settings={mediaTarget?:string;audioTarget?:string;globalKeys?:boolean;dialMode?:string;seekStep?:number};
 type Instance=KeyAction<Settings>|DialAction<Settings>;
 const short=(s:string,n=28)=>[...s].length>n?[...s].slice(0,n-1).join("")+"…":s;
@@ -100,14 +101,15 @@ class NowPlaying extends ConfiguredAction {
   protected override async render(a:Instance,s:Settings):Promise<void> {
     if(!a.isKey()) return;
     const m=currentMedia(s.mediaTarget),image=(await artwork(m?.artwork_data_url))??await artwork(m?.fallback_artwork_data_url);
+    const appIcon=await applicationIcon(m);
     const identity=m?trackIdentity(m):"unavailable";
     const [title,artist,status]=await Promise.all([
       this.scrolling.frame(a.id,"title",m?.title||(m?"Title unavailable":"No media"),{width:128,height:30,fontSize:24,scale:2},identity),
       this.scrolling.frame(a.id,"artist",m?.artist??"",{width:128,height:28,fontSize:22,scale:2},identity),
       this.scrolling.frame(a.id,"status",m?.playback_state==="playing"?"▶":m?.playback_state==="paused"?"Ⅱ":"?",{width:24,height:24,fontSize:18},identity)
     ]);
-    if(this.changed(a,{image,title:title.image,artist:artist.image,status:status.image},"image"))
-      await a.setImage(await nowPlayingImage(image,title.image,artist.image,status.image));
+    if(this.changed(a,{image,appIcon,title:title.image,artist:artist.image,status:status.image},"image"))
+      await a.setImage(await nowPlayingImage(image,title.image,artist.image,status.image,appIcon));
     if(this.changed(a,"","title")) await a.setTitle("");
     this.displaySession(a,m?.session_id);
   }
@@ -129,6 +131,7 @@ class NowPlayingDial extends ConfiguredAction {
     const payload={
       trackTitle:title.image,artist:artist.image,
       status:playbackLabel(m?.playback_state),
+      appIcon:(await applicationIcon(m,18))??EMPTY_ICON,
       position:`${time(p.position)} / ${time(p.duration)}`,
       indicator:{value:p.percent??0,enabled:p.percent!==null},
       volume:s.dialMode!=="volume"?`±${seekStep(s)}s`:v?.volume==null?"Vol --":`${v.muted?"Mute ":"Vol "}${Math.round(v.volume*100)}%`,
@@ -179,7 +182,7 @@ subscribe(()=>{for(const a of visualActions) a.refresh();});
 streamDeck.ui.onSendToPlugin(ev=>{
   void (async()=>{const settings=await ev.action.getSettings();await streamDeck.ui.sendToPropertyInspector({
     settings,
-    sessions:availableSessions().map(s=>({id:s.session_id??"",label:`${s.source}: ${s.title||s.page_title||"Title unavailable"} (${s.app_id||s.tab_id||""})`,details:JSON.stringify({...s,artwork_data_url:s.artwork_data_url?"[image available]":null,fallback_artwork_data_url:s.fallback_artwork_data_url?"[Windows fallback available]":null},null,2)})),
+    sessions:availableSessions().map(s=>({id:s.session_id??"",label:`${s.source}: ${s.title||s.page_title||"Title unavailable"} (${s.app_id||s.tab_id||""})`,details:JSON.stringify({...s,artwork_data_url:s.artwork_data_url?"[image available]":null,fallback_artwork_data_url:s.fallback_artwork_data_url?"[Windows fallback available]":null,app_icon_data_url:s.app_icon_data_url?"[app icon available]":null,favicon_data_url:s.favicon_data_url?"[favicon available]":null},null,2)})),
     audio:audioTargets().map(v=>({id:v.id,label:`${v.name||"Unknown app"}${v.pid!==undefined?` (PID ${v.pid})`:""}`,volume:v.volume,muted:v.muted}))
   });})().catch(e=>streamDeck.logger.warn(String(e)));
 });

@@ -2,6 +2,8 @@
 //! One invocation yields one JSON object; an absent field remains null.
 #![cfg_attr(not(windows), allow(unused_imports, dead_code))]
 #[cfg(windows)]
+mod app_icon;
+#[cfg(windows)]
 mod audio;
 
 #[cfg(windows)]
@@ -292,6 +294,7 @@ mod system {
         let epoch = format!("{}-{}", std::process::id(), now());
         let mut guards = std::collections::HashMap::<String, SessionEvents>::new();
         let mut images = std::collections::HashMap::new();
+        let mut icons = crate::app_icon::IconCache::default();
         let a = tx.clone();
         let b = tx.clone();
         let flags = Arc::new(AtomicU8::new(0));
@@ -319,6 +322,13 @@ mod system {
                 images.clear();
             }
             let sessions = manager.GetSessions()?;
+            let audio = match crate::audio::snapshot() {
+                Ok(value) => Some(value),
+                Err(e) => {
+                    eprintln!("Core Audio unavailable: {e}");
+                    None
+                }
+            };
             let current = manager.GetCurrentSession().ok();
             let mut next = vec![];
             let mut data = vec![];
@@ -355,6 +365,23 @@ mod system {
                         is_current || image_bytes < 8_000_000,
                     );
                     image_bytes += item["artwork_data_url"].as_str().map(str::len).unwrap_or(0);
+                    let app_id = item["app_id"].as_str().unwrap_or_default();
+                    // An exact executable filename is useful for unregistered Win32 apps.
+                    // This is icon lookup only; audio and transport targets remain independent.
+                    let executable = audio
+                        .as_ref()
+                        .and_then(|a| a["sessions"].as_array())
+                        .and_then(|sessions| {
+                            sessions
+                                .iter()
+                                .filter_map(|s| s["process_path"].as_str())
+                                .find(|p| {
+                                    p.rsplit('\\')
+                                        .next()
+                                        .is_some_and(|name| name.eq_ignore_ascii_case(app_id))
+                                })
+                        });
+                    item["app_icon_data_url"] = json!(icons.get(app_id, executable));
                     item["session_id"] = json!(id);
                     if is_current {
                         current_snapshot = item.clone();
@@ -375,13 +402,6 @@ mod system {
                     .unwrap_or(0);
                 cache_bytes <= 12_000_000
             });
-            let audio = match crate::audio::snapshot() {
-                Ok(value) => Some(value),
-                Err(e) => {
-                    eprintln!("Core Audio unavailable: {e}");
-                    None
-                }
-            };
             let snapshot = json!({"current":current_snapshot,"sessions":data,"audio":audio});
             writeln!(output, "{snapshot}").ok();
             output.flush().ok();

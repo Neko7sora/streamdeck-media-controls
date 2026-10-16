@@ -28,6 +28,8 @@ export interface MediaItem {
   album_track_count?: number | null;
   playback_type?: number | null;
   artwork_data_url?: string | null;
+  app_icon_data_url?: string | null;
+  favicon_data_url?: string | null;
   fallback_artwork_data_url?: string | null;
   artwork_candidates?: Array<{src:string; sizes?:string; type?:string}>;
   browser_media?: {
@@ -78,6 +80,7 @@ export function mergedCurrent(windows: MediaItem | null, chrome: MediaItem | nul
     artist: windows.artist || chrome.artist,
     artwork_data_url: chrome.artwork_data_url || windows.artwork_data_url,
     fallback_artwork_data_url: windows.artwork_data_url,
+    favicon_data_url: chrome.favicon_data_url,
     artwork_candidates: chrome.artwork_candidates,
     page_url: chrome.page_url,
     page_title: chrome.page_title,
@@ -88,31 +91,40 @@ export function mergedCurrent(windows: MediaItem | null, chrome: MediaItem | nul
     enriched_at: chrome.observed_at,
     field_sources:{
       title:"windows",artist:windows.artist?"windows":"chrome",album:windows.album?"windows":"chrome",
-      artwork_data_url:chrome.artwork_data_url?"chrome":"windows",timeline:"windows",playback_state:"windows",browser_media:"chrome"
+      artwork_data_url:chrome.artwork_data_url?"chrome":"windows",app_icon_data_url:"windows",favicon_data_url:"chrome",timeline:"windows",playback_state:"windows",browser_media:"chrome"
     },
   };
 }
 
-export function chooseCurrent(windows: MediaSnapshot, chrome: MediaItem[], selected = "auto"): MediaItem | null {
+export function chooseCurrent(windows: MediaSnapshot, chrome: MediaItem[], selected = "auto", previousSession?: string): MediaItem | null {
+  const chromeWithIcon = (item: MediaItem): MediaItem => {
+    const matches=windows.sessions.filter(w=>/chrome/i.test(w.app_id??"")&&sameTrack(w,item));
+    return matches.length===1 ? {...item,app_icon_data_url:matches[0]!.app_icon_data_url,field_sources:{...item.field_sources,app_icon_data_url:"windows"}} : item;
+  };
   if (selected !== "auto") {
     const item = [...windows.sessions, ...chrome].find(x => x.session_id === selected);
     if (!item) return null; // Never silently operate another session after disconnection.
-    if (item.source === "chrome") return item;
+    if (item.source === "chrome") return chromeWithIcon(item);
     const matches = chrome.filter(c => sameTrack(item, c));
     return mergedCurrent(item, matches.length === 1 ? matches[0]! : null);
   }
-  if (windows.current) {
-    const matches = chrome.filter(c => sameTrack(windows.current!, c));
-    return mergedCurrent(windows.current, matches.length === 1 ? matches[0]! : null);
-  }
-  // Windows can enumerate sessions without designating a current session.
-  // Use provider update time, not polling time, to rank Windows sessions.
+  const candidates = [
+    ...(windows.current ? [windows.current] : []),
+    ...windows.sessions.filter(item => !windows.current?.session_id || item.session_id !== windows.current.session_id),
+    ...chrome
+  ];
+  const playing = candidates.filter(item => item.playback_state === "playing");
+  const eligible = playing.length ? playing : candidates;
+  // Heartbeats, timeline samples and OS current-session changes aren't user intent.
+  // Retain the exact session while equally eligible, but always use its fresh data.
+  const retained = previousSession ? eligible.find(item => item.session_id === previousSession) : undefined;
+  // Prefer the OS current session for a new selection, then use update time only
+  // to break ties at selection time, never to displace a retained session.
   const updated = (item: MediaItem) => item.source === "windows" ? item.timeline?.updated_at ?? 0 : item.observed_at ?? 0;
-  const fallback = [...windows.sessions, ...chrome].sort((a,b) =>
-    Number(b.playback_state === "playing") - Number(a.playback_state === "playing") || updated(b) - updated(a)
-  )[0];
+  const fallback = retained ?? (windows.current && eligible.includes(windows.current) ? windows.current : undefined)
+    ?? eligible.sort((a,b) => updated(b) - updated(a))[0];
   if (!fallback) return null;
-  if (fallback.source === "chrome") return fallback;
+  if (fallback.source === "chrome") return chromeWithIcon(fallback);
   const matches = chrome.filter(c => sameTrack(fallback, c));
   return mergedCurrent(fallback, matches.length === 1 ? matches[0]! : null);
 }

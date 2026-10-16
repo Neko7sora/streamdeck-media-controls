@@ -1,9 +1,13 @@
 import sharp from "sharp";
 import { createHash } from "node:crypto";
-import { safeImage } from "./media-model.js";
+import { safeImage, type MediaItem } from "./media-model.js";
 
 sharp.cache({memory:8, files:0, items:16});
 sharp.concurrency(1);
+/** A broken favicon must not hide a working application icon. */
+export async function applicationIcon(media: MediaItem | null, size = 32): Promise<string | undefined> {
+  return (await artwork(media?.favicon_data_url,size)) ?? (await artwork(media?.app_icon_data_url,size));
+}
 const cache = new Map<string, Promise<string | undefined>>();
 /** Decode before sending to Stream Deck; disallow SVG, animation and pixel bombs. */
 export async function artwork(data: unknown, size = 144): Promise<string | undefined> {

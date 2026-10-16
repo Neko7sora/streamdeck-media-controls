@@ -9,7 +9,7 @@ test("Now Playing operates the session last sent to the display, and never falls
     state:`const d=globalThis.__mediaTest;export function currentMedia(id="auto"){return id==="auto"?d.current:d.sessions.find(x=>x.session_id===id)??null;}export function availableSessions(){return d.sessions;}export function audioTarget(id){d.audioRequests.push(id);return {name:id,volume:0.5,muted:false};}export function audioTargets(){return [];}export function subscribe(){}export function startMediaPolling(){return ()=>{};}`,
     native:`export async function nativeCommand(c){globalThis.__mediaTest.commands.push(c);}`,
     chrome:`export function startChromeServer(){return {close(){},closeAllConnections(){}};}export async function chromeCommand(){throw Error("Unexpected Chrome command");}`,
-    art:`export async function artwork(){return undefined;}`
+    art:`export async function artwork(){return undefined;} export async function applicationIcon(m){return m?.favicon_data_url??m?.app_icon_data_url;}`
   };
   const plugin={name:"test-ports",setup(build){
     build.onResolve({filter:/@elgato\/streamdeck$|\.\/media-state\.js$|\.\/native-client\.js$|\.\/chrome-server\.js$|\.\/artwork\.js$/},args=>({path:args.path==="@elgato/streamdeck"?"sdk":args.path.includes("media-state")?"state":args.path.includes("native-client")?"native":args.path.includes("chrome-server")?"chrome":"art",namespace:"test"}));
@@ -97,5 +97,12 @@ test("Now Playing operates the session last sent to the display, and never falls
   driver.current={...long,session_id:"different-session"};
   await action.render(scrollKey,{});await seeking.render(scrollDial,{});
   assert.equal(images.at(-1),firstKey);assert.equal(feedback.at(-1).trackTitle,firstTitle);
+  driver.current={...long,favicon_data_url:'favicon'};
+  await seeking.render(scrollDial,{});assert.equal(feedback.at(-1).appIcon,'favicon');
+  driver.current={...long,app_icon_data_url:'app'};
+  await seeking.render(scrollDial,{});assert.equal(feedback.at(-1).appIcon,'app');
+  driver.current=long;
+  await seeking.render(scrollDial,{});assert.match(feedback.at(-1).appIcon,/^data:image\/png;base64,/);
+  assert.deepEqual(Object.keys(updates.at(-1)),['appIcon'],'clearing the badge must not resend unrelated fields');
   delete globalThis.__mediaTest;
 });

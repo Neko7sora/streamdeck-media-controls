@@ -6,13 +6,13 @@ const shade=Buffer.from('<svg width="144" height="144"><rect y="72" width="144" 
 const bytes=(image:string)=>Buffer.from(image.slice(image.indexOf(",")+1),"base64");
 
 /** Cache album decoding separately from animated text; keys need a composite image for pixel motion. */
-export async function nowPlayingImage(artwork:string|undefined,title:string,artist:string,status:string):Promise<string> {
-  const key=artwork?createHash("sha256").update(artwork).digest("hex"):"default";
+export async function nowPlayingImage(artwork:string|undefined,title:string,artist:string,status:string,appIcon?:string):Promise<string> {
+  const key=createHash("sha256").update(JSON.stringify([artwork,appIcon])).digest("hex");
   let background=backgrounds.get(key);
   if(!background) {
     background=(async()=>{
       const image=artwork?sharp(bytes(artwork)).resize(144,144):sharp({create:{width:144,height:144,channels:4,background:"#101018"}});
-      return image.composite([{input:shade}]).png().toBuffer();
+      return image.composite([{input:shade},...(appIcon?[{input:bytes(appIcon),left:108,top:4}]:[])]).png().toBuffer();
     })();
     backgrounds.set(key,background);
     if(backgrounds.size>8) backgrounds.delete(backgrounds.keys().next().value!);

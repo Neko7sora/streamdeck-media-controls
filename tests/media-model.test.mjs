@@ -29,6 +29,37 @@ test('fallback Windows selection retains Chrome metadata enrichment',()=>{
  assert.equal(selected.album,'Album');
 });
 
+test('auto selection stays on the same playing session across alternating updates and OS current changes',()=>{
+ let a={source:'windows',session_id:'a',title:'A',playback_state:'playing',timeline:{updated_at:10}};
+ let b={...a,session_id:'b',title:'B',timeline:{updated_at:20}};
+ let selected=model.chooseCurrent({current:a,sessions:[a,b]},[]);
+ for(let tick=0;tick<8;tick++) {
+  a={...a,title:`A ${tick}`,timeline:{updated_at:100+tick*2}};
+  b={...b,timeline:{updated_at:101+tick*2}};
+  selected=model.chooseCurrent({current:tick%2?null:b,sessions:[b,a]},[],'auto',selected.session_id);
+  assert.equal(selected.session_id,'a');
+  assert.equal(selected.title,`A ${tick}`,'retained selection must use the latest snapshot');
+ }
+ const paused={...a,playback_state:'paused'};
+ assert.equal(model.chooseCurrent({current:paused,sessions:[paused,b]},[],'auto','a').session_id,'b');
+ assert.equal(model.chooseCurrent({current:b,sessions:[b]},[],'auto','a').session_id,'b');
+ assert.equal(model.chooseCurrent({current:null,sessions:[]},[],'auto','a'),null);
+});
+
+test('auto selection retains paused targets and switches to playing media without timestamp churn',()=>{
+ const a={source:'chrome',session_id:'a',title:'A',playback_state:'paused',observed_at:10};
+ const b={...a,session_id:'b',title:'B',observed_at:20};
+ const snapshot={current:null,sessions:[]};
+ assert.equal(model.chooseCurrent(snapshot,[a,b],'auto','a'),a);
+ assert.equal(model.chooseCurrent(snapshot,[a,{...b,playback_state:'playing'}],'auto','a').session_id,'b');
+ assert.equal(model.chooseCurrent(snapshot,[{...a,playback_state:'playing'},b],'b','a'),b,'explicit selection overrides auto');
+ assert.equal(model.chooseCurrent(snapshot,[b],'a','b'),null,'missing explicit target never falls back');
+ const win={source:'windows',session_id:'w',title:'Windows',playback_state:'playing'};
+ assert.equal(model.chooseCurrent({current:win,sessions:[win]},[{...a,playback_state:'playing'}],'auto','a').session_id,'a');
+ const paused={...win,playback_state:'paused'};
+ assert.equal(model.chooseCurrent({current:paused,sessions:[paused]},[{...a,playback_state:'playing'}]).session_id,'a');
+});
+
 test('matches exact music with normalized names',()=>{
  assert.equal(model.sameTrack({source:'windows',title:' Song ',artist:'Artist'},{source:'chrome',title:'song',artist:'artist'}),true);
  assert.equal(model.sameTrack({source:'windows',title:'Song A'},{source:'chrome',title:'Song B'}),false);
@@ -45,6 +76,19 @@ test('Chrome metadata enriches same playing Chrome track only',()=>{
  assert.equal(actual.album,'Album');
  assert.equal(actual.artwork_data_url,'new');
  assert.equal(actual.source,'windows');
+});
+
+test('icons follow the selected app and only uniquely matching Chrome media supplies a favicon',()=>{
+ const win={source:'windows',session_id:'w',app_id:'chrome.exe',title:'Song',artist:'Artist',app_icon_data_url:'app'};
+ const chrome={source:'chrome',session_id:'c',title:'Song',artist:'Artist',favicon_data_url:'site'};
+ const snapshot={current:win,sessions:[win]};
+ const merged=model.chooseCurrent(snapshot,[chrome]);
+ assert.equal(merged.app_icon_data_url,'app');assert.equal(merged.favicon_data_url,'site');
+ const selected=model.chooseCurrent(snapshot,[chrome],'c');
+ assert.equal(selected.app_icon_data_url,'app');assert.equal(selected.source,'chrome');assert.equal(selected.session_id,'c');
+ assert.equal(model.chooseCurrent(snapshot,[chrome,{...chrome,session_id:'other'}]).favicon_data_url,undefined);
+ assert.equal(model.chooseCurrent({...snapshot,current:{...win,app_id:'Spotify'}},[chrome]).favicon_data_url,undefined);
+ assert.equal(model.chooseCurrent(snapshot,[{...chrome,title:'Different'}]).favicon_data_url,undefined);
 });
 test('never merges into non-Chrome media player',()=>{
  const windows={source:'windows',app_id:'Spotify',title:'Song'};

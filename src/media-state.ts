@@ -3,6 +3,7 @@ import {validateMedia} from "./media-validation.js";
 import {startNative} from "./native-client.js";
 
 let windows:MediaSnapshot={current:null,sessions:[]};
+let autoSession:string|undefined;
 const chrome=new Map<string,{item:MediaItem;lastSeen:number;sequence:number}>();
 const listeners=new Set<()=>void>();
 export const CHROME_TTL=15000;
@@ -10,7 +11,11 @@ export function chromeSessions(now=Date.now()):MediaItem[] {
   for(const [id,v] of chrome) if(now-v.lastSeen>=CHROME_TTL) chrome.delete(id);
   return [...chrome.values()].map(v=>v.item);
 }
-export function currentMedia(selected="auto"):MediaItem|null {return chooseCurrent(windows,chromeSessions(),selected);}
+export function currentMedia(selected="auto"):MediaItem|null {
+  const media=chooseCurrent(windows,chromeSessions(),selected,autoSession);
+  if(selected==="auto") autoSession=media?.session_id;
+  return media;
+}
 export function availableSessions():MediaItem[] {return [...windows.sessions,...chromeSessions()];}
 export function audioTarget(id="master"):AudioTarget|null {
   return id==="master" ? windows.audio?.master ?? null : windows.audio?.sessions.find(x=>x.id===id) ?? null;

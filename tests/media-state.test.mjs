@@ -31,6 +31,43 @@ test("matching is conservative when artist missing, albums differ or tabs ambigu
   assert.equal(model.chooseCurrent({current:w,sessions:[w]},[c]).album,"Album");
   assert.equal(model.chooseCurrent({current:w,sessions:[w]},[c],"disconnected"),null);
 });
+
+test("auto target is shared and stable while Chrome tabs publish alternating heartbeats",()=>{
+ const originalNow=Date.now;
+ let now=100000;
+ Date.now=()=>now;
+ try {
+  const a={title:"A",playback_state:"playing"},b={title:"B",playback_state:"playing"};
+  state.ingestChrome(10,0,a,1,"doc-a");
+  assert.equal(state.currentMedia().session_id,"chrome:10:0:doc-a");
+  state.ingestChrome(11,0,b,1,"doc-b");
+  for(let tick=2;tick<8;tick++) {
+   now+=1000;
+   state.ingestChrome(11,0,b,tick,"doc-b");
+   assert.equal(state.currentMedia().session_id,"chrome:10:0:doc-a");
+   assert.equal(state.currentMedia("chrome:11:0:doc-b").title,"B");
+   now+=100;
+   state.ingestChrome(10,0,{...a,title:`A ${tick}`,timeline:{position_sec:tick}},tick,"doc-a");
+   assert.equal(state.currentMedia().title,`A ${tick}`);
+   assert.equal(state.currentMedia().timeline.position_sec,tick);
+  }
+  state.ingestChrome(10,0,{...a,playback_state:"paused"},8,"doc-a");
+  assert.equal(state.currentMedia().session_id,"chrome:11:0:doc-b");
+  state.ingestChrome(10,0,a,9,"doc-a");
+  assert.equal(state.currentMedia().session_id,"chrome:11:0:doc-b");
+  state.ingestChrome(11,0,null,10,"doc-b");
+  assert.equal(state.currentMedia().session_id,"chrome:10:0:doc-a");
+  now+=state.CHROME_TTL;
+  assert.equal(state.currentMedia(),null);
+  state.ingestChrome(10,0,a,11,"new-document");
+  assert.equal(state.currentMedia("chrome:10:0:doc-a"),null);
+  assert.equal(state.currentMedia().session_id,"chrome:10:0:new-document");
+ } finally {
+  state.chromeSessions(now+state.CHROME_TTL);
+  state.currentMedia();
+  Date.now=originalNow;
+ }
+});
 test("timeline distinguishes unavailable from zero and uses start offsets",()=>{
   assert.deepEqual(model.progress(null),{position:null,duration:null,percent:null});
   assert.deepEqual(model.progress({timeline:{start_sec:60,position_sec:90,end_sec:120}}),{position:30,duration:60,percent:50});

@@ -3,11 +3,11 @@ import assert from "node:assert/strict";
 import {readFileSync} from "node:fs";
 import vm from "node:vm";
 const source=readFileSync(new URL("../chrome-extension/page-main.js",import.meta.url),"utf8");
-function page(players=[]) {
+function page(players=[],icons=[]) {
   const messages=[],events=new Map(),session={metadata:null,playbackState:"none",setPositionState(){}};
   const window={postMessage(v){messages.push(v);},addEventListener(name,fn){events.set(name,fn);}};
   let tick,now=10000;
-  const context={window,navigator:{mediaSession:session},document:{title:"Private page title",querySelectorAll(){return players;},addEventListener(){}},location:{origin:"https://example.test"},setInterval(fn){tick=fn;},Date:{now:()=>now},Number,Array};
+  const context={window,navigator:{mediaSession:session},document:{title:"Private page title",querySelectorAll(selector){return selector==='audio,video'?players:icons;},addEventListener(){}},location:{origin:"https://example.test"},setInterval(fn){tick=fn;},Date:{now:()=>now},Number,Array};
   vm.runInNewContext(source,context);
   return {session,messages,events,window,tick:()=>tick(),advance:ms=>{now+=ms;}};
 }
@@ -57,4 +57,13 @@ test('HTML media position, duration, timestamp and seek range are sampled togeth
  p.advance(1000);player.currentTime=16.5;p.tick();
  assert.equal(p.messages.at(-1).media.timeline.position_sec,16.5);
  assert.equal(p.messages.at(-1).media.timeline.updated_at,11000);
+});
+
+test('page favicons follow link changes without replacing media artwork',()=>{
+ const icons=[{href:'https://example.test/icon.ico',sizes:{value:'32x32'},type:'image/x-icon'}];
+ const p=page([],icons);p.session.metadata={title:'Track',artwork:[{src:'https://example.test/album.png'}]};
+ p.tick();assert.equal(p.messages.at(-1).media.favicon_candidates[0].src,icons[0].href);
+ assert.equal(p.messages.at(-1).media.artwork_candidates[0].src,'https://example.test/album.png');
+ icons[0].href='https://example.test/changed.png';p.tick();
+ assert.equal(p.messages.at(-1).media.favicon_candidates[0].src,icons[0].href);
 });

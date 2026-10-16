@@ -93,3 +93,14 @@ test('adding emoji does not resize the surrounding text',async()=>{
  assert.deepEqual(a.data,b.data);
 });
 
+test('application badge changes and clears without changing album pixels elsewhere',async()=>{
+ const image=async (width,height,color)=>'data:image/png;base64,'+(await sharp({create:{width,height,channels:4,background:color}}).png().toBuffer()).toString('base64');
+ const art=await image(144,144,'green'),empty=await image(1,1,'transparent');
+ const render=async icon=>pixels(await nowPlayingImage(art,empty,empty,empty,icon));
+ const first=await render(await image(32,32,'red')),next=await render(await image(32,32,'blue')),cleared=await render(undefined);
+ const at=(frame,x,y)=>[...frame.data.subarray((y*144+x)*4,(y*144+x)*4+4)];
+ assert.deepEqual(at(first,120,16),[255,0,0,255]);assert.deepEqual(at(next,120,16),[0,0,255,255]);
+ assert.deepEqual(at(cleared,120,16),[0,128,0,255]);
+ assert.deepEqual(at(first,72,40),at(next,72,40));
+});
+

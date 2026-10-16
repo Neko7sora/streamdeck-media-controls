@@ -2,8 +2,9 @@ const ENDPOINT="http://127.0.0.1:39761/chrome";
 const cachedArtwork=new Map();
 // Content scripts never receive the pairing token.
 const storageReady=chrome.storage.local.setAccessLevel({accessLevel:"TRUSTED_CONTEXTS"});
-async function artworkFor(tab,media) {
-  const candidates=Array.isArray(media.artwork_candidates) ? media.artwork_candidates.slice(0,16).filter(a=>a&&typeof a.src==="string"&&a.src.length<=2048) : [];
+async function artworkFor(tab,media,icon=false) {
+  const images=icon?media.favicon_candidates:media.artwork_candidates;
+  const candidates=Array.isArray(images) ? images.slice(0,16).filter(a=>a&&typeof a.src==="string"&&a.src.length<=2048) : [];
   const parseSize = (x) => {
     const sizes=String(x.sizes??"").slice(0,100).matchAll(/(\d+)x(\d+)/gi);
     return Math.max(0,...Array.from(sizes,s=>Math.min(16384,Number(s[1]))*Math.min(16384,Number(s[2]))));
@@ -22,7 +23,8 @@ async function artworkFor(tab,media) {
       const response=await fetch(url.href,{credentials:"omit",referrerPolicy:"no-referrer",redirect:"error",signal:AbortSignal.timeout(2500)});
       const mime=(response.headers.get("content-type")??"").split(";")[0].toLowerCase();
       const bytes=Number(response.headers.get("content-length")??0);
-      if(!response.ok || !["image/png","image/jpeg","image/webp"].includes(mime) || bytes>350000) continue;
+      const allowed=["image/png","image/jpeg","image/webp",...(icon?["image/x-icon","image/vnd.microsoft.icon"]:[])];
+      if(!response.ok || !allowed.includes(mime) || bytes>350000) continue;
       const reader=response.body?.getReader();
       if(!reader) continue;
       const chunks=[];let n=0;let tooLarge=false;
@@ -37,9 +39,22 @@ async function artworkFor(tab,media) {
       const raw=new Uint8Array(n);
       let offset=0;
       for(const piece of chunks) {raw.set(piece,offset);offset+=piece.length;}
+      let output=raw,outputMime=mime;
+      if(icon) {
+        // Chrome decodes ICO as well as raster favicons; only bounded PNG leaves the worker.
+        const bitmap=await createImageBitmap(new Blob([raw],{type:mime}));
+        try {
+          if(!bitmap.width||!bitmap.height||bitmap.width*bitmap.height>16_777_216) continue;
+          const canvas=new OffscreenCanvas(32,32),ctx=canvas.getContext("2d");
+          const scale=Math.min(32/bitmap.width,32/bitmap.height),w=bitmap.width*scale,h=bitmap.height*scale;
+          ctx.drawImage(bitmap,(32-w)/2,(32-h)/2,w,h);
+          output=new Uint8Array(await (await canvas.convertToBlob({type:"image/png"})).arrayBuffer());
+          outputMime="image/png";
+        } finally {bitmap.close();}
+      }
       let binary="";
-      for(let i=0;i<raw.length;i+=8192) binary+=String.fromCharCode(...raw.subarray(i,i+8192));
-      data=`data:${mime};base64,${btoa(binary)}`;
+      for(let i=0;i<output.length;i+=8192) binary+=String.fromCharCode(...output.subarray(i,i+8192));
+      data=`data:${outputMime};base64,${btoa(binary)}`;
       break;
     } catch { /* image unavailable: Windows image is fallback */ }
   }
@@ -75,11 +90,16 @@ chrome.runtime.onMessage.addListener((message,sender,_reply)=>{
     if(!enabled || !/^[a-f0-9]{64}$/.test(token)) continue;
     const media=update.media;
     if(!media || typeof media!=="object" || Array.isArray(media) || JSON.stringify(media).length>64000) continue;
+    const faviconCandidates=Array.isArray(media.favicon_candidates)?media.favicon_candidates.slice(0,16):[];
+    // The sender address provides the conventional fallback, never an unrelated tab/frame.
+    try {const url=new URL(update.sender.url);faviconCandidates.push({src:new URL("/favicon.ico",url.origin).href});} catch {}
     const payload={
       ...media,
       page_url:pageAddress(update.sender.url),
       page_title:update.sender.tab.title??"",
-      artwork_data_url:await artworkFor(key,media)
+      artwork_data_url:await artworkFor(key,media),
+      app_icon_data_url:null,
+      favicon_data_url:await artworkFor(`favicon:${key}`,{favicon_candidates:faviconCandidates},true)
     };
     try {
       const current=await chrome.storage.local.get(["enabled","token"]);
@@ -94,5 +114,5 @@ chrome.runtime.onMessage.addListener((message,sender,_reply)=>{
   }} finally {state.running=false;activeJobs--;}})().catch(()=>{state.running=false;logUnavailable();});
   if(frames.size>256) {for(const [k,v] of frames) if(!v.running) {frames.delete(k);break;}}
 });
-chrome.tabs.onRemoved.addListener(id=>{for(const key of frames.keys()) if(key.startsWith(`${id}:`)) {frames.delete(key);cachedArtwork.delete(key);}});
+chrome.tabs.onRemoved.addListener(id=>{for(const key of frames.keys()) if(key.startsWith(`${id}:`)) {frames.delete(key);cachedArtwork.delete(key);cachedArtwork.delete(`favicon:${key}`);}});
 chrome.storage.onChanged.addListener(()=>cachedArtwork.clear());
