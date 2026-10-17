@@ -118,6 +118,11 @@ class NowPlaying extends ConfiguredAction {
 @action({UUID:`${UUID}.now-playing-dial`})
 class NowPlayingDial extends ConfiguredAction {
   private readonly seeking=new DialSeeking();
+  private async sendSeek(settings:Settings,track:string,position:number):Promise<void> {
+    const latest=currentMedia(settings.mediaTarget);
+    if(!latest||trackIdentity(latest)!==track) throw new Error("Media changed while seeking");
+    await transport(settings,"seek",seekPosition(latest,position));
+  }
   override onWillDisappear(ev:WillDisappearEvent<Settings>):void {this.seeking.clear(ev.action.id);super.onWillDisappear(ev);}
   override onDidReceiveSettings(ev:DidReceiveSettingsEvent<Settings>):void {this.seeking.clear(ev.action.id);super.onDidReceiveSettings(ev);}
   protected override async render(a:Instance,s:Settings):Promise<void> {
@@ -148,11 +153,7 @@ class NowPlayingDial extends ConfiguredAction {
       const settings=this.displayedSettings(ev.action,ev.payload.settings),media=currentMedia(settings.mediaTarget);
       if(!media) throw new Error("Selected media session unavailable");
       const track=trackIdentity(media);
-      await this.seeking.rotate(ev.action.id,media,ev.payload.ticks*seekStep(settings),async position=>{
-        const latest=currentMedia(settings.mediaTarget);
-        if(!latest||trackIdentity(latest)!==track) throw new Error("Media changed while seeking");
-        await transport(settings,"seek",seekPosition(latest,position));
-      });
+      await this.seeking.rotate(ev.action.id,media,ev.payload.ticks*seekStep(settings),position=>this.sendSeek(settings,track,position));
     });
   }
   override async onDialDown(ev:DialDownEvent<Settings>):Promise<void> {await guarded(ev.action,()=>transport(this.displayedSettings(ev.action,ev.payload.settings),"play-pause"));}
@@ -171,8 +172,8 @@ class NowPlayingDial extends ConfiguredAction {
         if(!m?.controls?.seek) throw new Error("Seek unavailable");
         const t=m.timeline;
         if(t?.min_seek_sec==null||t.max_seek_sec==null||t.max_seek_sec<=t.min_seek_sec) throw new Error("Seek unavailable");
-        this.seeking.clear(ev.action.id);
-        await transport(settings,"seek",seekPosition(m,t.min_seek_sec+Math.max(0,Math.min(1,(x-6)/188))*(t.max_seek_sec-t.min_seek_sec)));
+        const track=trackIdentity(m),position=t.min_seek_sec+Math.max(0,Math.min(1,(x-6)/188))*(t.max_seek_sec-t.min_seek_sec);
+        await this.seeking.seekTo(ev.action.id,m,position,value=>this.sendSeek(settings,track,value));
       } else await transport(settings,"play-pause");
     });
   }

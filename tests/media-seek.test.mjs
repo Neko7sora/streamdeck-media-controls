@@ -146,3 +146,40 @@ test('a replacement cleared while waiting never sends its queued seek',async()=>
  release();await Promise.all([first,discarded,latest]);
  assert.deepEqual(sent,[55,45]);
 });
+
+test('touch seeks replace queued rotation and later ticks start at the tapped position',async()=>{
+ const dial=new DialSeeking(),sent=[];let release;
+ const send=async p=>{sent.push(p);if(sent.length===1) await new Promise(resolve=>{release=resolve;});};
+ const first=dial.rotate('dial',media,5,send,10000);
+ const queued=dial.rotate('dial',media,10,send,10001);
+ const tap=dial.seekTo('dial',media,80,send,10002);
+ const tick=dial.rotate('dial',media,-5,send,10003);
+ assert.deepEqual(sent,[55]);
+ release();await Promise.all([first,queued,tap,tick]);
+ assert.deepEqual(sent,[55,75]);
+ await dial.rotate('dial',media,5,send,10004);
+ assert.deepEqual(sent,[55,75,80]);
+});
+
+test('rapid taps keep the latest position and remain ordered after a failed command',async()=>{
+ const dial=new DialSeeking(),sent=[];let reject;
+ const first=dial.seekTo('dial',media,20,async p=>{sent.push(p);await new Promise((_resolve,r)=>{reject=r;});},10000);
+ const failed=assert.rejects(first,/failed/);
+ const discarded=dial.seekTo('dial',media,40,async()=>assert.fail('outdated tap'),10001);
+ const last=dial.seekTo('dial',media,90,async p=>{sent.push(p);},10002);
+ assert.deepEqual(sent,[20]);
+ reject(Error('failed'));await Promise.all([failed,discarded,last]);
+ assert.deepEqual(sent,[20,90]);
+});
+
+test('touch seeks support unknown current position and browser gaps, and cancel on disappearance',async()=>{
+ const dial=new DialSeeking(),sent=[];let release;
+ const browser={...media,source:'chrome',timeline:{...media.timeline,position_sec:null},
+  browser_media:{seekable_ranges:[[10,30],[60,110]]}};
+ const first=dial.seekTo('dial',browser,50,async p=>{sent.push(p);await new Promise(resolve=>{release=resolve;});},10000);
+ const next=dial.seekTo('dial',browser,100,async()=>assert.fail('hidden action'),10001);
+ dial.clear('dial');release();await Promise.all([first,next]);
+ assert.deepEqual(sent,[60]);
+ await assert.rejects(dial.seekTo('dial',browser,NaN,async()=>assert.fail('invalid position')),/unavailable/);
+ await assert.rejects(dial.seekTo('dial',{...media,controls:{seek:false}},50,async()=>assert.fail('unsupported seek')),/unavailable/);
+});

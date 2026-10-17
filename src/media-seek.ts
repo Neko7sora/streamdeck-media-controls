@@ -26,17 +26,27 @@ type PendingSeek = {
   track: string; sample: string; target: number; destination: number; touched: number; sent?: number; running?: Promise<void>;
 };
 
-/** Accumulate rapid ticks while a command is pending; send only one seek at a time. */
+/** Order touch and rotary seeks together; send only one seek per action at a time. */
 export class DialSeeking {
   private readonly pending = new Map<string, PendingSeek>();
   private readonly running = new Map<string, Promise<void>>();
 
   clear(id: string): void {this.pending.delete(id);}
 
-  async rotate(id: string, media: MediaItem | null, delta: number,
+  rotate(id: string, media: MediaItem | null, delta: number,
     send: (position: number) => Promise<void>, now = Date.now()): Promise<void> {
-    if (!media || !Number.isFinite(delta)) throw new Error("Seek unavailable");
-    const position = playbackPosition(media, now);
+    return this.move(id, media, delta, true, send, now);
+  }
+
+  seekTo(id: string, media: MediaItem | null, position: number,
+    send: (position: number) => Promise<void>, now = Date.now()): Promise<void> {
+    return this.move(id, media, position, false, send, now);
+  }
+
+  private async move(id: string, media: MediaItem | null, value: number, relative: boolean,
+    send: (position: number) => Promise<void>, now: number): Promise<void> {
+    if (!media || !Number.isFinite(value)) throw new Error("Seek unavailable");
+    const position = relative ? playbackPosition(media, now) : value;
     if (position === null) throw new Error("Playback position unavailable");
     const track = trackIdentity(media);
     // observed_at changes on every poll, even when GSMTC's actual sample is unchanged.
@@ -45,12 +55,13 @@ export class DialSeeking {
       ? {...media.timeline, updated_at: undefined} : media.timeline;
     const sample = JSON.stringify([timeline, media.playback_state, media.playback_rate, media.browser_media?.seekable_ranges]);
     let state = this.pending.get(id);
-    if (!state || state.track !== track || (!state.running && (state.sample !== sample || now - state.touched > 2000))) {
+    // A tap replaces waiting ticks, but still waits for the in-flight command.
+    if (!relative || !state || state.track !== track || (!state.running && (state.sample !== sample || now - state.touched > 2000))) {
       state = {track, sample, target: position, destination: position, touched: now};
-      this.pending.set(id, state);
     }
-    const requested = state.target + delta;
+    const requested = relative ? state.target + value : value;
     const destination = seekPosition(media, requested);
+    this.pending.set(id, state);
     state.destination = destination;
     // Keep accumulated time inside a gap so small ticks can reach the next range.
     // Only the outer bounds discard overshoot, allowing an immediate reversal.

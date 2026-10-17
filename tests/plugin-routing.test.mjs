@@ -7,7 +7,7 @@ test("Now Playing operates the session last sent to the display, and never falls
   const mocks={
     sdk:`const d=globalThis.__mediaTest;export class SingletonAction{actions=[];} export function action(){return c=>c;} export default {actions:{registerAction(a){d.instances.push(a);}},ui:{get action(){return d.inspectorAction;},onSendToPlugin(fn){d.onSendToPlugin=fn;},async sendToPropertyInspector(payload){d.inspectorReplies.push(payload);}},logger:{warn(){},error(){},info(){}},async connect(){}};`,
     state:`const d=globalThis.__mediaTest;export function currentMedia(id="auto"){return id==="auto"?d.current:d.sessions.find(x=>x.session_id===id)??null;}export function availableSessions(){return d.sessions;}export function audioTarget(id){d.audioRequests.push(id);return {name:id,volume:0.5,muted:false};}export function audioTargets(){return [];}export function subscribe(){}export function startMediaPolling(){return ()=>{};}`,
-    native:`export async function nativeCommand(c){globalThis.__mediaTest.commands.push(c);}`,
+    native:`export async function nativeCommand(c){const d=globalThis.__mediaTest;d.commands.push(c);await d.command?.(c);}`,
     chrome:`export function startChromeServer(){return {close(){},closeAllConnections(){}};}export async function chromeCommand(){throw Error("Unexpected Chrome command");}`,
     art:`export async function artwork(){return undefined;} export async function applicationIcon(m){return m?.favicon_data_url??m?.app_icon_data_url;}`
   };
@@ -95,6 +95,28 @@ test("Now Playing operates the session last sent to the display, and never falls
   assert.equal(driver.commands.length,before);assert.equal(alerts,previousAlerts+1);
   driver.sessions=[{...seekMedia,controls:{toggle:true}}];await rotate(1);
   assert.equal(driver.commands.length,before);assert.equal(alerts,previousAlerts+2);
+  driver.sessions=[seekMedia];driver.current=seekMedia;
+  seeking.seeking.clear(dial.id);
+  const seekStart=driver.commands.length;
+  let releaseSeek;
+  driver.command=()=>new Promise(resolve=>{releaseSeek=resolve;});
+  const pendingRotation=rotate(1);
+  const pendingTap=seeking.onTouchTap({action:dial,payload:{settings:{},tapPos:[156.4,90],hold:false}});
+  const nextRotation=rotate(-1);
+  assert.equal(driver.commands.length,seekStart+1,'touch and rotation must share one in-flight command');
+  driver.command=undefined;releaseSeek();
+  await Promise.all([pendingRotation,pendingTap,nextRotation]);
+  assert.deepEqual(driver.commands.slice(seekStart).map(c=>c.position),[55,75]);
+  // The track must still match when a delayed tap finally reaches the queue head.
+  seeking.seeking.clear(dial.id);
+  driver.command=()=>new Promise(resolve=>{releaseSeek=resolve;});
+  const oldRotation=rotate(1);
+  const oldTap=seeking.onTouchTap({action:dial,payload:{settings:{},tapPos:[100,90],hold:false}});
+  const changedTrackAlerts=alerts,changedTrackCommands=driver.commands.length;
+  driver.sessions=[{...seekMedia,title:'Changed while waiting'}];
+  driver.command=undefined;releaseSeek();await Promise.all([oldRotation,oldTap]);
+  assert.equal(driver.commands.length,changedTrackCommands,'a queued tap cannot seek a different track');
+  assert.equal(alerts,changedTrackAlerts+1);
   const long={...a,title:"春夏秋冬東西南北朝昼夕夜一二三四五六七八九十",artist:"あいうえおかきくけこさしすせそ",playback_state:"playing"};
   driver.current=long;driver.sessions=[long];
   let clock=0;const images=[],titles=[],feedback=[],updates=[];
