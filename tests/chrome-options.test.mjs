@@ -23,7 +23,7 @@ function options({load=Promise.resolve({}),write=async()=>{}}={}){
   return {elements,writes,save:()=>elements.get("save").listeners.click()};
 }
 function assertDisabled(page,disabled){
-  for(const id of ["enabled","token","save"]) assert.equal(page.elements.get(id).disabled,disabled,id);
+  for(const id of ["enabled","save"]) assert.equal(page.elements.get(id).disabled,disabled,id);
 }
 
 test("options cannot overwrite saved settings before their initial read finishes",async()=>{
@@ -31,14 +31,13 @@ test("options cannot overwrite saved settings before their initial read finishes
   assertDisabled(page,true);
   await page.save();
   assert.equal(page.writes.length,0);
-  load.resolve({enabled:true,token:"a".repeat(64)});
+  load.resolve({enabled:true});
   await flush();
   assertDisabled(page,false);
   assert.equal(page.elements.get("enabled").checked,true);
-  assert.equal(page.elements.get("token").value,"a".repeat(64));
   page.elements.get("enabled").checked=false;
   await page.save();
-  assert.deepEqual(page.writes,[{enabled:false,token:"a".repeat(64)}]);
+  assert.deepEqual(page.writes,[{enabled:false}]);
 });
 
 test("failed initial reads keep controls disabled and never save empty defaults",async()=>{
@@ -51,20 +50,14 @@ test("failed initial reads keep controls disabled and never save empty defaults"
   assert.equal(page.writes.length,0);
 });
 
-test("options validate tokens and serialize saves while preserving normalized settings",async()=>{
+test("options serialize saves without a pairing token",async()=>{
   const write=deferred(),page=options({write:()=>write.promise});
   await flush();
   page.elements.get("enabled").checked=true;
-  page.elements.get("token").value="invalid";
-  await page.save();
-  assert.equal(page.writes.length,0);
-  assertDisabled(page,false);
-  assert.match(page.elements.get("status").textContent,/64桁/);
-  page.elements.get("token").value=` ${"AB".repeat(32)} `;
   const saved=page.save();
   assertDisabled(page,true);
   await page.save();
-  assert.deepEqual(page.writes,[{enabled:true,token:"ab".repeat(32)}]);
+  assert.deepEqual(page.writes,[{enabled:true}]);
   write.resolve();
   await saved;
   assertDisabled(page,false);
@@ -80,7 +73,6 @@ test("failed saves preserve edits and release the form for retry",async()=>{
   await page.save();
   assertDisabled(page,false);
   assert.equal(page.elements.get("enabled").checked,true);
-  assert.equal(page.elements.get("token").value,"c".repeat(64));
   assert.match(page.elements.get("status").textContent,/保存できませんでした/);
   await page.save();
   assert.equal(page.writes.length,2);

@@ -77,19 +77,29 @@ npm run restart
 
 ## Chrome 拡張（任意・オプトイン）
 
-1. プラグインを起動します。`127.0.0.1:39761` にだけ待ち受けます。
+1. プラグインを起動します。Native Messaging ホストからの中継を受けるため、`127.0.0.1:39761` にだけ待ち受けます。
 2. `chrome://extensions` の開発者モードで `chrome-extension` を「パッケージ化されていない拡張機能」として読み込みます。
-3. 拡張のオプションで `%LOCALAPPDATA%\StreamDeckMediaControls\chrome-token.txt` の64桁トークンを登録し、送信を有効にします。
+3. Chrome に表示された拡張機能 ID（32文字）を使い、リポジトリで次を実行します。Node.js 24 が必要です。現在のユーザーの HKCU にホストを登録し、スクリプトを LOCALAPPDATA にコピーします。
+
+   ```powershell
+   powershell -NoProfile -ExecutionPolicy Bypass -File scripts/register-chrome-native-host.ps1 -ExtensionId <拡張機能ID>
+   ```
+
+   必要に応じて `-NodePath C:\path\to\node.exe` で実行環境を指定できます。ホスト更新時にも再実行してください。登録後、拡張のオプションで送信を有効にします。トークンの貼り付けは不要です。
 4. 既に開いていたメディアページを再読み込みして、再生を開始します。Stream Deck の設定に Chrome の各フレームが現れるか確認してください。
-5. 拡張やプラグインを更新した場合、両方を更新して再起動してください。v0.2 の旧通信形式とは互換ではありません。
+5. 拡張やホストを更新した場合、登録スクリプトを再実行し、拡張とプラグインを再起動してください。拡張 ID が変わった場合も再登録します。
+
+通信経路は「Chrome 拡張 → Native Messaging（標準入出力）→ Node.js ホスト → 認証付き localhost HTTP → Stream Deck プラグイン」です。拡張は localhost に直接接続せず、秘密トークンも保持しません。ホストは Chrome の allowed_origins に登録した拡張だけが起動できます。ローカルユーザーが直接ホストを実行することを防ぐ仕組みではありません。
+
+登録解除は `Remove-Item -LiteralPath 'HKCU:\Software\Google\Chrome\NativeMessagingHosts\dev.local.media_controls'` で行います。
 
 拡張のオプションは保存済み設定の読み込みが完了してから編集できます。読み込みに失敗した場合は既存設定の上書きを防ぐため編集・保存を無効にし、再読み込みを案内します。保存中も入力と重複保存を止め、保存が失敗した場合は入力内容を残して再試行できます。
 
 Web サイト全般の Media Session と CDN 画像を扱うため HTTP / HTTPS の広いホストアクセスを宣言しています。`tabs`、Cookie、履歴、webRequest、scripting、音声キャプチャの権限は使いません。Chrome のサイトアクセス設定で対象サイトを絞れます。無効時にはメタデータや画像を送信・取得しません。既存の表示は最長約15秒で失効します。
 
-無効化やトークン変更前に要求した応答が遅れて戻っても、その応答の操作は実行しません。同じ設定で再度有効にした場合も、古い応答を破棄し、新しい更新から操作を再開します。既にページへ送信した操作の結果通知は継続します。
+無効化前に要求した応答が遅れて戻っても、その応答の操作は実行しません。同じ設定で再度有効にした場合も、古い応答を破棄し、新しい更新から操作を再開します。既にページへ送信した操作の結果通知は継続します。
 
-トークンはページへ渡さず、Chrome storage.local のアクセスも TRUSTED_CONTEXTS に制限します。Windows のフォルダー/既存トークンには現在のユーザーと SYSTEM の DACL を設定します（ローカル管理者に対する秘匿機能ではありません）。読み込み・ACL 設定に失敗した場合、ブリッジを起動しません。不正な既存トークンをリセットする場合は、プラグイン停止後にファイルを削除して再起動・再ペアリングしてください。トークンを共有・コミットしないでください。
+トークンはホストがファイルから読み取り、拡張やページへ渡しません。Chrome storage.local のアクセスも TRUSTED_CONTEXTS に制限します。Windows のフォルダー/既存トークンには現在のユーザーと SYSTEM の DACL を設定します（ローカル管理者に対する秘匿機能ではありません）。読み込み・ACL 設定に失敗した場合、ブリッジを起動しません。不正な既存トークンをリセットする場合は、プラグイン停止後にファイルを削除して再起動してください。トークンを共有・コミットしないでください。
 
 ページ URL の userinfo・クエリ・フラグメントは送信前に除去します。画像取得は公開 HTTPS URL の上位3候補まで、credentials omit / redirect error / no-referrer、350,000 byte 上限・タイムアウト付きです。既知のプライベート IP・非標準ポート等を拒否します。認証 Cookie、保存認証情報、音声/映像ストリーム、DRM データは取得しません。画像 CDN が認証を要求する場合は取得失敗として扱います。
 
@@ -97,7 +107,7 @@ Web サイト全般の Media Session と CDN 画像を扱うため HTTP / HTTPS 
 
 GSMTC は常駐ヘルパーでセッション/現在対象・メタデータ・再生・タイムラインの変更通知を購読し、約1秒のポーリングで補います。Core Audio は約1秒ポーリングで変更を通知します。Core Audio のネイティブ callback、全出力デバイスの列挙、音量の絶対値入力 UI は未実装です。
 
-Chrome はページイベントと約1秒間隔のスナップショットを使います。MV3 worker は再起動ごとに設定を読み直します。処理はフレームごとに直列化し、同時に8フレームまで処理します。空きができると待機中のフレームを順に再開し、処理済みフレームの待機状態を解放します。document ID を使って移動前のページへの誤操作を避け、タブ終了時には待機処理と後続の操作を打ち切ります。worker 停止・ネットワーク失敗時は次のメッセージで再接続します。バックグラウンドタブのタイマー制限では15秒の TTL を超えて表示が消える場合があります。操作の結果が不明な場合、再生トグルを自動再送しません。
+Chrome はページイベントと約1秒間隔のスナップショットを使います。MV3 worker は再起動ごとに設定を読み直します。処理はフレームごとに直列化し、同時に8フレームまで処理します。空きができると待機中のフレームを順に再開し、処理済みフレームの待機状態を解放します。document ID を使って移動前のページへの誤操作を避け、タブ終了時には待機処理と後続の操作を打ち切ります。worker 停止・ホスト切断時は次のメッセージで再接続します。バックグラウンドタブのタイマー制限では15秒の TTL を超えて表示が消える場合があります。操作の結果が不明な場合、再生トグルを自動再送しません。
 
 Now Playing + は250msごとに表示内容を見直します。Windows は GSMTC の Position / LastUpdatedTime、Chrome は HTML 要素の currentTime または観測した setPositionState を基準とし、再生中だけ経過時間と再生速度で補間します。一時停止・停止や Chrome のバッファ待ち / シーク中は補間しません。新しいサンプルで位置を補正し、公開された末尾を超えて進めません。長さや位置が未公開の場合は `--:--` のままです。setPositionState だけのページでは再生状態の切り替わりを次の観測時に反映するため、最大約1秒のずれが生じ得ます。
 
@@ -116,7 +126,7 @@ Chrome の複数タブと Windows の2種類以上のメディアアプリで、
 3. 曲送り・アート更新・欠損画像・縦長画像・ライブ配信・停止・再生速度変更が表示に反映する。
 4. 再生対象と音量対象を別々に選び、意図した対象だけを操作する。未対応操作はアラートになる。
 5. + の押下・回転・バーのタップ・長押しと、無効なシーク範囲を確認する。
-6. タブ移動/終了、worker 停止、プラグイン再起動、誤トークン、音声デバイス切替から復旧する。
+6. タブ移動/終了、worker 停止、プラグイン再起動、ホスト未登録・切断、音声デバイス切替から復旧する。
 
 ## 公式資料
 
@@ -124,6 +134,7 @@ Chrome の複数タブと Windows の2種類以上のメディアアプリで、
 - [Microsoft GSMTC](https://learn.microsoft.com/en-us/uwp/api/windows.media.control.globalsystemmediatransportcontrolssession)
 - [Microsoft Core Audio endpoint volume](https://learn.microsoft.com/en-us/windows/win32/coreaudio/endpoint-volume-controls)
 - [Microsoft Audio Session identifiers](https://learn.microsoft.com/en-us/windows/win32/api/audiopolicy/nn-audiopolicy-iaudiosessioncontrol2)
+- [Chrome Native Messaging](https://developer.chrome.com/docs/extensions/develop/concepts/native-messaging)
 - [Chrome content scripts](https://developer.chrome.com/docs/extensions/develop/concepts/content-scripts)
 - [Chrome storage access control](https://developer.chrome.com/docs/extensions/reference/api/storage)
 - [Chrome extension network requests](https://developer.chrome.com/docs/extensions/develop/concepts/network-requests)

@@ -5,10 +5,10 @@
   "version": "0.4.4",
   "minimum_chrome_version": "111",
   "permissions": [
-    "storage"
+    "storage",
+    "nativeMessaging"
   ],
   "host_permissions": [
-    "http://127.0.0.1:39761/*",
     "https://*/*",
     "http://*/*"
   ],

@@ -1,7 +1,26 @@
-const ENDPOINT="http://127.0.0.1:39761/chrome";
+const NATIVE_HOST="dev.local.media_controls";
+let nativePort,requestId=0;
+const nativeRequests=new Map();
+function connectNative() {
+  if(nativePort) return nativePort;
+  const port=chrome.runtime.connectNative(NATIVE_HOST);nativePort=port;
+  port.onMessage.addListener(message=>{
+    const pending=nativeRequests.get(message?.id);if(!pending) return;
+    nativeRequests.delete(message.id);clearTimeout(pending.timer);
+    if(message.error) pending.reject(new Error(message.error));else pending.resolve(message.body);
+  });
+  port.onDisconnect.addListener(()=>{
+    void chrome.runtime.lastError;
+    if(nativePort!==port) return;
+    nativePort=undefined;
+    for(const pending of nativeRequests.values()) {clearTimeout(pending.timer);pending.reject(new Error("Native host disconnected"));}
+    nativeRequests.clear();
+  });
+  return port;
+}
 const cachedArtwork=new Map();
 let settingsGeneration=0;
-// Content scripts never receive the pairing token.
+// Content scripts cannot access extension settings.
 const storageReady=chrome.storage.local.setAccessLevel({accessLevel:"TRUSTED_CONTEXTS"});
 async function artworkFor(tab,media,icon=false) {
   const images=icon?media.favicon_candidates:media.artwork_candidates;
@@ -68,10 +87,13 @@ const queuedFrames=[];
 let activeJobs=0;
 let lastErrorLog=0;
 function logUnavailable(){if(Date.now()-lastErrorLog>30000){lastErrorLog=Date.now();console.warn("Local media bridge unavailable; retrying on the next update.");}}
-async function post(path,token,body) {
-  const r=await fetch(ENDPOINT+path,{method:"POST",headers:{"content-type":"application/json","authorization":`Bearer ${token}`},body:JSON.stringify(body),signal:AbortSignal.timeout(2000)});
-  if(!r.ok) throw new Error(`Local bridge HTTP ${r.status}`);
-  return r.json();
+async function post(path,body) {
+  const port=connectNative(),id=++requestId;
+  return new Promise((resolve,reject)=>{
+    const timer=setTimeout(()=>{nativeRequests.delete(id);reject(new Error("Native request timed out"));},4000);
+    nativeRequests.set(id,{resolve,reject,timer});
+    try {port.postMessage({id,path,body});} catch(error) {nativeRequests.delete(id);clearTimeout(timer);reject(error);}
+  });
 }
 function pageAddress(value){try{const u=new URL(value);return /^https?:$/.test(u.protocol)?u.origin+u.pathname:"";}catch{return "";}}
 function currentFrame(state){return !state.closed && frames.get(state.key)===state;}
@@ -107,8 +129,8 @@ async function processFrame(state) {
   const generation=settingsGeneration;
   const update=state.latest;state.latest=null;
   await storageReady;
-  const {enabled=false,token=""}=await chrome.storage.local.get(["enabled","token"]);
-  if(!currentFrame(state) || generation!==settingsGeneration || !enabled || !/^[a-f0-9]{64}$/.test(token)) return;
+  const {enabled=false}=await chrome.storage.local.get(["enabled"]);
+  if(!currentFrame(state) || generation!==settingsGeneration || !enabled) return;
   const media=update.media;
   if(!media || typeof media!=="object" || Array.isArray(media) || JSON.stringify(media).length>64000) return;
   const faviconCandidates=Array.isArray(media.favicon_candidates)?media.favicon_candidates.slice(0,16):[];
@@ -126,15 +148,15 @@ async function processFrame(state) {
     favicon_data_url:favicon
   };
   try {
-    const current=await chrome.storage.local.get(["enabled","token"]);
-    if(!currentFrame(state) || generation!==settingsGeneration || !current.enabled || current.token!==token) return;
-    const response=await post("",token,{tab_id:state.tab,frame_id:frame,document_id:update.sender.documentId,sequence:Date.now(),media:payload});
+    const current=await chrome.storage.local.get(["enabled"]);
+    if(!currentFrame(state) || generation!==settingsGeneration || !current.enabled) return;
+    const response=await post("",{tab_id:state.tab,frame_id:frame,document_id:update.sender.documentId,sequence:Date.now(),media:payload});
     for(const command of response.commands??[]) {
-      const current=await chrome.storage.local.get(["enabled","token"]);
-      if(!currentFrame(state) || generation!==settingsGeneration || !current.enabled || current.token!==token) return;
+      const current=await chrome.storage.local.get(["enabled"]);
+      if(!currentFrame(state) || generation!==settingsGeneration || !current.enabled) return;
       let result={ok:false};
       try {result=await chrome.tabs.sendMessage(state.tab,{type:"MEDIA_COMMAND",command},{documentId:update.sender.documentId,frameId:frame});} catch {}
-      await post("/result",token,{id:command.id,ok:result?.ok===true});
+      await post("/result",{id:command.id,ok:result?.ok===true});
     }
   } catch {logUnavailable();}
 }
@@ -159,5 +181,5 @@ chrome.tabs.onRemoved.addListener(id=>{
 chrome.storage.onChanged.addListener((changes,area)=>{
   cachedArtwork.clear();
   // An interrupted opt-in session stays invalid even if the same settings return.
-  if(area==="local" && (changes.enabled || changes.token)) settingsGeneration++;
+  if(area==="local" && changes.enabled) settingsGeneration++;
 });

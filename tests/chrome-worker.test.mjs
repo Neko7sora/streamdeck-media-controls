@@ -4,7 +4,8 @@ import {readFileSync} from "node:fs";
 import vm from "node:vm";
 const source=readFileSync(new URL("../chrome-extension/background.js",import.meta.url),"utf8");
 function worker(enabled=true,imageResponse,hooks={}){
-  let listener,access,removed,settingsChanged;
+  let listener,access,removed,settingsChanged,disconnect;
+  let connections=0;
   const settings={enabled,token:"a".repeat(64)};
   const requests=[],commands=[],images=[];
   const chrome={storage:{local:{async setAccessLevel(v){access=v.accessLevel;},async get(){return {...settings};}},onChanged:{addListener(fn){settingsChanged=fn;}}},runtime:{onMessage:{addListener(fn){listener=fn;}}},tabs:{onRemoved:{addListener(fn){removed=fn;}},async sendMessage(tab,message,options){commands.push({tab,message,options});if(hooks.sendMessage) return hooks.sendMessage(tab,message,options);return {ok:true};}}};
@@ -20,9 +21,17 @@ function worker(enabled=true,imageResponse,hooks={}){
     if(hooks.bridgeResponse) return hooks.bridgeResponse(url,body);
     return {ok:true,json:async()=>({commands:String(url).endsWith("/result")?[]:[{id:"cmd",tab_id:body.tab_id,frame_id:body.frame_id,document_id:body.document_id,title:"Track",command:"play-pause"}]})};
   };
+  chrome.runtime.connectNative=name=>{
+    assert.equal(name,'dev.local.media_controls');connections++;
+    let receive;
+    return {onMessage:{addListener(fn){receive=fn;}},onDisconnect:{addListener(fn){disconnect=fn;}},postMessage(message){
+      const url='http://127.0.0.1:39761/chrome'+message.path;
+      void fetch(url,{body:JSON.stringify(message.body)}).then(r=>r.json()).then(body=>receive({id:message.id,body}));
+    }};
+  };
   class OffscreenCanvas {getContext(){return {drawImage(){}};}async convertToBlob(){return new Blob([new Uint8Array([137,80,78,71])],{type:'image/png'});}}
-  vm.runInNewContext(source,{chrome,fetch,URL,AbortSignal,Map,Date,Number,JSON,Uint8Array,btoa,console,Headers,Blob,OffscreenCanvas,async createImageBitmap(){return {width:32,height:32,close(){}};}});
-  return {send:(media,frame=0,tab=4)=>listener({type:"MEDIA_UPDATE",media},{tab:{id:tab,title:"Tab"},frameId:frame,documentId:`doc-${frame}`,url:`https://user:password@site.test/frame-${frame}?access_token=private#secret`}),remove:id=>removed(id),changeSettings(values){const changes={};for(const [key,value] of Object.entries(values)) {changes[key]={oldValue:settings[key],newValue:value};settings[key]=value;}settingsChanged(changes,"local");},requests,commands,images,access:()=>access};
+  vm.runInNewContext(source,{chrome,fetch,setTimeout,clearTimeout,URL,AbortSignal,Map,Date,Number,JSON,Uint8Array,btoa,console,Headers,Blob,OffscreenCanvas,async createImageBitmap(){return {width:32,height:32,close(){}};}});
+  return {disconnect:()=>disconnect(),connections:()=>connections,send:(media,frame=0,tab=4)=>listener({type:"MEDIA_UPDATE",media},{tab:{id:tab,title:"Tab"},frameId:frame,documentId:`doc-${frame}`,url:`https://user:password@site.test/frame-${frame}?access_token=private#secret`}),remove:id=>removed(id),changeSettings(values){const changes={};for(const [key,value] of Object.entries(values)) {changes[key]={oldValue:settings[key],newValue:value};settings[key]=value;}settingsChanged(changes,"local");},requests,commands,images,access:()=>access};
 }
 const settle=()=>new Promise(resolve=>setTimeout(resolve,30));
 const flush=()=>new Promise(setImmediate);
@@ -40,7 +49,7 @@ test("disabled extension sends neither metadata nor artwork requests",async()=>{
 });
 
 test('settings changes discard commands returned to an earlier opt-in session',async()=>{
- for(const change of ['disable','token','token-restore','disable-enable']) {
+ for(const change of ['disable','disable-enable']) {
   const gate=deferred();
   const w=worker(true,undefined,{async bridgeResponse(url,body){
    if(url.endsWith('/result')) return {ok:true,json:async()=>({})};
@@ -143,4 +152,12 @@ test('busy frames coalesce samples and yield to an already queued frame',async()
  for(const gate of gates) gate.resolve();await flush();
  assert.equal(order.length,10);
  assert.deepEqual(order.slice(8),[{frame:8,title:'First'},{frame:0,title:'Latest'}]);
+});
+
+test('native host disconnect rejects pending work and reconnects on the next update',async()=>{
+ const gate=deferred();let first=true;
+ const w=worker(true,undefined,{async bridgeResponse(){if(first){first=false;await gate.promise;}return {json:async()=>({commands:[]})};}});
+ w.send({title:'Track'});await flush();assert.equal(w.connections(),1);
+ w.disconnect();await flush();w.send({title:'Track'});await flush();assert.equal(w.connections(),2);
+ gate.resolve();await flush();assert.equal(w.commands.length,0);
 });
