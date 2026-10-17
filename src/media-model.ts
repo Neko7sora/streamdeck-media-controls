@@ -52,6 +52,12 @@ export interface MediaItem {
   controls?: Record<string, boolean>;
   timeline?: MediaTimeline | null;
 }
+// Display fallbacks must not replace the metadata title used to validate commands.
+export function displayTitle(media: MediaItem | null | undefined): string {
+  if (!media) return "No media";
+  return media.title?.trim() || media.page_title?.trim() || "Title unavailable";
+}
+
 export interface MediaSnapshot {
   current: MediaItem | null;
   sessions: MediaItem[];

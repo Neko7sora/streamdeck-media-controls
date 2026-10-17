@@ -4,7 +4,7 @@ import {startChromeServer,chromeCommand} from "./chrome-server.js";
 import {startMediaPolling,subscribe,currentMedia,audioTarget,availableSessions,audioTargets} from "./media-state.js";
 import {nativeCommand} from "./native-client.js";
 import {artwork,applicationIcon} from "./artwork.js";
-import {progress} from "./media-model.js";
+import {progress,displayTitle} from "./media-model.js";
 import {DialSeeking,seekPosition,trackIdentity} from "./media-seek.js";
 import {ScrollingText,ANIMATION_INTERVAL_MS} from "./scrolling-text.js";
 import {nowPlayingImage} from "./now-playing-image.js";
@@ -104,7 +104,7 @@ class NowPlaying extends ConfiguredAction {
     const appIcon=await applicationIcon(m);
     const identity=m?trackIdentity(m):"unavailable";
     const [title,artist,status]=await Promise.all([
-      this.scrolling.frame(a.id,"title",m?.title||(m?"Title unavailable":"No media"),{width:128,height:30,fontSize:24,scale:2},identity),
+      this.scrolling.frame(a.id,"title",displayTitle(m),{width:128,height:30,fontSize:24,scale:2},identity),
       this.scrolling.frame(a.id,"artist",m?.artist??"",{width:128,height:28,fontSize:22,scale:2},identity),
       this.scrolling.frame(a.id,"status",m?.playback_state==="playing"?"▶":m?.playback_state==="paused"?"Ⅱ":"?",{width:24,height:24,fontSize:18},identity)
     ]);
@@ -130,7 +130,7 @@ class NowPlayingDial extends ConfiguredAction {
     const m=currentMedia(s.mediaTarget), p=progress(m), v=audioTarget(s.audioTarget);
     const identity=m?trackIdentity(m):"unavailable";
     const [title,artist]=await Promise.all([
-      this.scrolling.frame(a.id,"title",m?.title||(m?"Title unavailable":"No media"),{width:188,height:22,fontSize:14},identity),
+      this.scrolling.frame(a.id,"title",displayTitle(m),{width:188,height:22,fontSize:14},identity),
       this.scrolling.frame(a.id,"artist",m?.artist??"",{width:142,height:18,fontSize:12},identity)
     ]);
     const payload={
@@ -189,7 +189,7 @@ streamDeck.ui.onSendToPlugin(ev=>{
     if(streamDeck.ui.action?.id!==ev.action.id) return;
     await streamDeck.ui.sendToPropertyInspector({
     settings,settingsRevision,
-    sessions:availableSessions().map(s=>({id:s.session_id??"",label:`${s.source}: ${s.title||s.page_title||"Title unavailable"} (${s.app_id||s.tab_id||""})`,details:JSON.stringify({...s,artwork_data_url:s.artwork_data_url?"[image available]":null,fallback_artwork_data_url:s.fallback_artwork_data_url?"[Windows fallback available]":null,app_icon_data_url:s.app_icon_data_url?"[app icon available]":null,favicon_data_url:s.favicon_data_url?"[favicon available]":null},null,2)})),
+    sessions:availableSessions().map(s=>({id:s.session_id??"",label:`${s.source}: ${displayTitle(s)} (${s.app_id||s.tab_id||""})`,details:JSON.stringify({...s,artwork_data_url:s.artwork_data_url?"[image available]":null,fallback_artwork_data_url:s.fallback_artwork_data_url?"[Windows fallback available]":null,app_icon_data_url:s.app_icon_data_url?"[app icon available]":null,favicon_data_url:s.favicon_data_url?"[favicon available]":null},null,2)})),
     audio:audioTargets().map(v=>({id:v.id,label:`${v.name||"Unknown app"}${v.pid!==undefined?` (PID ${v.pid})`:""}`,volume:v.volume,muted:v.muted}))
   });})().catch(e=>streamDeck.logger.warn(String(e)));
 });
