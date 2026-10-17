@@ -10,7 +10,7 @@ test("Now Playing operates the session last sent to the display, and never falls
     native:`export async function nativeCommand(c){const d=globalThis.__mediaTest;d.commands.push(c);await d.command?.(c);}`,
     chrome:`export function startChromeServer(){return {close(){},closeAllConnections(){}};}export async function chromeCommand(){throw Error("Unexpected Chrome command");}`,
     registration:`export function registerChromeHost(){const d=globalThis.__mediaTest;d.registrations=(d.registrations??0)+1;return d.registration??Promise.resolve({status:"registered",message:"Registered"});}export function stopChromeRegistration(){}`,
-    art:`export async function artwork(){return undefined;} export async function applicationIcon(m){return m?.favicon_data_url??m?.app_icon_data_url;}`
+    art:`export async function artwork(){await globalThis.__mediaTest.artwork?.();return undefined;} export async function applicationIcon(m){return m?.favicon_data_url??m?.app_icon_data_url;}`
   };
   const plugin={name:"test-ports",setup(build){
     build.onResolve({filter:/@elgato\/streamdeck$|\.\/media-state\.js$|\.\/native-client\.js$|\.\/chrome-server\.js$|\.\/chrome-registration\.js$|\.\/artwork\.js$/},args=>({path:args.path==="@elgato/streamdeck"?"sdk":args.path.includes("media-state")?"state":args.path.includes("native-client")?"native":args.path.includes("chrome-server")?"chrome":args.path.includes("chrome-registration")?"registration":"art",namespace:"test"}));
@@ -164,5 +164,48 @@ test("Now Playing operates the session last sent to the display, and never falls
   driver.current=long;
   await seeking.render(scrollDial,{});assert.match(feedback.at(-1).appIcon,/^data:image\/png;base64,/);
   assert.deepEqual(Object.keys(updates.at(-1)),['appIcon'],'clearing the badge must not resend unrelated fields');
+  // Image work may finish after a page/profile switch removes an action.
+  for(const name of ['NowPlaying','NowPlayingDial']) {
+    const visual=driver.instances.find(x=>x.constructor.name===name);
+    const originalActions=visual.actions;
+    const isDial=name==='NowPlayingDial';
+    const sent=[];
+    const hidden={id:`hidden-${name}`,isKey:()=>!isDial,isDial:()=>isDial,
+      async setImage(value){sent.push(value);},async setTitle(){},async setFeedback(value){sent.push(value);},async showAlert(){alerts++;}};
+    visual.actions=[hidden];
+    let releaseArtwork,startedArtwork;
+    const artworkStarted=new Promise(resolve=>{startedArtwork=resolve;});
+    driver.artwork=()=>{driver.artwork=undefined;startedArtwork();return new Promise(resolve=>{releaseArtwork=resolve;});};
+    driver.current=long;driver.sessions=[long];
+    await visual.onWillAppear({action:hidden,payload:{settings:{}}});
+    await artworkStarted;
+    visual.onWillDisappear({action:hidden});
+    releaseArtwork();
+    while(visual.refreshing) await new Promise(resolve=>setTimeout(resolve,1));
+    assert.equal(sent.length,0,`${name}: disappearing actions must not receive late images`);
+    assert.equal(visual.displayedSessions.has(hidden.id),false,`${name}: late renders must not restore a removed target`);
+    assert.equal(visual.scrolling.instances.has(hidden.id),false,`${name}: late renders must not restart hidden text animations`);
+    // The SDK action list can briefly still contain a disappearing action.
+    visual.refresh();
+    while(visual.refreshing) await new Promise(resolve=>setTimeout(resolve,1));
+    assert.equal(sent.length,0,`${name}: refresh must skip a disappearing action`);
+    await visual.onWillAppear({action:hidden,payload:{settings:{}}});
+    while(visual.refreshing) await new Promise(resolve=>setTimeout(resolve,1));
+    assert.equal(sent.length,1,`${name}: reappearing actions must receive a fresh image`);
+    assert.equal(visual.displayedSessions.get(hidden.id),'A');
+    const nextArtworkStarted=new Promise(resolve=>{startedArtwork=resolve;});
+    driver.artwork=()=>{driver.artwork=undefined;startedArtwork();return new Promise(resolve=>{releaseArtwork=resolve;});};
+    visual.refresh();await nextArtworkStarted;
+    visual.onWillDisappear({action:hidden});
+    const replacement={...long,session_id:'B',title:'Replacement track'};
+    driver.current=replacement;driver.sessions=[long,replacement];
+    await visual.onWillAppear({action:hidden,payload:{settings:{mediaTarget:'B'}}});
+    releaseArtwork();
+    while(visual.refreshing) await new Promise(resolve=>setTimeout(resolve,1));
+    assert.equal(sent.length,2,`${name}: reusing the same action ID must discard its previous render`);
+    assert.equal(visual.displayedSessions.get(hidden.id),'B');
+    visual.onWillDisappear({action:hidden});
+    visual.actions=originalActions;
+  }
   delete globalThis.__mediaTest;
 });

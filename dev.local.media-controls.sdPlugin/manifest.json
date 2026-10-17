@@ -5,7 +5,7 @@
   "Category": "Media Controls",
   "Author": "Local Developer",
   "Description": "Windows and Chrome metadata, album artwork, playback timeline, media and volume control.",
-  "Version": "0.4.4.0",
+  "Version": "0.4.5.0",
   "SDKVersion": 3,
   "Software": {
     "MinimumVersion": "7.1"

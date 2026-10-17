@@ -36,16 +36,18 @@ async function transport(settings:Settings,command:string,position?:number):Prom
 const visualActions:ConfiguredAction[]=[];
 abstract class ConfiguredAction extends SingletonAction<Settings> {
   private readonly settings=new Map<string,Settings>();
+  // A reused action ID must not accept asynchronous work from its previous appearance.
+  private readonly appearances=new Map<string,symbol>();
   private readonly hashes=new Map<string,Map<string,string>>();
   protected readonly scrolling=new ScrollingText();
   private readonly displayedSessions=new Map<string,string>();
   private refreshing=false;
   private dirty=false;
   constructor(){super();visualActions.push(this);}
-  override async onWillAppear(ev:WillAppearEvent<Settings>):Promise<void> {this.settings.set(ev.action.id,ev.payload.settings);this.refresh();}
-  override onWillDisappear(ev:WillDisappearEvent<Settings>):void {this.settings.delete(ev.action.id);this.hashes.delete(ev.action.id);this.displayedSessions.delete(ev.action.id);this.scrolling.clear(ev.action.id);}
+  override async onWillAppear(ev:WillAppearEvent<Settings>):Promise<void> {this.appearances.set(ev.action.id,Symbol());this.settings.set(ev.action.id,ev.payload.settings);this.hashes.delete(ev.action.id);this.displayedSessions.delete(ev.action.id);this.scrolling.clear(ev.action.id);this.refresh();}
+  override onWillDisappear(ev:WillDisappearEvent<Settings>):void {this.appearances.delete(ev.action.id);this.settings.delete(ev.action.id);this.hashes.delete(ev.action.id);this.displayedSessions.delete(ev.action.id);this.scrolling.clear(ev.action.id);}
   override onDidReceiveSettings(ev:DidReceiveSettingsEvent<Settings>):void {this.settings.set(ev.action.id,ev.payload.settings);this.hashes.delete(ev.action.id);this.refresh();}
-  protected async render(_instance:Instance,_settings:Settings):Promise<unknown> {return null;}
+  protected async render(_instance:Instance,_settings:Settings,_isCurrent:()=>boolean=()=>true):Promise<unknown> {return null;}
   protected displaySession(instance:Instance,session:string|undefined):void {this.displayedSessions.set(instance.id,session??"unavailable");}
   protected displayedSettings(instance:Instance,settings:Settings):Settings {return {...settings,mediaTarget:this.displayedSessions.get(instance.id)??"unavailable"};}
   protected async saveSettings(instance:Instance,settings:Settings):Promise<void> {await instance.setSettings(settings);this.settings.set(instance.id,settings);this.hashes.delete(instance.id);this.refresh();}
@@ -62,7 +64,9 @@ abstract class ConfiguredAction extends SingletonAction<Settings> {
       this.dirty=false;
       for(const instance of this.actions) {
         if(!instance.isKey()&&!instance.isDial()) continue;
-        try {await this.render(instance,this.settings.get(instance.id)??{});} catch(e) {this.hashes.delete(instance.id);streamDeck.logger.warn(`Display update: ${String(e)}`);}
+        const appearance=this.appearances.get(instance.id);
+        if(!appearance) continue;
+        try {await this.render(instance,this.settings.get(instance.id)??{},()=>this.appearances.get(instance.id)===appearance);} catch(e) {this.hashes.delete(instance.id);streamDeck.logger.warn(`Display update: ${String(e)}`);}
       }
     }} finally {this.refreshing=false;}})();
   }
@@ -99,20 +103,26 @@ class VolumeDial extends ConfiguredAction {
 }
 @action({UUID:`${UUID}.now-playing`})
 class NowPlaying extends ConfiguredAction {
-  protected override async render(a:Instance,s:Settings):Promise<void> {
+  protected override async render(a:Instance,s:Settings,isCurrent:()=>boolean=()=>true):Promise<void> {
     if(!a.isKey()) return;
     const m=currentMedia(s.mediaTarget),image=(await artwork(m?.artwork_data_url))??await artwork(m?.fallback_artwork_data_url);
     const appIcon=await applicationIcon(m);
+    if(!isCurrent()) return;
     const identity=m?trackIdentity(m):"unavailable";
     const [title,artist,status]=await Promise.all([
       this.scrolling.frame(a.id,"title",displayTitle(m),{width:128,height:30,fontSize:24,scale:2},identity),
       this.scrolling.frame(a.id,"artist",m?.artist??"",{width:128,height:28,fontSize:22,scale:2},identity),
       this.scrolling.frame(a.id,"status",m?.playback_state==="playing"?"▶":m?.playback_state==="paused"?"Ⅱ":"?",{width:24,height:24,fontSize:18},identity)
     ]);
-    if(this.changed(a,{image,appIcon,title:title.image,artist:artist.image,status:status.image},"image"))
-      await a.setImage(await nowPlayingImage(image,title.image,artist.image,status.image,appIcon));
+    if(!isCurrent()) return;
+    if(this.changed(a,{image,appIcon,title:title.image,artist:artist.image,status:status.image},"image")) {
+      const rendered=await nowPlayingImage(image,title.image,artist.image,status.image,appIcon);
+      if(!isCurrent()) return;
+      await a.setImage(rendered);
+    }
+    if(!isCurrent()) return;
     if(this.changed(a,"","title")) await a.setTitle("");
-    this.displaySession(a,m?.session_id);
+    if(isCurrent()) this.displaySession(a,m?.session_id);
   }
   override async onKeyDown(ev:KeyDownEvent<Settings>):Promise<void> {await guarded(ev.action,()=>transport(this.displayedSettings(ev.action,ev.payload.settings),"play-pause"));}
 }
@@ -126,7 +136,7 @@ class NowPlayingDial extends ConfiguredAction {
   }
   override onWillDisappear(ev:WillDisappearEvent<Settings>):void {this.seeking.clear(ev.action.id);super.onWillDisappear(ev);}
   override onDidReceiveSettings(ev:DidReceiveSettingsEvent<Settings>):void {this.seeking.clear(ev.action.id);super.onDidReceiveSettings(ev);}
-  protected override async render(a:Instance,s:Settings):Promise<void> {
+  protected override async render(a:Instance,s:Settings,isCurrent:()=>boolean=()=>true):Promise<void> {
     if(!a.isDial()) return;
     const m=currentMedia(s.mediaTarget), p=progress(m), v=audioTarget(s.audioTarget);
     const identity=m?trackIdentity(m):"unavailable";
@@ -143,9 +153,10 @@ class NowPlayingDial extends ConfiguredAction {
       volume:s.dialMode!=="volume"?`±${seekStep(s)}s`:v?.volume==null?"Vol --":`${v.muted?"Mute ":"Vol "}${Math.round(v.volume*100)}%`,
       artwork:(await artwork(m?.artwork_data_url,72))??(await artwork(m?.fallback_artwork_data_url,72))??"imgs/actions/play-pause.png"
     };
+    if(!isCurrent()) return;
     const changes=Object.fromEntries(Object.entries(payload).filter(([key,value])=>this.changed(a,value,`feedback:${key}`)));
     if(Object.keys(changes).length) await a.setFeedback(changes);
-    this.displaySession(a,m?.session_id);
+    if(isCurrent()) this.displaySession(a,m?.session_id);
   }
   override async onDialRotate(ev:DialRotateEvent<Settings>):Promise<void> {
     if(!ev.payload.ticks) return;

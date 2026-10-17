@@ -3,6 +3,8 @@ const media=document.getElementById("media"),audio=document.getElementById("audi
 const dialMode=document.getElementById("dial-mode"),seekStep=document.getElementById("seek-step");
 const registerChrome=document.getElementById("register-chrome"),chromeStatus=document.getElementById("chrome-registration-status");
 let registrationRequestId=null,registrationTimeout;
+function setSettingsDisabled(disabled){for(const element of [media,audio,global,dialMode,seekStep]) element.disabled=disabled;}
+setSettingsDisabled(true);
 function send(event,payload){if(socket?.readyState===WebSocket.OPEN) socket.send(JSON.stringify({event,context,action,payload}));}
 function requestOptions(){send("sendToPlugin",{request:"options",settingsRevision});}
 function populate(select,items,current,defaultValue,defaultLabel){
@@ -27,7 +29,7 @@ window.connectElgatoStreamDeckSocket=(port,uuid,registerEvent,_info,actionInfo)=
   const info=JSON.parse(actionInfo);context=uuid;action=info.action;settings=info.payload.settings??{};
   show();
   socket=new WebSocket(`ws://127.0.0.1:${port}`);
-  socket.onopen=()=>{socket.send(JSON.stringify({event:registerEvent,uuid}));registerChrome.disabled=false;requestOptions();};
+  socket.onopen=()=>{socket.send(JSON.stringify({event:registerEvent,uuid}));setSettingsDisabled(false);registerChrome.disabled=false;document.getElementById("status").textContent="";requestOptions();};
   socket.onmessage=event=>{
     const msg=JSON.parse(event.data);
     if(msg.event==="didReceiveSettings"){settingsRevision++;settings=msg.payload.settings??{};show();}
@@ -47,6 +49,7 @@ window.connectElgatoStreamDeckSocket=(port,uuid,registerEvent,_info,actionInfo)=
     }
   };
   socket.onclose=()=>{
+    setSettingsDisabled(true);
     registerChrome.disabled=true;clearTimeout(registrationTimeout);
     if(registrationRequestId!==null) chromeStatus.textContent="登録結果を確認できませんでした。設定画面を開き直してください。";
     registrationRequestId=null;
@@ -70,6 +73,7 @@ for(const [element,key,value] of [
   [dialMode,"dialMode",()=>dialMode.value],
   [seekStep,"seekStep",()=>Number(seekStep.value)]
 ]) element.addEventListener("change",()=>{
+  if(socket?.readyState!==WebSocket.OPEN){show();return;}
   settingsRevision++;settings={...settings,[key]:value()};send("setSettings",settings);show();
 });
 setInterval(requestOptions,1000);

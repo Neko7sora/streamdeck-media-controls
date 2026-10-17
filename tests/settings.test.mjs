@@ -5,7 +5,7 @@ import vm from "node:vm";
 import {randomUUID} from "node:crypto";
 
 const source=readFileSync(new URL("../dev.local.media-controls.sdPlugin/ui/settings.js",import.meta.url),"utf8");
-function inspector(settings={}) {
+function inspector(settings={},{connect=true}={}) {
   const selects=new Set(["media","audio","dial-mode","seek-step"]);
   const elements=new Map();
   for(const id of ["media","audio","global","details","dial-mode","seek-step","dial-settings","seek-settings","status","register-chrome","chrome-registration-status"]) {
@@ -27,7 +27,7 @@ function inspector(settings={}) {
   let socket,poll;
   class WebSocket {
     static OPEN=1;
-    readyState=1;
+    readyState=0;
     constructor(){socket=this;}
     send(message){messages.push(JSON.parse(message));}
   }
@@ -38,14 +38,37 @@ function inspector(settings={}) {
   window.connectElgatoStreamDeckSocket(1234,"context","registerPropertyInspector","{}",JSON.stringify({
     action:"dev.local.media-controls.now-playing-dial",payload:{settings}
   }));
-  socket.onopen();
-  return {elements,messages,poll:()=>{poll();return messages.at(-1).payload;},
+  const open=()=>{socket.readyState=1;socket.onopen();};
+  if(connect) open();
+  return {elements,messages,open,poll:()=>{poll();return messages.at(-1).payload;},
     click:id=>elements.get(id).listeners.click(),
     timeout(){for(const [id,fn] of timers){timers.delete(id);fn();}},
     close(){socket.readyState=3;socket.onclose();},
     receive:(event,payload)=>socket.onmessage({data:JSON.stringify({event,payload})}),
     change(id,value){const element=elements.get(id);if(id==="global") element.checked=value;else element.value=value;element.listeners.change();}};
 }
+
+test("settings are editable only while connected so unsaved changes are never shown as applied",()=>{
+  const pi=inspector({globalKeys:true},{connect:false});
+  const assertDisabled=disabled=>{
+    for(const id of ["media","audio","global","dial-mode","seek-step"]) assert.equal(pi.elements.get(id).disabled,disabled,id);
+  };
+  assertDisabled(true);
+  pi.change("global",false);
+  assert.equal(pi.elements.get("global").checked,true);
+  assert.equal(pi.messages.length,0);
+  pi.open();
+  assertDisabled(false);
+  pi.change("global",false);
+  assert.deepEqual(pi.messages.at(-1).payload,{globalKeys:false});
+  pi.close();
+  assertDisabled(true);
+  const count=pi.messages.length;
+  pi.change("global",true);
+  assert.equal(pi.elements.get("global").checked,false);
+  assert.equal(pi.messages.length,count);
+  assert.match(pi.elements.get("status").textContent,/接続が切れました/);
+});
 
 test("inspector loads saved targets immediately and edits only the changed setting",()=>{
   const saved={mediaTarget:"windows:missing",audioTarget:"audio:missing",globalKeys:true,dialMode:"volume",seekStep:12,extra:"preserved"};
