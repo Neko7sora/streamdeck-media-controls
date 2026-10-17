@@ -95,6 +95,38 @@ test('never merges into non-Chrome media player',()=>{
  const chrome={source:'chrome',title:'Song',album:'From browser'};
  assert.equal(model.mergedCurrent(windows,chrome),windows);
 });
+
+test('artistless TVer videos receive only icons through a unique top-level page title match',()=>{
+ const win={source:'windows',session_id:'w',app_id:'Chrome',title:'Episode | TVer',artist:'',album:'',app_icon_data_url:'app',artwork_data_url:'windows-art',timeline:{position_sec:10}};
+ const chrome={source:'chrome',session_id:'c',frame_id:0,title:null,page_title:win.title,page_url:'https://tver.jp/episodes/example',browser_media:{element_type:'video'},favicon_data_url:'site',artwork_data_url:'chrome-art',timeline:{position_sec:20}};
+ const snapshot={current:win,sessions:[win]};
+ for(const selected of ['auto','w']) {
+  const actual=model.chooseCurrent(snapshot,[chrome],selected);
+  assert.equal(actual.favicon_data_url,'site');
+  for(const key of ['title','artist','album','artwork_data_url','timeline','session_id']) assert.equal(actual[key],win[key],key);
+  for(const key of ['page_url','tab_id','frame_id','document_id','browser_media']) assert.equal(actual[key],undefined,key);
+  assert.equal(actual.field_sources.favicon_data_url,'chrome');
+ }
+ assert.equal(model.sameTrack(win,chrome),false);
+ assert.equal(model.chooseCurrent(snapshot,[chrome],'c').app_icon_data_url,'app');
+ assert.equal(model.chooseCurrent(snapshot,[{...chrome,title:win.title}]).favicon_data_url,'site');
+});
+
+test('icon-only matching rejects ambiguous, conflicting and unrelated video sessions',()=>{
+ const win={source:'windows',session_id:'w',app_id:'Chrome',title:'Episode | TVer'};
+ const chrome={source:'chrome',session_id:'c',frame_id:0,title:null,page_title:win.title,browser_media:{element_type:'video'},favicon_data_url:'site'};
+ const snapshot={current:win,sessions:[win]};
+ for(const change of [{frame_id:1},{page_title:'Another episode'},{title:'Different track'},{browser_media:undefined},{artist:'Artist'},{album:'Album'}]) {
+  assert.equal(model.chooseCurrent(snapshot,[{...chrome,...change}]),win,JSON.stringify(change));
+ }
+ assert.equal(model.chooseCurrent(snapshot,[chrome,{...chrome,session_id:'c2'}]),win);
+ assert.equal(model.chooseCurrent({...snapshot,sessions:[win,{...win,session_id:'w2'}]},[chrome]),win);
+ assert.equal(model.chooseCurrent(snapshot,[chrome,{...chrome,session_id:'c2'}],'c').app_icon_data_url,undefined);
+ for(const change of [{app_id:'Spotify'},{artist:'Artist'},{album:'Album'}]) {
+  const other={...win,...change};
+  assert.equal(model.chooseCurrent({current:other,sessions:[other]},[chrome]),other);
+ }
+});
 test('image validation only permits bounded safe formats',()=>{
  assert.equal(model.safeImage('data:image/png;base64,AAAA'),'data:image/png;base64,AAAA');
  assert.equal(model.safeImage('data:image/svg+xml;base64,AAAA'),undefined);

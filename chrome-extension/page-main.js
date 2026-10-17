@@ -65,7 +65,7 @@
       title:clean(meta?.title),
       artist:clean(meta?.artist), album:clean(meta?.album),
       artwork_candidates:artwork,
-      favicon_candidates:Array.from(document.querySelectorAll('link[rel~="icon"],link[rel="apple-touch-icon"]')).slice(0,16).map(a=>({src:clean(a.href,2048),sizes:clean(a.sizes?.value,50),type:clean(a.type,50)})),
+      favicon_candidates:Array.from(document.querySelectorAll('link[rel~="icon"],link[rel~="apple-touch-icon"],link[rel~="apple-touch-icon-precomposed"]')).slice(0,16).map(a=>({src:clean(a.href,2048),sizes:clean(a.sizes?.value,50),type:clean(a.type,50)})),
       playback_state:playing ? (playing.paused ? "paused" : "playing") : session?.playbackState,
       playback_rate:playing?.playbackRate ?? lastPositionState?.playbackRate,
       timeline:{updated_at:observed,start_sec:0,position_sec:position,end_sec:duration,min_seek_sec:playing?.seekable.length?playing.seekable.start(0):undefined,max_seek_sec:playing?.seekable.length?playing.seekable.end(playing.seekable.length-1):undefined},

@@ -97,16 +97,38 @@ export function mergedCurrent(windows: MediaItem | null, chrome: MediaItem | nul
 }
 
 export function chooseCurrent(windows: MediaSnapshot, chrome: MediaItem[], selected = "auto", previousSession?: string): MediaItem | null {
+  // Chrome supplies the page title to Windows for videos without Media Session
+  // metadata. Use that identity only for icons; sameTrack still guards enrichment.
+  const sameIconPage = (win: MediaItem, page: MediaItem): boolean => {
+    if (!/chrome/i.test(win.app_id ?? "")) return false;
+    if (sameTrack(win,page)) return true;
+    if (win.artist?.trim() || page.artist?.trim() || win.album?.trim() || page.album?.trim()) return false;
+    const title=win.title?.trim().toLowerCase();
+    if (!title) return false;
+    if (page.title?.trim()) return title===page.title.trim().toLowerCase();
+    return page.frame_id===0 && !!page.browser_media?.element_type && title===page.page_title?.trim().toLowerCase();
+  };
+  const windowsItems = windows.current && !windows.sessions.some(w=>w===windows.current || (!!w.session_id && w.session_id===windows.current?.session_id))
+    ? [...windows.sessions,windows.current] : windows.sessions;
+  const windowsWithIcon = (item: MediaItem): MediaItem => {
+    const matches=chrome.filter(c=>sameTrack(item,c));
+    const merged=mergedCurrent(item,matches.length===1?matches[0]!:null)!;
+    if (merged!==item) return merged;
+    const pages=chrome.filter(c=>sameIconPage(item,c));
+    const page=pages.length===1?pages[0]:undefined;
+    if (!page?.favicon_data_url || windowsItems.filter(w=>sameIconPage(w,page)).length!==1) return item;
+    return {...item,favicon_data_url:page.favicon_data_url,field_sources:{...item.field_sources,favicon_data_url:"chrome"}};
+  };
   const chromeWithIcon = (item: MediaItem): MediaItem => {
-    const matches=windows.sessions.filter(w=>/chrome/i.test(w.app_id??"")&&sameTrack(w,item));
-    return matches.length===1 ? {...item,app_icon_data_url:matches[0]!.app_icon_data_url,field_sources:{...item.field_sources,app_icon_data_url:"windows"}} : item;
+    const matches=windowsItems.filter(w=>sameIconPage(w,item));
+    return matches.length===1 && chrome.filter(c=>sameIconPage(matches[0]!,c)).length===1
+      ? {...item,app_icon_data_url:matches[0]!.app_icon_data_url,field_sources:{...item.field_sources,app_icon_data_url:"windows"}} : item;
   };
   if (selected !== "auto") {
     const item = [...windows.sessions, ...chrome].find(x => x.session_id === selected);
     if (!item) return null; // Never silently operate another session after disconnection.
     if (item.source === "chrome") return chromeWithIcon(item);
-    const matches = chrome.filter(c => sameTrack(item, c));
-    return mergedCurrent(item, matches.length === 1 ? matches[0]! : null);
+    return windowsWithIcon(item);
   }
   const candidates = [
     ...(windows.current ? [windows.current] : []),
@@ -125,8 +147,7 @@ export function chooseCurrent(windows: MediaSnapshot, chrome: MediaItem[], selec
     ?? eligible.sort((a,b) => updated(b) - updated(a))[0];
   if (!fallback) return null;
   if (fallback.source === "chrome") return chromeWithIcon(fallback);
-  const matches = chrome.filter(c => sameTrack(fallback, c));
-  return mergedCurrent(fallback, matches.length === 1 ? matches[0]! : null);
+  return windowsWithIcon(fallback);
 }
 
 /** Absolute media time. Provider samples stay intact; only the display/seek base is projected. */

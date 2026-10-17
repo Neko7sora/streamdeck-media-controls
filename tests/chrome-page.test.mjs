@@ -7,7 +7,11 @@ function page(players=[],icons=[]) {
   const messages=[],events=new Map(),session={metadata:null,playbackState:"none",setPositionState(){}};
   const window={postMessage(v){messages.push(v);},addEventListener(name,fn){events.set(name,fn);}};
   let tick,now=10000;
-  const context={window,navigator:{mediaSession:session},document:{title:"Private page title",querySelectorAll(selector){return selector==='audio,video'?players:icons;},addEventListener(){}},location:{origin:"https://example.test"},setInterval(fn){tick=fn;},Date:{now:()=>now},Number,Array};
+  const context={window,navigator:{mediaSession:session},document:{title:"Private page title",querySelectorAll(selector){
+    if(selector==='audio,video') return players;
+    const relations=Array.from(selector.matchAll(/\[rel(~?)="([^"]+)"\]/g));
+    return icons.filter(icon=>relations.some(([,token,rel])=>token?(icon.rel??'icon').split(/\s+/).includes(rel):(icon.rel??'icon')===rel));
+  },addEventListener(){}},location:{origin:"https://example.test"},setInterval(fn){tick=fn;},Date:{now:()=>now},Number,Array};
   vm.runInNewContext(source,context);
   return {session,messages,events,window,tick:()=>tick(),advance:ms=>{now+=ms;}};
 }
@@ -66,4 +70,15 @@ test('page favicons follow link changes without replacing media artwork',()=>{
  assert.equal(p.messages.at(-1).media.artwork_candidates[0].src,'https://example.test/album.png');
  icons[0].href='https://example.test/changed.png';p.tick();
  assert.equal(p.messages.at(-1).media.favicon_candidates[0].src,icons[0].href);
+});
+
+test('TVer style precomposed touch icons are collected for videos without Media Session metadata',()=>{
+ const icons=[{rel:'apple-touch-icon-precomposed',href:'https://tver.jp/apple-touch-icon-precomposed.png'},
+  {rel:'icon',href:'https://tver.jp/favicon.ico'},
+  {rel:'manifest',href:'https://tver.jp/manifest.webmanifest'}];
+ const player={currentSrc:'video',tagName:'VIDEO',readyState:4,paused:false,ended:false,currentTime:1,duration:10,seekable:{length:0}};
+ const p=page([player],icons),media=p.messages.at(-1).media;
+ assert.equal(media.title,'');
+ assert.deepEqual(Array.from(media.favicon_candidates,a=>a.src),icons.slice(0,2).map(a=>a.href));
+ assert.equal(media.artwork_candidates.length,0);
 });
