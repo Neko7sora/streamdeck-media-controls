@@ -1,6 +1,8 @@
 let socket,context,action,settings={},sessions=[],audioTargets=[],settingsRevision=0;
 const media=document.getElementById("media"),audio=document.getElementById("audio"),global=document.getElementById("global"),details=document.getElementById("details");
 const dialMode=document.getElementById("dial-mode"),seekStep=document.getElementById("seek-step");
+const registerChrome=document.getElementById("register-chrome"),chromeStatus=document.getElementById("chrome-registration-status");
+let registrationRequestId=null,registrationTimeout;
 function send(event,payload){if(socket?.readyState===WebSocket.OPEN) socket.send(JSON.stringify({event,context,action,payload}));}
 function requestOptions(){send("sendToPlugin",{request:"options",settingsRevision});}
 function populate(select,items,current,defaultValue,defaultLabel){
@@ -25,11 +27,17 @@ window.connectElgatoStreamDeckSocket=(port,uuid,registerEvent,_info,actionInfo)=
   const info=JSON.parse(actionInfo);context=uuid;action=info.action;settings=info.payload.settings??{};
   show();
   socket=new WebSocket(`ws://127.0.0.1:${port}`);
-  socket.onopen=()=>{socket.send(JSON.stringify({event:registerEvent,uuid}));requestOptions();};
+  socket.onopen=()=>{socket.send(JSON.stringify({event:registerEvent,uuid}));registerChrome.disabled=false;requestOptions();};
   socket.onmessage=event=>{
     const msg=JSON.parse(event.data);
     if(msg.event==="didReceiveSettings"){settingsRevision++;settings=msg.payload.settings??{};show();}
     if(msg.event==="sendToPropertyInspector"){
+      if(msg.payload.response==="chromeHostRegistration") {
+        if(registrationRequestId===null||msg.payload.requestId!==registrationRequestId) return;
+        registrationRequestId=null;clearTimeout(registrationTimeout);registerChrome.disabled=false;
+        chromeStatus.textContent=msg.payload.message;
+        return;
+      }
       if(msg.payload.settingsRevision===settingsRevision&&msg.payload.settings!=null){
         settings=msg.payload.settings;settingsRevision++;
       }
@@ -38,8 +46,23 @@ window.connectElgatoStreamDeckSocket=(port,uuid,registerEvent,_info,actionInfo)=
       show();
     }
   };
-  socket.onclose=()=>{document.getElementById("status").textContent="プラグインとの接続が切れました";};
+  socket.onclose=()=>{
+    registerChrome.disabled=true;clearTimeout(registrationTimeout);
+    if(registrationRequestId!==null) chromeStatus.textContent="登録結果を確認できませんでした。設定画面を開き直してください。";
+    registrationRequestId=null;
+    document.getElementById("status").textContent="プラグインとの接続が切れました";
+  };
 };
+registerChrome.addEventListener("click",()=>{
+  if(socket?.readyState!==WebSocket.OPEN||registrationRequestId!==null) return;
+  registrationRequestId=crypto.randomUUID();registerChrome.disabled=true;
+  chromeStatus.textContent="Chrome 連携を登録しています…";
+  send("sendToPlugin",{request:"registerChromeHost",requestId:registrationRequestId});
+  registrationTimeout=setTimeout(()=>{
+    registrationRequestId=null;registerChrome.disabled=socket?.readyState!==WebSocket.OPEN;
+    chromeStatus.textContent="応答を確認できませんでした。もう一度お試しください。";
+  },25000);
+});
 for(const [element,key,value] of [
   [media,"mediaTarget",()=>media.value],
   [audio,"audioTarget",()=>audio.value],

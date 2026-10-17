@@ -12,5 +12,9 @@ body{font:13px system-ui;color:#eee;background:#282828;margin:12px}label{display
 </div>
 <p>Now Playing +：右回転＝早送り、左回転＝巻き戻し（初期値5秒/目盛り、音量へ変更可）、押下＝再生/一時停止、進捗バーをタップ＝シーク（対応時）、長押し＝次のセッション。</p>
 <p>長い曲名・アーティスト名はピクセル単位で滑らかにスクロールし、末尾まで表示します。先頭と末尾で少し止まり、曲が変わると先頭から表示します。通常キーの文字も画像内に描画します。</p>
+<label for="register-chrome">Chrome 連携</label>
+<p>Chrome に拡張機能を読み込んだ後、下のボタンで連携を登録できます。</p>
+<button id="register-chrome" type="button" disabled>Chrome 連携を登録</button>
+<p id="chrome-registration-status" role="status"></p>
 <details><summary>取得情報・取得元・観測時刻</summary><pre id="details">情報待ち</pre></details>
 <p id="status" role="status"></p><script src="settings.js"></script></html>

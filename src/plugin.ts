@@ -1,6 +1,7 @@
 import streamDeck,{action,SingletonAction,type KeyDownEvent,type DialDownEvent,type DialRotateEvent,type TouchTapEvent,type WillAppearEvent,type WillDisappearEvent,type DidReceiveSettingsEvent,type KeyAction,type DialAction} from "@elgato/streamdeck";
 import {sendMediaKey,type MediaCommand} from "./windows-media.js";
 import {startChromeServer,chromeCommand} from "./chrome-server.js";
+import {registerChromeHost,stopChromeRegistration} from "./chrome-registration.js";
 import {startMediaPolling,subscribe,currentMedia,audioTarget,availableSessions,audioTargets} from "./media-state.js";
 import {nativeCommand} from "./native-client.js";
 import {artwork,applicationIcon} from "./artwork.js";
@@ -182,7 +183,17 @@ for(const instance of [new PlayPause(),new Previous(),new Next(),new Stop(),new 
 subscribe(()=>{for(const a of visualActions) a.refresh();});
 streamDeck.ui.onSendToPlugin(ev=>{
   const request=ev.payload;
-  if(!request||typeof request!=="object"||Array.isArray(request)||request.request!=="options") return;
+  if(!request||typeof request!=="object"||Array.isArray(request)) return;
+  if(request.request==="registerChromeHost") {
+    const requestId=request.requestId;
+    if(streamDeck.ui.action?.id!==ev.action.id||typeof requestId!=="string"||!/^[a-f0-9-]{36}$/i.test(requestId)) return;
+    void registerChromeHost(msg=>streamDeck.logger.warn(msg)).then(async result=>{
+      if(streamDeck.ui.action?.id!==ev.action.id) return;
+      await streamDeck.ui.sendToPropertyInspector({response:"chromeHostRegistration",requestId,...result});
+    }).catch(e=>streamDeck.logger.warn(String(e)));
+    return;
+  }
+  if(request.request!=="options") return;
   const settingsRevision=request.settingsRevision;
   if(typeof settingsRevision!=="number"||!Number.isSafeInteger(settingsRevision)||settingsRevision<0) return;
   void (async()=>{const settings=await ev.action.getSettings();
@@ -199,6 +210,6 @@ animation.unref();
 let closeBridge=()=>{};
 try {const server=startChromeServer(msg=>streamDeck.logger.info(msg));closeBridge=()=>{server.close();server.closeAllConnections();};}
 catch(e) {streamDeck.logger.error(`Chrome bridge: ${String(e)}`);}
-process.once("exit",()=>{clearInterval(animation);stop();});
-for(const signal of ["SIGINT","SIGTERM"] as const) process.once(signal,()=>{clearInterval(animation);stop();closeBridge();process.exit(0);});
+process.once("exit",()=>{clearInterval(animation);stop();stopChromeRegistration();});
+for(const signal of ["SIGINT","SIGTERM"] as const) process.once(signal,()=>{clearInterval(animation);stop();stopChromeRegistration();closeBridge();process.exit(0);});
 await streamDeck.connect();

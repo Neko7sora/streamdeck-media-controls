@@ -9,13 +9,15 @@ test("Now Playing operates the session last sent to the display, and never falls
     state:`const d=globalThis.__mediaTest;export function currentMedia(id="auto"){return id==="auto"?d.current:d.sessions.find(x=>x.session_id===id)??null;}export function availableSessions(){return d.sessions;}export function audioTarget(id){d.audioRequests.push(id);return {name:id,volume:0.5,muted:false};}export function audioTargets(){return [];}export function subscribe(){}export function startMediaPolling(){return ()=>{};}`,
     native:`export async function nativeCommand(c){const d=globalThis.__mediaTest;d.commands.push(c);await d.command?.(c);}`,
     chrome:`export function startChromeServer(){return {close(){},closeAllConnections(){}};}export async function chromeCommand(){throw Error("Unexpected Chrome command");}`,
+    registration:`export function registerChromeHost(){const d=globalThis.__mediaTest;d.registrations=(d.registrations??0)+1;return d.registration??Promise.resolve({status:"registered",message:"Registered"});}export function stopChromeRegistration(){}`,
     art:`export async function artwork(){return undefined;} export async function applicationIcon(m){return m?.favicon_data_url??m?.app_icon_data_url;}`
   };
   const plugin={name:"test-ports",setup(build){
-    build.onResolve({filter:/@elgato\/streamdeck$|\.\/media-state\.js$|\.\/native-client\.js$|\.\/chrome-server\.js$|\.\/artwork\.js$/},args=>({path:args.path==="@elgato/streamdeck"?"sdk":args.path.includes("media-state")?"state":args.path.includes("native-client")?"native":args.path.includes("chrome-server")?"chrome":"art",namespace:"test"}));
+    build.onResolve({filter:/@elgato\/streamdeck$|\.\/media-state\.js$|\.\/native-client\.js$|\.\/chrome-server\.js$|\.\/chrome-registration\.js$|\.\/artwork\.js$/},args=>({path:args.path==="@elgato/streamdeck"?"sdk":args.path.includes("media-state")?"state":args.path.includes("native-client")?"native":args.path.includes("chrome-server")?"chrome":args.path.includes("chrome-registration")?"registration":"art",namespace:"test"}));
     build.onLoad({filter:/.*/,namespace:"test"},args=>({contents:mocks[args.path],loader:"js"}));
   }};
   await load("plugin",[plugin]);
+  assert.equal(driver.registrations??0,0,"startup must not register a Chrome host");
   const nextTurn=()=>new Promise(resolve=>setImmediate(resolve));
   let releaseSettings;
   const settingsRead=new Promise(resolve=>{releaseSettings=resolve;});
@@ -37,6 +39,21 @@ test("Now Playing operates the session last sent to the display, and never falls
   driver.inspectorAction=undefined;
   closeSettings({mediaTarget:"B"});await nextTurn();
   assert.equal(driver.inspectorReplies.length,1,"closing the inspector drops its pending options response");
+  const requestId="11111111-1111-1111-1111-111111111111";
+  driver.inspectorAction=currentInspector;
+  driver.onSendToPlugin({action:currentInspector,payload:{request:"registerChromeHost",requestId}});await nextTurn();
+  assert.equal(driver.registrations,1);
+  assert.deepEqual(driver.inspectorReplies.at(-1),{response:"chromeHostRegistration",requestId,status:"registered",message:"Registered"});
+  let finishRegistration;driver.registration=new Promise(resolve=>{finishRegistration=resolve;});
+  driver.onSendToPlugin({action:currentInspector,payload:{request:"registerChromeHost",requestId}});
+  driver.inspectorAction={id:"different-inspector"};
+  const replyCount=driver.inspectorReplies.length;finishRegistration({status:"not-found",message:"Missing"});await nextTurn();
+  assert.equal(driver.inspectorReplies.length,replyCount,"registration results must not be sent to a different action");
+  driver.onSendToPlugin({action:currentInspector,payload:{request:"registerChromeHost",requestId}});
+  assert.equal(driver.registrations,2,"requests from an inactive inspector cannot register a host");
+  driver.inspectorAction=currentInspector;
+  driver.onSendToPlugin({action:currentInspector,payload:{request:"registerChromeHost",requestId:"invalid"}});
+  assert.equal(driver.registrations,2);
   const action=driver.instances.find(x=>x.constructor.name==="NowPlaying");
   let alerts=0;
   const key={id:"key",isKey:()=>true,isDial:()=>false,async setImage(){},async setTitle(){},async showAlert(){alerts++;}};

@@ -2,14 +2,15 @@ import {test} from "node:test";
 import assert from "node:assert/strict";
 import {readFileSync} from "node:fs";
 import vm from "node:vm";
+import {randomUUID} from "node:crypto";
 
 const source=readFileSync(new URL("../dev.local.media-controls.sdPlugin/ui/settings.js",import.meta.url),"utf8");
 function inspector(settings={}) {
   const selects=new Set(["media","audio","dial-mode","seek-step"]);
   const elements=new Map();
-  for(const id of ["media","audio","global","details","dial-mode","seek-step","dial-settings","seek-settings","status"]) {
+  for(const id of ["media","audio","global","details","dial-mode","seek-step","dial-settings","seek-settings","status","register-chrome","chrome-registration-status"]) {
     let value="";
-    const element={children:[],listeners:{},checked:false,hidden:false,textContent:"",
+    const element={children:[],listeners:{},checked:false,hidden:false,textContent:"",disabled:id==="register-chrome",
       get value(){return value;},
       set value(next){value=selects.has(id)&&!this.children.some(option=>option.value===next)?"":next;},
       replaceChildren(){this.children=[];value="";},
@@ -22,6 +23,7 @@ function inspector(settings={}) {
     for(const value of values) elements.get(id).append({value});
   }
   const messages=[];
+  const timers=new Map();let timerId=0;
   let socket,poll;
   class WebSocket {
     static OPEN=1;
@@ -30,7 +32,7 @@ function inspector(settings={}) {
     send(message){messages.push(JSON.parse(message));}
   }
   const window={};
-  vm.runInNewContext(source,{window,WebSocket,JSON,setInterval(fn){poll=fn;},document:{
+  vm.runInNewContext(source,{window,WebSocket,JSON,crypto:{randomUUID},setInterval(fn){poll=fn;},setTimeout(fn){timers.set(++timerId,fn);return timerId;},clearTimeout(id){timers.delete(id);},document:{
     getElementById:id=>elements.get(id),createElement:()=>({})
   }});
   window.connectElgatoStreamDeckSocket(1234,"context","registerPropertyInspector","{}",JSON.stringify({
@@ -38,6 +40,9 @@ function inspector(settings={}) {
   }));
   socket.onopen();
   return {elements,messages,poll:()=>{poll();return messages.at(-1).payload;},
+    click:id=>elements.get(id).listeners.click(),
+    timeout(){for(const [id,fn] of timers){timers.delete(id);fn();}},
+    close(){socket.readyState=3;socket.onclose();},
     receive:(event,payload)=>socket.onmessage({data:JSON.stringify({event,payload})}),
     change(id,value){const element=elements.get(id);if(id==="global") element.checked=value;else element.value=value;element.listeners.change();}};
 }
@@ -53,6 +58,40 @@ test("inspector loads saved targets immediately and edits only the changed setti
   assert.deepEqual(pi.messages.at(-1).payload,{...saved,globalKeys:false});
   pi.change("seek-step","10");
   assert.deepEqual(pi.messages.at(-1).payload,{...saved,globalKeys:false,seekStep:10});
+});
+
+test("Chrome registration runs on click, blocks duplicate clicks, and keeps selected sessions intact",()=>{
+  const pi=inspector({mediaTarget:"A",audioTarget:"app"});
+  pi.receive("sendToPropertyInspector",{sessions:[{id:"A",label:"Track A",details:"Track details"}],audio:[{id:"app",label:"Player"}]});
+  pi.poll();assert.ok(pi.messages.every(message=>message.payload?.request!=="registerChromeHost"));
+  pi.click("register-chrome");
+  const request=pi.messages.at(-1).payload;
+  assert.equal(request.request,"registerChromeHost");assert.equal(pi.elements.get("register-chrome").disabled,true);
+  const count=pi.messages.length;pi.click("register-chrome");assert.equal(pi.messages.length,count);
+  pi.receive("sendToPropertyInspector",{response:"chromeHostRegistration",requestId:request.requestId,status:"not-found",message:"拡張機能が見つかりません。"});
+  assert.equal(pi.elements.get("register-chrome").disabled,false);
+  assert.match(pi.elements.get("chrome-registration-status").textContent,/見つかりません/);
+  assert.equal(pi.elements.get("details").textContent,"Track details");
+  assert.equal(pi.elements.get("media").value,"A");assert.equal(pi.elements.get("audio").value,"app");
+  pi.poll();assert.equal(pi.messages.at(-1).payload.request,"options","regular options refresh must not register a host");
+  pi.click("register-chrome");const next=pi.messages.at(-1).payload;
+  assert.notEqual(next.requestId,request.requestId);
+  pi.receive("sendToPropertyInspector",{response:"chromeHostRegistration",requestId:request.requestId,message:"Old reply"});
+  assert.equal(pi.elements.get("register-chrome").disabled,true,"stale replies cannot finish a newer attempt");
+  pi.receive("sendToPropertyInspector",{response:"chromeHostRegistration",requestId:next.requestId,status:"registered",message:"登録しました。"});
+  assert.equal(pi.elements.get("chrome-registration-status").textContent,"登録しました。");
+  assert.equal(pi.elements.get("register-chrome").disabled,false);
+});
+
+test("registration timeout and disconnect report a result without retrying",()=>{
+  const pi=inspector();pi.click("register-chrome");
+  const count=pi.messages.length;pi.timeout();assert.equal(pi.messages.length,count);
+  assert.equal(pi.elements.get("register-chrome").disabled,false);
+  assert.match(pi.elements.get("chrome-registration-status").textContent,/応答/);
+  pi.click("register-chrome");pi.close();
+  assert.equal(pi.elements.get("register-chrome").disabled,true);
+  assert.match(pi.elements.get("chrome-registration-status").textContent,/開き直して/);
+  const closedCount=pi.messages.length;pi.click("register-chrome");pi.timeout();assert.equal(pi.messages.length,closedCount);
 });
 
 test("settings updates retain newly selected or disconnected targets until options catch up",()=>{

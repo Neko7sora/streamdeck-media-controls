@@ -20,7 +20,7 @@ for (const a of m.Actions) {
   checkImage(a.Icon);
   for (const state of a.States) checkImage(state.Image);
 }
-for (const file of [m.CodePath, "native/media-keys.exe", "native/media-info.exe", "ui/settings.html", "ui/settings.js", "layouts/now-playing.json", "node_modules/sharp/package.json"]) {
+for (const file of [m.CodePath, "native/media-keys.exe", "native/media-info.exe", "native/register-chrome-native-host.ps1", "native/chrome-native-host.mjs", "ui/settings.html", "ui/settings.js", "layouts/now-playing.json", "node_modules/sharp/package.json"]) {
   if (!existsSync(join(plugin,file))) throw new Error(`Missing build output: ${file}`);
 }
 console.log(`Manifest and assets: OK (${m.Actions.length} actions)`);
