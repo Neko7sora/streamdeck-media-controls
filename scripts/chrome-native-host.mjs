@@ -14,7 +14,7 @@ process.stdout.on('error',()=>process.exit(1));
 async function handle(message) {
   const id=message?.id;
   try {
-    if(!Number.isSafeInteger(id)||!['','/result'].includes(message.path)||!message.body) throw new Error('Invalid request');
+    if(!Number.isSafeInteger(id)||!['','/result','/status'].includes(message.path)||!message.body) throw new Error('Invalid request');
     const token=readFileSync(join(process.env.LOCALAPPDATA,'StreamDeckMediaControls','chrome-token.txt'),'utf8').trim();
     if(!/^[a-f0-9]{64}$/.test(token)) throw new Error('Invalid token');
     const response=await fetch('http://127.0.0.1:39761/chrome'+message.path,{

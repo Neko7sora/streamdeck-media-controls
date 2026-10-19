@@ -3,6 +3,21 @@ const media=document.getElementById("media"),audio=document.getElementById("audi
 const dialMode=document.getElementById("dial-mode"),seekStep=document.getElementById("seek-step");
 const registerChrome=document.getElementById("register-chrome"),chromeStatus=document.getElementById("chrome-registration-status");
 let registrationRequestId=null,registrationTimeout;
+let lastOptionsAt=0;
+function showChromeConnection(connection){
+  const state=connection?.state??"checking";
+  const connected=state==="connected";
+  const title=connected?"Chrome：接続済み":state==="unavailable"?"Chrome：接続を確認できません":state==="disconnected"?"Chrome：未接続":"Chrome：接続を確認中";
+  const detail=connected?(connection.sessions>0?`メディアを受信中（${connection.sessions} セッション）` :"連携は正常です。メディアページを再生すると情報が表示されます。")
+    :state==="unavailable"?"プラグインの応答または連携の待ち受けを確認できません。Stream Deck と設定画面を開き直してください。"
+    :state==="disconnected"?"Chrome 拡張の送信を有効にしてください。初回は「Chrome 連携を登録」を実行してください。"
+    :"プラグインからの応答を待っています。";
+  document.getElementById("chrome-connection").dataset.state=state;
+  // Do not repeatedly announce an unchanged status during polling.
+  for(const [id,value] of [["chrome-connection-title",title],["chrome-connection-detail",detail]]) {
+    const element=document.getElementById(id);if(element.textContent!==value) element.textContent=value;
+  }
+}
 function setSettingsDisabled(disabled){for(const element of [media,audio,global,dialMode,seekStep]) element.disabled=disabled;}
 setSettingsDisabled(true);
 function send(event,payload){if(socket?.readyState===WebSocket.OPEN) socket.send(JSON.stringify({event,context,action,payload}));}
@@ -34,7 +49,7 @@ window.connectElgatoStreamDeckSocket=(port,uuid,registerEvent,_info,actionInfo)=
   const info=JSON.parse(actionInfo);context=uuid;action=info.action;settings=info.payload.settings??{};
   show();
   socket=new WebSocket(`ws://127.0.0.1:${port}`);
-  socket.onopen=()=>{socket.send(JSON.stringify({event:registerEvent,uuid}));setSettingsDisabled(false);registerChrome.disabled=false;document.getElementById("status").textContent="";requestOptions();};
+  socket.onopen=()=>{socket.send(JSON.stringify({event:registerEvent,uuid}));setSettingsDisabled(false);registerChrome.disabled=false;lastOptionsAt=Date.now();document.getElementById("status").textContent="";requestOptions();};
   socket.onmessage=event=>{
     const msg=JSON.parse(event.data);
     if(msg.event==="didReceiveSettings"){settingsRevision++;settings=msg.payload.settings??{};show();}
@@ -50,6 +65,7 @@ window.connectElgatoStreamDeckSocket=(port,uuid,registerEvent,_info,actionInfo)=
       }
       sessions=msg.payload.sessions??[];
       audioTargets=msg.payload.audio??[];
+      lastOptionsAt=Date.now();showChromeConnection(msg.payload.chromeConnection);
       show();
     }
   };
@@ -58,6 +74,7 @@ window.connectElgatoStreamDeckSocket=(port,uuid,registerEvent,_info,actionInfo)=
     registerChrome.disabled=true;clearTimeout(registrationTimeout);
     if(registrationRequestId!==null) chromeStatus.textContent="登録結果を確認できませんでした。設定画面を開き直してください。";
     registrationRequestId=null;
+    lastOptionsAt=0;showChromeConnection({state:"unavailable"});
     document.getElementById("status").textContent="プラグインとの接続が切れました";
   };
 };
@@ -81,4 +98,4 @@ for(const [element,key,value] of [
   if(socket?.readyState!==WebSocket.OPEN){show();return;}
   settingsRevision++;settings={...settings,[key]:value()};send("setSettings",settings);show();
 });
-setInterval(requestOptions,1000);
+setInterval(()=>{requestOptions();if(lastOptionsAt&&Date.now()-lastOptionsAt>6000) showChromeConnection({state:"unavailable"});},1000);

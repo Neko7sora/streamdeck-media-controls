@@ -3,9 +3,14 @@ import {randomBytes,timingSafeEqual} from "node:crypto";
 import {mkdirSync,readFileSync,writeFileSync} from "node:fs";
 import {join} from "node:path";
 import {execFileSync} from "node:child_process";
-import {ingestChrome} from "./media-state.js";
+import {ingestChrome,chromeSessions} from "./media-state.js";
 
 export const PORT=39761;
+let bridgeListening=false,lastChromeContact:number|null=null;
+export function chromeConnectionStatus(now=Date.now()) {
+  const connected=bridgeListening&&lastChromeContact!==null&&now-lastChromeContact<15000;
+  return {state:!bridgeListening?"unavailable":connected?"connected":"disconnected",lastSeen:lastChromeContact,sessions:connected?chromeSessions(now).length:0};
+}
 function loadToken():string {
   if(!process.env.LOCALAPPDATA) throw new Error("LOCALAPPDATA is required for private token storage");
   const dir=join(process.env.LOCALAPPDATA,"StreamDeckMediaControls"), path=join(dir,"chrome-token.txt");
@@ -48,10 +53,11 @@ export function chromeCommand(tab_id:number,frame_id:number,document_id:string,t
 }
 export function startChromeServer(log:(s:string)=>void,options:{token?:string;port?:number}={}):Server {
   const token=options.token??loadToken();
+  bridgeListening=false;lastChromeContact=null;
   const server=createServer((req,res)=>{
     res.setHeader("Cache-Control","no-store");res.setHeader("Content-Type","application/json");
     const reply=(status:number,value:unknown)=>{if(!res.writableEnded) res.writeHead(status).end(JSON.stringify(value));};
-    if(req.method!=="POST"||!["/chrome","/chrome/result"].includes(req.url??"")) {reply(404,{error:"not_found"});return;}
+    if(req.method!=="POST"||!["/chrome","/chrome/result","/chrome/status"].includes(req.url??"")) {reply(404,{error:"not_found"});return;}
     if(!authorized(req,token)) {reply(401,{error:"unauthorized"});return;}
     if(req.headers["content-type"]?.split(";")[0]?.trim()!=="application/json") {reply(415,{error:"content_type"});return;}
     let size=0,oversized=false;const parts:Buffer[]=[];
@@ -67,6 +73,7 @@ export function startChromeServer(log:(s:string)=>void,options:{token?:string;po
         const b:unknown=JSON.parse(Buffer.concat(parts).toString("utf8"));
         if(!b||typeof b!=="object"||Array.isArray(b)) throw new Error("Invalid payload");
         const v=b as Record<string,unknown>;
+        if(req.url==="/chrome/status") {lastChromeContact=Date.now();reply(200,{ok:true});return;}
         if(req.url==="/chrome/result") {
           const p=typeof v.id==="string"?pending.get(v.id):undefined;
           if(p) {pending.delete(p.command.id);clearTimeout(p.timer);if(v.ok===true) p.resolve();else p.reject(new Error("Chrome operation unavailable or rejected"));}
@@ -74,6 +81,7 @@ export function startChromeServer(log:(s:string)=>void,options:{token?:string;po
         }
         const tab=v.tab_id,frame=v.frame_id;
         if(typeof tab!=="number"||typeof frame!=="number"||!Number.isSafeInteger(v.sequence)||Number(v.sequence)<0||typeof v.document_id!=="string"||v.document_id.length>100||!v.document_id||!ingestChrome(tab,frame,v.media,Number(v.sequence),v.document_id)) throw new Error("Invalid media update");
+        lastChromeContact=Date.now();
         const commands:Command[]=[];
         for(const p of pending.values()) if(!p.sent&&p.command.tab_id===tab&&p.command.frame_id===frame&&p.command.document_id===v.document_id) {commands.push(p.command);p.sent=true;}
         reply(200,{ok:true,commands});
@@ -81,8 +89,8 @@ export function startChromeServer(log:(s:string)=>void,options:{token?:string;po
     });
   });
   server.requestTimeout=5000;server.headersTimeout=5000;server.timeout=5000;server.maxConnections=16;
-  server.on("error",e=>log(`Chrome bridge: ${String(e)}`));
-  server.on("close",()=>{for(const p of pending.values()){clearTimeout(p.timer);p.reject(new Error("Chrome bridge stopped"));}pending.clear();});
-  server.listen(options.port??PORT,"127.0.0.1",()=>log(`Chrome bridge listening on loopback:${(server.address() as {port:number}).port}`));
+  server.on("error",e=>{bridgeListening=false;log(`Chrome bridge: ${String(e)}`);});
+  server.on("close",()=>{bridgeListening=false;lastChromeContact=null;for(const p of pending.values()){clearTimeout(p.timer);p.reject(new Error("Chrome bridge stopped"));}pending.clear();});
+  server.listen(options.port??PORT,"127.0.0.1",()=>{bridgeListening=true;log(`Chrome bridge listening on loopback:${(server.address() as {port:number}).port}`);});
   return server;
 }

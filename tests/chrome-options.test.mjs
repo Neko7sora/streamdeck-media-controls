@@ -10,13 +10,14 @@ function deferred(){
   const promise=new Promise((done,fail)=>{resolve=done;reject=fail;});
   return {promise,resolve,reject};
 }
-function options({load=Promise.resolve({}),write=async()=>{}}={}){
-  const elements=new Map(["enabled","token","status","save"].map(id=>[id,{
+function options({load=Promise.resolve({}),write=async()=>{},connection=Promise.resolve({state:'disabled'})}={}){
+  const elements=new Map(["enabled","token","status","save","connection","connection-title","connection-detail"].map(id=>[id,{
+    dataset:{},
     checked:false,value:"",textContent:"",disabled:false,listeners:{},
     addEventListener(event,fn){this.listeners[event]=fn;}
   }]));
   const writes=[];
-  vm.runInNewContext(source,{document:{getElementById:id=>elements.get(id)},chrome:{storage:{local:{
+  vm.runInNewContext(source,{setInterval(){},document:{getElementById:id=>elements.get(id)},chrome:{runtime:{async sendMessage(){return connection;}},storage:{local:{
     get:()=>load,
     set(value){writes.push({...value});return write(value);}
   }}}});
@@ -25,6 +26,27 @@ function options({load=Promise.resolve({}),write=async()=>{}}={}){
 function assertDisabled(page,disabled){
   for(const id of ["enabled","save"]) assert.equal(page.elements.get(id).disabled,disabled,id);
 }
+
+test('popup shows live connection, disabled sending and connection failures separately from saved settings',async()=>{
+  for(const [state,label] of [['connected','接続済み'],['disabled','送信は無効'],['disconnected','未接続']]) {
+    const page=options({load:Promise.resolve({enabled:true}),connection:Promise.resolve({state})});await flush();
+    assert.equal(page.elements.get('connection').dataset.state,state);
+    assert.ok(page.elements.get('connection-title').textContent.includes(label));
+    assert.equal(page.elements.get('status').textContent,'');
+  }
+  const failure=deferred();const page=options({connection:failure.promise});failure.reject(Error('worker unavailable'));await flush();
+  assert.equal(page.elements.get('connection').dataset.state,'unavailable');
+  assert.match(page.elements.get('connection-title').textContent,/確認できません/);
+  assert.doesNotMatch(page.elements.get('connection-detail').textContent,/連携を登録/);
+});
+
+test('missing or malformed worker responses do not claim that Stream Deck is disconnected',async()=>{
+  for(const response of [undefined,{}, {state:'unknown'}]) {
+    const page=options({connection:Promise.resolve(response)});await flush();
+    assert.equal(page.elements.get('connection').dataset.state,'unavailable');
+    assert.doesNotMatch(page.elements.get('connection-title').textContent,/未接続/);
+  }
+});
 
 test("options cannot overwrite saved settings before their initial read finishes",async()=>{
   const load=deferred(),page=options({load:load.promise});

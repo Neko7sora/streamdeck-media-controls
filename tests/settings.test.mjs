@@ -8,9 +8,9 @@ const source=readFileSync(new URL("../dev.local.media-controls.sdPlugin/ui/setti
 function inspector(settings={},{connect=true}={}) {
   const selects=new Set(["media","audio","dial-mode","seek-step"]);
   const elements=new Map();
-  for(const id of ["media","audio","global","details","dial-mode","seek-step","dial-settings","seek-settings","status","register-chrome","chrome-registration-status"]) {
+  for(const id of ["media","audio","global","details","dial-mode","seek-step","dial-settings","seek-settings","status","register-chrome","chrome-registration-status","chrome-connection","chrome-connection-title","chrome-connection-detail"]) {
     let value="";
-    const element={children:[],listeners:{},checked:false,hidden:false,textContent:"",disabled:id==="register-chrome",
+    const element={dataset:{},children:[],listeners:{},checked:false,hidden:false,textContent:"",disabled:id==="register-chrome",
       get value(){return value;},
       set value(next){value=selects.has(id)&&!this.children.some(option=>option.value===next)?"":next;},
       replaceChildren(){this.children=[];value="";},
@@ -24,7 +24,7 @@ function inspector(settings={},{connect=true}={}) {
   }
   const messages=[];
   const timers=new Map();let timerId=0;
-  let socket,poll;
+  let socket,poll,now=1000;
   class WebSocket {
     static OPEN=1;
     readyState=0;
@@ -32,7 +32,7 @@ function inspector(settings={},{connect=true}={}) {
     send(message){messages.push(JSON.parse(message));}
   }
   const window={};
-  vm.runInNewContext(source,{window,WebSocket,JSON,crypto:{randomUUID},setInterval(fn){poll=fn;},setTimeout(fn){timers.set(++timerId,fn);return timerId;},clearTimeout(id){timers.delete(id);},document:{
+  vm.runInNewContext(source,{window,WebSocket,JSON,Date:{now:()=>now},crypto:{randomUUID},setInterval(fn){poll=fn;},setTimeout(fn){timers.set(++timerId,fn);return timerId;},clearTimeout(id){timers.delete(id);},document:{
     getElementById:id=>elements.get(id),createElement:()=>({})
   }});
   window.connectElgatoStreamDeckSocket(1234,"context","registerPropertyInspector","{}",JSON.stringify({
@@ -41,6 +41,7 @@ function inspector(settings={},{connect=true}={}) {
   const open=()=>{socket.readyState=1;socket.onopen();};
   if(connect) open();
   return {elements,messages,open,poll:()=>{poll();return messages.at(-1).payload;},
+    advance(ms){now+=ms;poll();},
     click:id=>elements.get(id).listeners.click(),
     timeout(){for(const [id,fn] of timers){timers.delete(id);fn();}},
     close(){socket.readyState=3;socket.onclose();},
@@ -68,6 +69,34 @@ test("settings are editable only while connected so unsaved changes are never sh
   assert.equal(pi.elements.get("global").checked,false);
   assert.equal(pi.messages.length,count);
   assert.match(pi.elements.get("status").textContent,/接続が切れました/);
+});
+
+test('Chrome connection is independent of registration and distinguishes idle, receiving and disconnected',()=>{
+  const pi=inspector();
+  const receive=chromeConnection=>pi.receive('sendToPropertyInspector',{chromeConnection});
+  receive({state:'disconnected',sessions:0});
+  assert.match(pi.elements.get('chrome-connection-title').textContent,/未接続/);
+  pi.click('register-chrome');const request=pi.messages.at(-1).payload;
+  pi.receive('sendToPropertyInspector',{response:'chromeHostRegistration',requestId:request.requestId,status:'registered',message:'登録しました。'});
+  assert.match(pi.elements.get('chrome-connection-title').textContent,/未接続/);
+  receive({state:'connected',sessions:0});
+  assert.equal(pi.elements.get('chrome-connection').dataset.state,'connected');
+  assert.match(pi.elements.get('chrome-connection-detail').textContent,/連携は正常/);
+  receive({state:'connected',sessions:2});
+  assert.match(pi.elements.get('chrome-connection-detail').textContent,/2 セッション/);
+  pi.close();
+  assert.equal(pi.elements.get('chrome-connection').dataset.state,'unavailable');
+});
+
+test('a silent plugin clears a connected indicator even when the inspector socket stays open',()=>{
+  const pi=inspector();
+  pi.receive('sendToPropertyInspector',{chromeConnection:{state:'connected',sessions:1}});
+  pi.advance(6001);
+  assert.equal(pi.elements.get('chrome-connection').dataset.state,'unavailable');
+  pi.receive('sendToPropertyInspector',{chromeConnection:{state:'connected',sessions:0}});
+  assert.equal(pi.elements.get('chrome-connection').dataset.state,'connected');
+  const silent=inspector();silent.advance(6001);
+  assert.equal(silent.elements.get('chrome-connection').dataset.state,'unavailable');
 });
 
 test("inspector loads saved targets immediately and edits only the changed setting",()=>{

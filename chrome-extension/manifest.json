@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "Stream Deck Media Metadata Bridge (Local)",
   "description": "Opt-in local bridge of browser media metadata and permitted artwork to Stream Deck. No cloud upload.",
-  "version": "0.4.5",
+  "version": "0.4.6",
   "minimum_chrome_version": "111",
   "permissions": [
     "storage",
@@ -16,6 +16,10 @@
     "service_worker": "background.js"
   },
   "options_page": "options.html",
+  "action": {
+    "default_title": "Media Bridge：接続を確認中",
+    "default_popup": "options.html"
+  },
   "content_scripts": [
     {
       "matches": [

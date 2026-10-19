@@ -14,6 +14,15 @@ test("loopback bridge authenticates, validates, routes exact-frame commands and 
   const address=server.address();assert.equal(address.address,"127.0.0.1");
   const base=`http://127.0.0.1:${address.port}`;
   const post=(path,body,auth=token)=>fetch(base+path,{method:"POST",headers:{"content-type":"application/json","authorization":`Bearer ${auth}`},body:typeof body==="string"?body:JSON.stringify(body)});
+  assert.equal(bridge.chromeConnectionStatus().state,'disconnected');
+  assert.equal((await post('/chrome/status',{},'wrong')).status,401);
+  assert.equal((await post('/chrome/status',[])).status,400);
+  assert.equal(bridge.chromeConnectionStatus().state,'disconnected');
+  assert.equal((await post('/chrome/status',{})).status,200);
+  const live=bridge.chromeConnectionStatus();
+  assert.equal(live.state,'connected');assert.equal(live.sessions,0);
+  assert.equal(bridge.chromeConnectionStatus(live.lastSeen+14999).state,'connected');
+  assert.equal(bridge.chromeConnectionStatus(live.lastSeen+15000).state,'disconnected');
   assert.equal((await post("/chrome",{},"wrong")).status,401);
   assert.equal((await fetch(base+"/token")).status,404);
   assert.equal((await fetch(base+"/chrome",{method:"POST",headers:{authorization:`Bearer ${token}`,"content-type":"text/plain"},body:"{}"})).status,415);

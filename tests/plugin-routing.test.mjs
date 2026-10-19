@@ -8,7 +8,7 @@ test("Now Playing operates the session last sent to the display, and never falls
     sdk:`const d=globalThis.__mediaTest;export class SingletonAction{actions=[];} export function action(){return c=>c;} export default {actions:{registerAction(a){d.instances.push(a);}},ui:{get action(){return d.inspectorAction;},onSendToPlugin(fn){d.onSendToPlugin=fn;},async sendToPropertyInspector(payload){d.inspectorReplies.push(payload);}},logger:{warn(){},error(){},info(){}},async connect(){}};`,
     state:`const d=globalThis.__mediaTest;export function currentMedia(id="auto"){return id==="auto"?d.current:d.sessions.find(x=>x.session_id===id)??null;}export function availableSessions(){return d.sessions;}export function audioTarget(id){d.audioRequests.push(id);return {name:id,volume:0.5,muted:false};}export function audioTargets(){return [];}export function subscribe(){}export function startMediaPolling(){return ()=>{};}`,
     native:`export async function nativeCommand(c){const d=globalThis.__mediaTest;d.commands.push(c);await d.command?.(c);}`,
-    chrome:`export function startChromeServer(){return {close(){},closeAllConnections(){}};}export async function chromeCommand(){throw Error("Unexpected Chrome command");}`,
+    chrome:`export function chromeConnectionStatus(){return {state:"connected",lastSeen:123,sessions:0};}export function startChromeServer(){return {close(){},closeAllConnections(){}};}export async function chromeCommand(){throw Error("Unexpected Chrome command");}`,
     registration:`export function registerChromeHost(){const d=globalThis.__mediaTest;d.registrations=(d.registrations??0)+1;return d.registration??Promise.resolve({status:"registered",message:"Registered"});}export function stopChromeRegistration(){}`,
     art:`export async function artwork(){await globalThis.__mediaTest.artwork?.();return undefined;} export async function applicationIcon(m){return m?.favicon_data_url??m?.app_icon_data_url;}`
   };
@@ -33,6 +33,7 @@ test("Now Playing operates the session last sent to the display, and never falls
   assert.equal(driver.inspectorReplies.at(-1).settingsRevision,8);
   assert.deepEqual(driver.inspectorReplies.at(-1).settings,{mediaTarget:"B"});
   assert.equal(driver.inspectorReplies.at(-1).sessions.length,2);
+  assert.deepEqual(driver.inspectorReplies.at(-1).chromeConnection,{state:'connected',lastSeen:123,sessions:0});
   let closeSettings;
   const closingInspector={id:"inspector-B",getSettings:()=>new Promise(resolve=>{closeSettings=resolve;})};
   driver.onSendToPlugin({action:closingInspector,payload:{request:"options",settingsRevision:9}});

@@ -1,7 +1,9 @@
 <!doctype html><html lang="ja"><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Media Controls 設定</title><style>
 body{font:13px system-ui;color:#eee;background:#282828;margin:12px}label{display:block;margin:12px 0 5px}select,button{width:100%;padding:6px;color:inherit;background:#444;border:1px solid #666}pre{white-space:pre-wrap;overflow-wrap:anywhere;font-size:11px}p{line-height:1.6;color:#ccc}
+.connection{border:1px solid #666;border-radius:8px;padding:12px;margin-bottom:16px;background:#333}.connection strong{display:flex;align-items:center;gap:8px}.connection strong::before{content:"";width:9px;height:9px;flex:none;border-radius:50%;background:#aaa}.connection[data-state=connected]{border-color:#55ce91}.connection[data-state=connected] strong::before{background:#55ce91}.connection[data-state=disconnected] strong::before,.connection[data-state=unavailable] strong::before{background:#ffc46b}.connection p{margin:6px 0 0}
 </style>
+<section class="connection" id="chrome-connection" data-state="checking" role="status" aria-live="polite" aria-atomic="true"><strong id="chrome-connection-title">Chrome：接続を確認中</strong><p id="chrome-connection-detail">プラグインからの応答を待っています。</p></section>
 <label for="media">表示・再生操作のセッション</label><select id="media" disabled><option value="auto">自動（再生中を優先・現在の対象を維持）</option></select>
 <label for="audio">音量の操作対象（再生セッションとは独立）</label><select id="audio" disabled><option value="master">マスター（既定のマルチメディア出力）</option></select>
 <label><input type="checkbox" id="global" disabled>従来のグローバルメディアキーを使用</label>

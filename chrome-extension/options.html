@@ -1,7 +1,8 @@
 <!DOCTYPE html><html lang="ja"><head><meta charset="utf-8"><title>Stream Deck Chrome Bridge</title>
-<style>body{font:16px system-ui;max-width:48rem;margin:2rem auto;line-height:1.7}input[type=password]{width:100%;padding:.6rem;box-sizing:border-box}button{padding:.6rem 1.5rem;margin-top:1rem}code{background:#eee;padding:.2rem}</style></head>
+<style>body{font:14px system-ui;min-width:320px;max-width:40rem;margin:0 auto;padding:24px;line-height:1.7;color:#20252d;background:#f7f9fc}h1{font-size:21px;margin:0 0 16px}button{padding:.6rem 1.5rem;margin-top:1rem;border:1px solid #9aa5b5;border-radius:6px;background:#fff;cursor:pointer}button:disabled{cursor:default;opacity:.6}.connection{border:1px solid #aab2bf;border-radius:10px;padding:14px;background:#fff}.connection strong{display:flex;align-items:center;gap:8px}.connection strong::before{content:"";width:10px;height:10px;flex:none;border-radius:50%;background:#68758a}.connection[data-state=connected]{border-color:#15804b}.connection[data-state=connected] strong::before{background:#15804b}.connection[data-state=disconnected] strong::before{background:#b75b00}.connection p{margin:6px 0 0;font-size:13px}label{display:block}input{accent-color:#157a46}</style></head>
 <body><h1>Stream Deck Media Bridge</h1>
+<section class="connection" id="connection" data-state="checking" role="status" aria-live="polite" aria-atomic="true"><strong id="connection-title">接続を確認中</strong><p id="connection-detail">Stream Deck への接続を確認しています。</p></section>
 <p>この拡張は再生中のページの Media Session 情報と、利用可能なアートワークのみをローカルの Stream Deck プラグインへ送信します。クラウドへアップロードしません。</p>
-<p>Chrome Native Messaging ホストを登録してから送信を有効にしてください。登録手順は README を参照してください。</p>
+<p>初回は Stream Deck の Media Controls 設定で「Chrome 連携を登録」を押してから、下の送信設定を有効にして保存してください。</p>
 <label><input type="checkbox" id="enabled" disabled> ブラウザからの送信を有効化</label>
 <button id="save" disabled>保存</button><p id="status" role="status">設定を読み込んでいます…</p><script src="options.js"></script></body></html>
