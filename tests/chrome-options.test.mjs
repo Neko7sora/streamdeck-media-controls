@@ -17,11 +17,12 @@ function options({load=Promise.resolve({}),write=async()=>{},connection=Promise.
     addEventListener(event,fn){this.listeners[event]=fn;}
   }]));
   const writes=[];
-  vm.runInNewContext(source,{setInterval(){},document:{getElementById:id=>elements.get(id)},chrome:{runtime:{async sendMessage(){return connection;}},storage:{local:{
+  const timers=new Map();let nextTimer=0,poll;
+  vm.runInNewContext(source,{setInterval(fn){poll=fn;},setTimeout(fn){timers.set(++nextTimer,fn);return nextTimer;},clearTimeout(id){timers.delete(id);},document:{getElementById:id=>elements.get(id)},chrome:{runtime:{async sendMessage(){return typeof connection==="function"?connection():connection;}},storage:{local:{
     get:()=>load,
     set(value){writes.push({...value});return write(value);}
   }}}});
-  return {elements,writes,save:()=>elements.get("save").listeners.click()};
+  return {elements,writes,poll:()=>poll(),timeout(){for(const [id,fn] of timers){timers.delete(id);fn();}},save:()=>elements.get("save").listeners.click()};
 }
 function assertDisabled(page,disabled){
   for(const id of ["enabled","save"]) assert.equal(page.elements.get(id).disabled,disabled,id);
@@ -46,6 +47,35 @@ test('missing or malformed worker responses do not claim that Stream Deck is dis
     assert.equal(page.elements.get('connection').dataset.state,'unavailable');
     assert.doesNotMatch(page.elements.get('connection-title').textContent,/未接続/);
   }
+});
+
+test('a stalled connection check expires, ignores late success and recovers on the next poll',async()=>{
+  const initial=deferred(),stalled=deferred();let calls=0;
+  const page=options({connection:()=>++calls===1?initial.promise:calls===2?stalled.promise:Promise.resolve({state:'disconnected'})});
+  initial.resolve({state:'connected'});await flush();
+  assert.equal(page.elements.get('connection').dataset.state,'connected');
+  page.poll();page.poll();
+  assert.equal(calls,2,'polling must not accumulate requests while the worker is silent');
+  page.timeout();
+  assert.equal(page.elements.get('connection').dataset.state,'unavailable');
+  stalled.resolve({state:'connected'});await flush();
+  assert.equal(page.elements.get('connection').dataset.state,'unavailable','an expired reply cannot revive a connected indicator');
+  page.poll();await flush();
+  assert.equal(page.elements.get('connection').dataset.state,'disconnected');
+});
+
+test('saving settings starts a new connection check and an older response cannot undo it',async()=>{
+  const earlier=deferred(),latest=deferred();let calls=0;
+  const page=options({load:Promise.resolve({enabled:true}),connection:()=>++calls===1?earlier.promise:latest.promise});
+  await flush();page.elements.get('enabled').checked=false;
+  await page.save();
+  assert.equal(calls,2,'saving must not wait for the previous connection check');
+  latest.resolve({state:'disabled'});await flush();
+  assert.equal(page.elements.get('connection').dataset.state,'disabled');
+  earlier.resolve({state:'connected'});await flush();
+  assert.equal(page.elements.get('connection').dataset.state,'disabled');
+  page.timeout();
+  assert.equal(page.elements.get('connection').dataset.state,'disabled');
 });
 
 test("options cannot overwrite saved settings before their initial read finishes",async()=>{

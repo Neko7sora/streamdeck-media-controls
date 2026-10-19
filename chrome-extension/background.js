@@ -29,6 +29,28 @@ function connectNative() {
   return port;
 }
 const cachedArtwork=new Map();
+const queuedArtwork=[];
+let activeArtworkJobs=0;
+function discardArtwork(key) {
+  const entry=cachedArtwork.get(key);
+  if(!entry) return;
+  cachedArtwork.delete(key);
+  entry.controller?.abort();
+  const queued=queuedArtwork.indexOf(entry);
+  if(queued>=0) queuedArtwork.splice(queued,1);
+}
+function drainArtwork() {
+  while(activeArtworkJobs<8 && queuedArtwork.length) {
+    const entry=queuedArtwork.shift();
+    if(cachedArtwork.get(entry.key)!==entry) continue;
+    activeArtworkJobs++;
+    void loadArtwork(entry).then(data=>{
+      if(cachedArtwork.get(entry.key)!==entry) return;
+      entry.data=data??entry.data;
+      entry.expires=Date.now()+(data?300000:5000);
+    }).finally(()=>{entry.pending=false;activeArtworkJobs--;drainArtwork();});
+  }
+}
 let settingsGeneration=0;
 // Content scripts cannot access extension settings.
 const storageReady=chrome.storage.local.setAccessLevel({accessLevel:"TRUSTED_CONTEXTS"});
@@ -50,7 +72,7 @@ function checkConnection() {
 setConnectionState("checking");
 void checkConnection();
 setInterval(()=>{if(connectionState!=="disabled") void checkConnection();},5000);
-async function artworkFor(tab,media,icon=false,fallback) {
+function artworkFor(tab,media,icon=false,fallback) {
   const images=icon?media.favicon_candidates:media.artwork_candidates;
   const allowed=["image/png","image/jpeg","image/webp",...(icon?["image/x-icon","image/vnd.microsoft.icon"]:[])];
   const declared=Array.isArray(images)?images.slice(0,16):[];
@@ -81,11 +103,27 @@ async function artworkFor(tab,media,icon=false,fallback) {
   if(conventional&&!top.includes(conventional)) top=[...ranked.slice(0,2),conventional];
   const signature=JSON.stringify([media.title,media.artist,media.album,top.map(x=>x.src)]);
   const cached=cachedArtwork.get(tab);
-  if(cached?.signature===signature && Date.now()<cached.expires) return cached.data;
+  if(cached?.signature===signature && (cached.pending || Date.now()<cached.expires)) return cached.data;
+  // Images must not delay metadata or command polling. Keep a matching cached
+  // image during refresh; newly loaded images join the next fresh page sample.
+  const entry={key:tab,signature,top,icon,allowed,data:cached?.signature===signature?cached.data:undefined,pending:true};
+  discardArtwork(tab);
+  cachedArtwork.set(tab,entry);
+  queuedArtwork.push(entry);
+  if(cachedArtwork.size>64) discardArtwork(cachedArtwork.keys().next().value);
+  drainArtwork();
+  return entry.data;
+}
+async function loadArtwork(entry) {
+  const {top,icon,allowed}=entry;
   let data;
   for(const art of top) {
+    if(cachedArtwork.get(entry.key)!==entry) break;
+    const controller=new AbortController();entry.controller=controller;
+    const timeout=setTimeout(()=>controller.abort(),2500);
     try {
-      const response=await fetch(art.src,{credentials:"omit",referrerPolicy:"no-referrer",redirect:"error",signal:AbortSignal.timeout(2500)});
+      const response=await fetch(art.src,{credentials:"omit",referrerPolicy:"no-referrer",redirect:"error",signal:controller.signal});
+      if(cachedArtwork.get(entry.key)!==entry) break;
       const mime=(response.headers.get("content-type")??"").split(";")[0].toLowerCase();
       const bytes=Number(response.headers.get("content-length")??0);
       if(!response.ok || !allowed.includes(mime) || bytes>350000) continue;
@@ -121,9 +159,8 @@ async function artworkFor(tab,media,icon=false,fallback) {
       data=`data:${outputMime};base64,${btoa(binary)}`;
       break;
     } catch { /* image unavailable: Windows image is fallback */ }
+    finally {clearTimeout(timeout);if(entry.controller===controller) entry.controller=undefined;}
   }
-  cachedArtwork.set(tab,{signature,data,expires:Date.now()+(data?300000:5000)});
-  if(cachedArtwork.size>64) cachedArtwork.delete(cachedArtwork.keys().next().value);
   return data;
 }
 const frames=new Map();
@@ -161,8 +198,8 @@ function drainFrames() {
         if(state.latest) queueFrame(state);
         else frames.delete(state.key);
       } else {
-        cachedArtwork.delete(state.key);
-        cachedArtwork.delete(`favicon:${state.key}`);
+        discardArtwork(state.key);
+        discardArtwork(`favicon:${state.key}`);
       }
       drainFrames();
     });
@@ -180,9 +217,9 @@ async function processFrame(state) {
   let fallbackFavicon;
   // The sender address provides the conventional fallback, never an unrelated tab/frame.
   try {const url=new URL(update.sender.url);fallbackFavicon={src:new URL("/favicon.ico",url.origin).href};} catch {}
-  const artwork=await artworkFor(key,media);
+  const artwork=artworkFor(key,media);
   if(!currentFrame(state) || generation!==settingsGeneration) return;
-  const favicon=await artworkFor(`favicon:${key}`,{favicon_candidates:media.favicon_candidates},true,fallbackFavicon);
+  const favicon=artworkFor(`favicon:${key}`,{favicon_candidates:media.favicon_candidates},true,fallbackFavicon);
   const payload={
     ...media,
     page_url:pageAddress(update.sender.url),
@@ -226,11 +263,11 @@ chrome.tabs.onRemoved.addListener(id=>{
     state.closed=true;state.latest=null;frames.delete(key);
   }
   for(let i=queuedFrames.length-1;i>=0;i--) if(queuedFrames[i].tab===id) queuedFrames.splice(i,1);
-  for(const key of cachedArtwork.keys()) if(key.startsWith(`${id}:`) || key.startsWith(`favicon:${id}:`)) cachedArtwork.delete(key);
+  for(const key of cachedArtwork.keys()) if(key.startsWith(`${id}:`) || key.startsWith(`favicon:${id}:`)) discardArtwork(key);
   drainFrames();
 });
 chrome.storage.onChanged.addListener((changes,area)=>{
-  cachedArtwork.clear();
+  for(const key of cachedArtwork.keys()) discardArtwork(key);
   // An interrupted opt-in session stays invalid even if the same settings return.
   if(area==="local" && changes.enabled) {
     settingsGeneration++;

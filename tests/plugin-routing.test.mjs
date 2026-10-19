@@ -67,6 +67,9 @@ test("Now Playing operates the session last sent to the display, and never falls
   driver.sessions=[b];
   await action.onKeyDown({action:key,payload:{settings:{}}});
   assert.equal(driver.commands.length,1);assert.equal(alerts,1);
+  // End each appearance so the animation timer cannot redraw an earlier scenario.
+  action.onWillDisappear({action:key});
+  action.actions.splice(action.actions.indexOf(key),1);
   const volume=driver.instances.find(x=>x.constructor.name==="VolumeDial");
   await volume.render({...key,id:"dial",isDial:()=>true,async setFeedback(){}},{globalKeys:true,audioTarget:"per-app"});
   assert.equal(driver.audioRequests.at(-1),"master");
@@ -93,6 +96,7 @@ test("Now Playing operates the session last sent to the display, and never falls
     await press();assert.equal(driver.commands.at(-1).session_id,"A",`${name}: pending update`);
     release();await settle();
     await press();assert.equal(driver.commands.at(-1).session_id,"B",`${name}: successful retry`);
+    visual.onWillDisappear({action:instance});
     visual.actions.splice(visual.actions.indexOf(instance),1);
   }
   const seeking=driver.instances.find(x=>x.constructor.name==="NowPlayingDial");

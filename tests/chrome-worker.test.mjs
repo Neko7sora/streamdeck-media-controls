@@ -37,14 +37,15 @@ function worker(enabled=true,imageResponse,hooks={}){
   chrome.runtime.id='extension-id';
   chrome.runtime.getURL=path=>`chrome-extension://extension-id/${path}`;
   chrome.action={async setBadgeText(value){badges.push(value.text);},async setBadgeBackgroundColor(){},async setTitle(){}};
-  vm.runInNewContext(source,{chrome,fetch,setTimeout,clearTimeout,setInterval(fn){pulse=fn;},URL,AbortSignal,Map,Date,Number,JSON,Uint8Array,btoa,console,Headers,Blob,OffscreenCanvas,async createImageBitmap(){return {width:32,height:32,close(){}};}});
+  vm.runInNewContext(source,{chrome,fetch,setTimeout,clearTimeout,setInterval(fn){pulse=fn;},URL,AbortSignal,AbortController,Map,Date:hooks.now?{now:hooks.now}:Date,Number,JSON,Uint8Array,btoa,console,Headers,Blob,OffscreenCanvas,async createImageBitmap(){return {width:32,height:32,close(){}};}});
   const status=()=>new Promise(resolve=>listener({type:'BRIDGE_STATUS'},{id:chrome.runtime.id,url:chrome.runtime.getURL('options.html')},resolve));
   hooks.inspect?.({probes,badges,status,pulse:()=>pulse(),message:(message,sender,reply)=>listener(message,sender,reply)});
-  return {disconnect:()=>disconnect(),connections:()=>connections,send:(media,frame=0,tab=4)=>listener({type:"MEDIA_UPDATE",media},{tab:{id:tab,title:"Tab"},frameId:frame,documentId:`doc-${frame}`,url:`https://user:password@site.test/frame-${frame}?access_token=private#secret`}),remove:id=>removed(id),changeSettings(values){const changes={};for(const [key,value] of Object.entries(values)) {changes[key]={oldValue:settings[key],newValue:value};settings[key]=value;}settingsChanged(changes,"local");},requests,commands,images,access:()=>access};
+  return {disconnect:()=>disconnect(),connections:()=>connections,send:(media,frame=0,tab=4,documentId=`doc-${frame}`)=>listener({type:"MEDIA_UPDATE",media},{tab:{id:tab,title:"Tab"},frameId:frame,documentId,url:`https://user:password@site.test/frame-${frame}?access_token=private#secret`}),remove:id=>removed(id),changeSettings(values){const changes={};for(const [key,value] of Object.entries(values)) {changes[key]={oldValue:settings[key],newValue:value};settings[key]=value;}settingsChanged(changes,"local");},requests,commands,images,access:()=>access};
 }
 const settle=()=>new Promise(resolve=>setTimeout(resolve,30));
 const flush=()=>new Promise(setImmediate);
 const deferred=()=>{let resolve;const promise=new Promise(done=>{resolve=done;});return {promise,resolve};};
+const updates=w=>w.requests.filter(x=>!x.url.endsWith('/result')).map(x=>JSON.parse(x.options.body));
 test('connection badges probe without media, recover from failures, and stop probing when disabled',async()=>{
   let ui,fail=false;
   const w=worker(true,undefined,{inspect(value){ui=value;},async statusResponse(){if(fail) throw Error('offline');return {json:async()=>({ok:true})};}});
@@ -136,8 +137,8 @@ test('disabling while one command runs prevents dispatch of later commands',asyn
 test('worker normalizes ICO favicons, caches them separately, and ignores forged image fields',async()=>{
  const w=worker(true,()=>new Response(new Uint8Array([0,0,1,0]),{headers:{'content-type':'image/x-icon'}}));
  const media={title:'Track',favicon_candidates:[{src:'https://cdn.test/site.ico',sizes:'32x32'}],favicon_data_url:'forged',app_icon_data_url:'forged'};
- w.send(media);await settle();
- const payload=JSON.parse(w.requests[0].options.body).media;
+ w.send(media);await settle();w.send(media);await settle();
+ const payload=updates(w).at(-1).media;
  assert.match(payload.favicon_data_url,/^data:image\/png;base64,/);assert.equal(payload.app_icon_data_url,null);
  assert.equal(payload.artwork_data_url,undefined);assert.equal(w.images.length,1);
  assert.equal(w.images[0].options.credentials,'omit');assert.equal(w.images[0].options.redirect,'error');
@@ -154,35 +155,124 @@ test('unsafe URLs and unsupported declared formats do not displace usable artwor
  const w=worker(true,url=>url==='https://cdn.test/album.png'
   ?new Response(new Uint8Array([137,80,78,71]),{headers:{'content-type':'image/png'}})
   :{ok:false,headers:new Headers()});
- w.send({title:'Track',artwork_candidates:[
+ const media={title:'Track',artwork_candidates:[
   {src:'https://127.0.0.1/private.png',sizes:'2048x2048'},
   {src:'https://cdn.test/album.svg',sizes:'1024x1024',type:'image/svg+xml'},
   {src:'https://user:secret@cdn.test/private.png',sizes:'512x512'},
   {src:'https://cdn.test/album.png',sizes:'128x128',type:'image/png'}
- ]});await settle();
+ ]};w.send(media);await settle();w.send(media);await settle();
  assert.deepEqual(w.images.map(x=>x.url),['https://cdn.test/album.png','https://site.test/favicon.ico']);
- assert.match(JSON.parse(w.requests[0].options.body).media.artwork_data_url,/^data:image\/png;base64,/);
+ assert.match(updates(w).at(-1).media.artwork_data_url,/^data:image\/png;base64,/);
 });
 
 test('a full set of broken page icons still tries the conventional favicon within three requests',async()=>{
  const w=worker(true,url=>url==='https://site.test/favicon.ico'
   ?new Response(new Uint8Array([0,0,1,0]),{headers:{'content-type':'image/x-icon'}})
   :{ok:false,headers:new Headers()});
- w.send({title:'Track',favicon_candidates:Array.from({length:16},(_,index)=>({src:`https://cdn.test/icon-${index}.png`,sizes:`${1024-index}x${1024-index}`}))});await settle();
+ const media={title:'Track',favicon_candidates:Array.from({length:16},(_,index)=>({src:`https://cdn.test/icon-${index}.png`,sizes:`${1024-index}x${1024-index}`}))};
+ w.send(media);await settle();w.send(media);await settle();
  assert.deepEqual(w.images.map(x=>x.url),['https://cdn.test/icon-0.png','https://cdn.test/icon-1.png','https://site.test/favicon.ico']);
- assert.match(JSON.parse(w.requests[0].options.body).media.favicon_data_url,/^data:image\/png;base64,/);
+ assert.match(updates(w).at(-1).media.favicon_data_url,/^data:image\/png;base64,/);
 });
 
 test('duplicate image URLs consume only one candidate and one request',async()=>{
  const w=worker(true,url=>url==='https://cdn.test/working.png'
   ?new Response(new Uint8Array([0,0,1,0]),{headers:{'content-type':'image/png'}})
   :{ok:false,headers:new Headers()});
- w.send({title:'Track',favicon_candidates:[
+ const media={title:'Track',favicon_candidates:[
   ...Array.from({length:3},()=>({src:'https://cdn.test/broken.png',sizes:'512x512'})),
   {src:'https://cdn.test/working.png',sizes:'32x32'}
- ]});await settle();
+ ]};w.send(media);await settle();w.send(media);await settle();
  assert.deepEqual(w.images.map(x=>x.url),['https://cdn.test/broken.png','https://cdn.test/working.png']);
- assert.match(JSON.parse(w.requests[0].options.body).media.favicon_data_url,/^data:image\/png;base64,/);
+ assert.match(updates(w).at(-1).media.favicon_data_url,/^data:image\/png;base64,/);
+});
+
+test('pending artwork and favicon loads do not delay fresh metadata or commands',async()=>{
+ const image=deferred();
+ const w=worker(true,async()=>{await image.promise;return new Response(new Uint8Array([137,80,78,71]),{headers:{'content-type':'image/png'}});});
+ const media={title:'Track',artwork_candidates:[{src:'https://cdn.test/album.png'}],favicon_candidates:[{src:'https://cdn.test/icon.png'}],timeline:{position_sec:10}};
+ w.send(media);await flush();
+ assert.equal(updates(w).length,1);assert.equal(w.commands.length,1);assert.equal(w.images.length,2);
+ w.send({...media,timeline:{position_sec:20}});await flush();
+ assert.equal(updates(w).at(-1).media.timeline.position_sec,20);assert.equal(w.commands.length,2);
+ assert.equal(w.images.length,2,'in-flight image requests are shared across page samples');
+ assert.equal(updates(w).at(-1).media.artwork_data_url,undefined);
+ image.resolve();await flush();
+ assert.equal(updates(w).length,2,'image completion cannot replay stale page metadata');
+ w.send({...media,timeline:{position_sec:30}});await flush();
+ const loaded=updates(w).at(-1).media;
+ assert.equal(loaded.timeline.position_sec,30);
+ assert.match(loaded.artwork_data_url,/^data:image\/png;base64,/);
+ assert.match(loaded.favicon_data_url,/^data:image\/png;base64,/);
+ w.send({...media,timeline:{position_sec:40}});await flush();
+ assert.equal(updates(w).at(-1).media.artwork_data_url,loaded.artwork_data_url);
+ assert.equal(updates(w).at(-1).media.favicon_data_url,loaded.favicon_data_url);
+ assert.equal(w.images.length,2,'cached images remain visible without repeated downloads');
+});
+
+test('old document image completion cannot replace the new track artwork',async()=>{
+ const oldImage=deferred();
+ const w=worker(true,async url=>{
+  if(url==='https://cdn.test/old.png') await oldImage.promise;
+  return new Response(new Uint8Array([url==='https://cdn.test/old.png'?1:2]),{headers:{'content-type':'image/png'}});
+ });
+ w.send({title:'Old',artwork_candidates:[{src:'https://cdn.test/old.png'}]},0,4,'old-document');await flush();
+ const fresh={title:'New',artwork_candidates:[{src:'https://cdn.test/new.png'}]};
+ w.send(fresh,0,4,'new-document');await flush();
+ assert.equal(w.images.find(x=>x.url.endsWith('/old.png')).options.signal.aborted,true);
+ oldImage.resolve();await flush();
+ w.send(fresh,0,4,'new-document');await flush();
+ const latest=updates(w).at(-1);
+ assert.equal(latest.document_id,'new-document');assert.equal(latest.media.title,'New');
+ assert.equal(latest.media.artwork_data_url,'data:image/png;base64,Ag==');
+ assert.equal(w.images.filter(x=>x.url.endsWith('/new.png')).length,1);
+});
+
+test('matching cached artwork stays visible during refresh and temporary failures',async()=>{
+ let now=10000,mode='initial';const image=deferred();
+ const w=worker(true,async url=>{
+  if(url!=='https://cdn.test/album.png') return {ok:false,headers:new Headers()};
+  if(mode==='refresh') {await image.promise;return {ok:false,headers:new Headers()};}
+  return new Response(new Uint8Array([mode==='initial'?1:2]),{headers:{'content-type':'image/png'}});
+ },{now:()=>now});
+ const media={title:'Track',artwork_candidates:[{src:'https://cdn.test/album.png'}]};
+ w.send(media);await flush();w.send(media);await flush();
+ assert.equal(updates(w).at(-1).media.artwork_data_url,'data:image/png;base64,AQ==');
+ now+=300001;mode='refresh';w.send(media);await flush();
+ assert.equal(updates(w).at(-1).media.artwork_data_url,'data:image/png;base64,AQ==');
+ w.send(media);await flush();assert.equal(w.images.filter(x=>x.url.endsWith('/album.png')).length,2);
+ image.resolve();await flush();w.send(media);await flush();
+ assert.equal(updates(w).at(-1).media.artwork_data_url,'data:image/png;base64,AQ==');
+ now+=5001;mode='recovered';w.send(media);await flush();w.send(media);await flush();
+ assert.equal(updates(w).at(-1).media.artwork_data_url,'data:image/png;base64,Ag==');
+ assert.equal(w.images.filter(x=>x.url.endsWith('/album.png')).length,3);
+});
+
+test('disabling discards in-flight images even if they finish after re-enabling',async()=>{
+ const image=deferred();
+ const w=worker(true,async()=>{await image.promise;return new Response(new Uint8Array([1]),{headers:{'content-type':'image/png'}});});
+ const media={title:'Track',artwork_candidates:[{src:'https://cdn.test/album.png'}]};
+ w.send(media);await flush();assert.equal(w.images.length,2);
+ w.changeSettings({enabled:false});
+ assert.ok(w.images.every(request=>request.options.signal.aborted));
+ w.changeSettings({enabled:true});image.resolve();await flush();
+ assert.equal(updates(w).length,1);
+ w.send(media);await flush();
+ assert.equal(updates(w).at(-1).media.artwork_data_url,undefined,'previous opt-in images are not revived');
+ assert.equal(w.images.length,4,'a fresh opt-in reloads images');
+ w.send(media);await flush();
+ assert.equal(updates(w).at(-1).media.artwork_data_url,'data:image/png;base64,AQ==');
+});
+
+test('slow images stay bounded while all frames continue metadata and command polling',async()=>{
+ const image=deferred();
+ const w=worker(true,()=>image.promise);
+ for(let frame=0;frame<12;frame++) w.send({title:'Track',artwork_candidates:[{src:`https://cdn.test/${frame}.png`}]},frame);
+ await flush();
+ assert.equal(updates(w).length,12);assert.equal(w.commands.length,12);
+ assert.equal(w.images.length,8,'image concurrency is bounded separately from metadata');
+ w.remove(4);image.resolve({ok:false,headers:new Headers()});await flush();
+ assert.equal(w.images.length,8,'closed tabs discard queued images');
 });
 
 test('queued ninth frame drains after a slot opens without another update',async()=>{
@@ -218,15 +308,16 @@ test('closed tabs cancel queued and coalesced samples and skip returned commands
  assert.equal(JSON.parse(updates.at(-1).options.body).tab_id,5);
 });
 
-test('closing a tab during image loading prevents later favicon and metadata requests',async()=>{
+test('closing a tab aborts image loads and prevents queued fallback requests',async()=>{
  const image=deferred();
  const w=worker(true,()=>image.promise);
- w.send({title:'Track',artwork_candidates:[{src:'https://cdn.test/art.png'}]});
- await flush();assert.equal(w.images.length,1);assert.equal(w.requests.length,0);
+ w.send({title:'Track',artwork_candidates:[{src:'https://cdn.test/art.png'},{src:'https://cdn.test/fallback.png'}]});
+ await flush();assert.equal(w.images.length,2);assert.equal(updates(w).length,1);
  w.remove(4);
+ assert.ok(w.images.every(image=>image.options.signal.aborted));
  image.resolve({ok:false,headers:new Headers()});await flush();
- assert.equal(w.images.length,1);
- assert.equal(w.requests.length,0);
+ assert.equal(w.images.length,2);
+ assert.equal(updates(w).length,1);
 });
 
 test('busy frames coalesce samples and yield to an already queued frame',async()=>{
