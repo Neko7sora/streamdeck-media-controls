@@ -48,7 +48,9 @@ function show(){
   seekStep.value=String([1,5,10,30,60].includes(settings.seekStep)?settings.seekStep:5);
   document.getElementById("dial-settings").hidden=action!=="dev.local.media-controls.now-playing-dial";
   const isDial=action==="dev.local.media-controls.now-playing-dial";
-  document.getElementById("display-settings").hidden=!isDial&&action!=="dev.local.media-controls.now-playing";
+  const isNowPlaying=isDial||action==="dev.local.media-controls.now-playing";
+  document.getElementById("global-settings").hidden=isNowPlaying;
+  document.getElementById("display-settings").hidden=!isNowPlaying;
   document.getElementById("dial-display-settings").hidden=!isDial;
   for(const [element,key] of displaySettings) element.checked=settings[key]!==false;
   document.getElementById("progress-display-note").hidden=!isDial||settings.showProgress!==false;

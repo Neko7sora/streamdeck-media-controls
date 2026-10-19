@@ -7,8 +7,11 @@ fieldset{border:1px solid #666;border-radius:8px;padding:8px 12px 12px;margin:16
 <section class="connection" id="chrome-connection" data-state="checking" role="status" aria-live="polite" aria-atomic="true"><strong id="chrome-connection-title">Chrome：接続を確認中</strong><p id="chrome-connection-detail">プラグインからの応答を待っています。</p></section>
 <label for="media">表示・再生操作のセッション</label><select id="media" disabled><option value="auto">自動（再生中を優先・現在の対象を維持）</option></select>
 <label for="audio">音量の操作対象（再生セッションとは独立）</label><select id="audio" disabled><option value="master">マスター（既定のマルチメディア出力）</option></select>
+<div id="global-settings" hidden>
 <label><input type="checkbox" id="global" disabled>従来のグローバルメディアキーを使用</label>
-<p>グローバル設定は基本操作7個と Volume Dial に適用されます。Now Playing は常に表示対象へ操作します。接続が切れた対象は再選択してください。</p>
+<p>有効にすると、キーボードのメディアキーと同じ信号を送り、Windows が操作対象を決めます。</p>
+</div>
+<p>接続が切れた対象は再選択してください。</p>
 <div id="dial-settings" hidden>
 <label for="dial-mode">Now Playing + のダイヤル回転</label><select id="dial-mode" disabled><option value="seek">巻き戻し・早送り</option><option value="volume">音量</option></select>
 <div id="seek-settings"><label for="seek-step">1目盛りあたりの移動秒数</label><select id="seek-step" disabled><option value="1">1秒</option><option value="5">5秒</option><option value="10">10秒</option><option value="30">30秒</option><option value="60">60秒</option></select></div>
