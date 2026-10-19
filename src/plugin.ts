@@ -182,9 +182,10 @@ class NowPlayingDial extends ConfiguredAction {
       }
       if(y>=86) {
         if(!m?.controls?.seek) throw new Error("Seek unavailable");
-        const t=m.timeline;
-        if(t?.min_seek_sec==null||t.max_seek_sec==null||t.max_seek_sec<=t.min_seek_sec) throw new Error("Seek unavailable");
-        const track=trackIdentity(m),position=t.min_seek_sec+Math.max(0,Math.min(1,(x-6)/188))*(t.max_seek_sec-t.min_seek_sec);
+        const p=progress(m);
+        if(p.duration===null) throw new Error("Seek unavailable");
+        // Match the displayed progress coordinates before clamping to seekable ranges.
+        const track=trackIdentity(m),position=(m.timeline?.start_sec??0)+Math.max(0,Math.min(1,(x-6)/188))*p.duration;
         await this.seeking.seekTo(ev.action.id,m,position,value=>this.sendSeek(settings,track,value));
       } else await transport(settings,"play-pause");
     });

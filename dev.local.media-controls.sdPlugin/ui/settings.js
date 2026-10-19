@@ -8,12 +8,17 @@ setSettingsDisabled(true);
 function send(event,payload){if(socket?.readyState===WebSocket.OPEN) socket.send(JSON.stringify({event,context,action,payload}));}
 function requestOptions(){send("sendToPlugin",{request:"options",settingsRevision});}
 function populate(select,items,current,defaultValue,defaultLabel){
-  select.replaceChildren();
-  const add=(id,label)=>{const option=document.createElement("option");option.value=id;option.textContent=label;select.append(option);};
-  add(defaultValue,defaultLabel);
-  for(const item of items) if(item.id!==defaultValue) add(item.id,item.label);
-  if(current!==defaultValue&&!items.some(x=>x.id===current)) add(current,"切断済み — 対象を再選択してください");
-  select.value=current;
+  const options=[{id:defaultValue,label:defaultLabel},...items.filter(item=>item.id!==defaultValue)];
+  if(current!==defaultValue&&!items.some(x=>x.id===current)) options.push({id:current,label:"切断済み — 対象を再選択してください"});
+  // Preserve the open selection and keyboard navigation during the one-second refresh.
+  const unchanged=select.children.length===options.length&&options.every((item,index)=>{
+    const option=select.children[index];return option.value===item.id&&option.textContent===item.label;
+  });
+  if(!unchanged){
+    select.replaceChildren();
+    for(const item of options){const option=document.createElement("option");option.value=item.id;option.textContent=item.label;select.append(option);}
+  }
+  if(select.value!==current) select.value=current;
 }
 function show(){
   populate(media,sessions,settings.mediaTarget??"auto","auto","自動（再生中を優先・現在の対象を維持）");

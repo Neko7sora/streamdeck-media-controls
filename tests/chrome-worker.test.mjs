@@ -96,6 +96,41 @@ test('unsafe favicon URLs are skipped and the sender origin supplies favicon.ico
  assert.equal(JSON.parse(w.requests[0].options.body).media.favicon_data_url,undefined);
 });
 
+test('unsafe URLs and unsupported declared formats do not displace usable artwork',async()=>{
+ const w=worker(true,url=>url==='https://cdn.test/album.png'
+  ?new Response(new Uint8Array([137,80,78,71]),{headers:{'content-type':'image/png'}})
+  :{ok:false,headers:new Headers()});
+ w.send({title:'Track',artwork_candidates:[
+  {src:'https://127.0.0.1/private.png',sizes:'2048x2048'},
+  {src:'https://cdn.test/album.svg',sizes:'1024x1024',type:'image/svg+xml'},
+  {src:'https://user:secret@cdn.test/private.png',sizes:'512x512'},
+  {src:'https://cdn.test/album.png',sizes:'128x128',type:'image/png'}
+ ]});await settle();
+ assert.deepEqual(w.images.map(x=>x.url),['https://cdn.test/album.png','https://site.test/favicon.ico']);
+ assert.match(JSON.parse(w.requests[0].options.body).media.artwork_data_url,/^data:image\/png;base64,/);
+});
+
+test('a full set of broken page icons still tries the conventional favicon within three requests',async()=>{
+ const w=worker(true,url=>url==='https://site.test/favicon.ico'
+  ?new Response(new Uint8Array([0,0,1,0]),{headers:{'content-type':'image/x-icon'}})
+  :{ok:false,headers:new Headers()});
+ w.send({title:'Track',favicon_candidates:Array.from({length:16},(_,index)=>({src:`https://cdn.test/icon-${index}.png`,sizes:`${1024-index}x${1024-index}`}))});await settle();
+ assert.deepEqual(w.images.map(x=>x.url),['https://cdn.test/icon-0.png','https://cdn.test/icon-1.png','https://site.test/favicon.ico']);
+ assert.match(JSON.parse(w.requests[0].options.body).media.favicon_data_url,/^data:image\/png;base64,/);
+});
+
+test('duplicate image URLs consume only one candidate and one request',async()=>{
+ const w=worker(true,url=>url==='https://cdn.test/working.png'
+  ?new Response(new Uint8Array([0,0,1,0]),{headers:{'content-type':'image/png'}})
+  :{ok:false,headers:new Headers()});
+ w.send({title:'Track',favicon_candidates:[
+  ...Array.from({length:3},()=>({src:'https://cdn.test/broken.png',sizes:'512x512'})),
+  {src:'https://cdn.test/working.png',sizes:'32x32'}
+ ]});await settle();
+ assert.deepEqual(w.images.map(x=>x.url),['https://cdn.test/broken.png','https://cdn.test/working.png']);
+ assert.match(JSON.parse(w.requests[0].options.body).media.favicon_data_url,/^data:image\/png;base64,/);
+});
+
 test('queued ninth frame drains after a slot opens without another update',async()=>{
  const gate=deferred();
  const w=worker(true,undefined,{async bridgeResponse(){await gate.promise;return {ok:true,json:async()=>({commands:[]})};}});

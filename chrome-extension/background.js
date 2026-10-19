@@ -22,28 +22,44 @@ const cachedArtwork=new Map();
 let settingsGeneration=0;
 // Content scripts cannot access extension settings.
 const storageReady=chrome.storage.local.setAccessLevel({accessLevel:"TRUSTED_CONTEXTS"});
-async function artworkFor(tab,media,icon=false) {
+async function artworkFor(tab,media,icon=false,fallback) {
   const images=icon?media.favicon_candidates:media.artwork_candidates;
-  const candidates=Array.isArray(images) ? images.slice(0,16).filter(a=>a&&typeof a.src==="string"&&a.src.length<=2048) : [];
+  const allowed=["image/png","image/jpeg","image/webp",...(icon?["image/x-icon","image/vnd.microsoft.icon"]:[])];
+  const declared=Array.isArray(images)?images.slice(0,16):[];
+  if(fallback) declared.push(fallback);
+  const seen=new Set();
+  const candidates=declared.flatMap(art=>{
+    if(!art||typeof art.src!=="string"||art.src.length>2048) return [];
+    const type=typeof art.type==="string"?art.type.split(";")[0].trim().toLowerCase():"";
+    if(type&&!allowed.includes(type)) return [];
+    try {
+      const url=new URL(art.src);
+      // Refuse internal IPs, file and extension protocols, userinfo, and redirects.
+      if(url.protocol!=="https:" || url.username || url.password || (url.port&&url.port!=="443") || !url.hostname.includes(".")) return [];
+      if(/^(localhost|127\.|0\.|10\.|192\.168\.|169\.254\.|172\.(1[6-9]|2\d|3[01])\.|\[|.*\.local$)/i.test(url.hostname) || seen.has(url.href)) return [];
+      seen.add(url.href);
+      return [{...art,src:url.href}];
+    } catch {return [];}
+  });
   const parseSize = (x) => {
     const sizes=String(x.sizes??"").slice(0,100).matchAll(/(\d+)x(\d+)/gi);
     return Math.max(0,...Array.from(sizes,s=>Math.min(16384,Number(s[1]))*Math.min(16384,Number(s[2]))));
   };
-  const top = [...candidates].sort((a,b)=>parseSize(b)-parseSize(a)).slice(0,3);
+  const ranked=[...candidates].sort((a,b)=>parseSize(b)-parseSize(a));
+  let top=ranked.slice(0,3);
+  // Reserve one of the bounded attempts for the conventional favicon, even when
+  // the page declares many larger icons that fail to load.
+  const conventional=fallback&&candidates.find(art=>art.src===fallback.src);
+  if(conventional&&!top.includes(conventional)) top=[...ranked.slice(0,2),conventional];
   const signature=JSON.stringify([media.title,media.artist,media.album,top.map(x=>x.src)]);
   const cached=cachedArtwork.get(tab);
   if(cached?.signature===signature && Date.now()<cached.expires) return cached.data;
   let data;
   for(const art of top) {
     try {
-      const url=new URL(art.src);
-      // Refuse internal IPs, file and extension protocols, userinfo, and redirects.
-      if(url.protocol!=="https:" || url.username || url.password || (url.port&&url.port!=="443") || !url.hostname.includes(".")) continue;
-      if(/^(localhost|127\.|0\.|10\.|192\.168\.|169\.254\.|172\.(1[6-9]|2\d|3[01])\.|\[|.*\.local$)/i.test(url.hostname)) continue;
-      const response=await fetch(url.href,{credentials:"omit",referrerPolicy:"no-referrer",redirect:"error",signal:AbortSignal.timeout(2500)});
+      const response=await fetch(art.src,{credentials:"omit",referrerPolicy:"no-referrer",redirect:"error",signal:AbortSignal.timeout(2500)});
       const mime=(response.headers.get("content-type")??"").split(";")[0].toLowerCase();
       const bytes=Number(response.headers.get("content-length")??0);
-      const allowed=["image/png","image/jpeg","image/webp",...(icon?["image/x-icon","image/vnd.microsoft.icon"]:[])];
       if(!response.ok || !allowed.includes(mime) || bytes>350000) continue;
       const reader=response.body?.getReader();
       if(!reader) continue;
@@ -133,12 +149,12 @@ async function processFrame(state) {
   if(!currentFrame(state) || generation!==settingsGeneration || !enabled) return;
   const media=update.media;
   if(!media || typeof media!=="object" || Array.isArray(media) || JSON.stringify(media).length>64000) return;
-  const faviconCandidates=Array.isArray(media.favicon_candidates)?media.favicon_candidates.slice(0,16):[];
+  let fallbackFavicon;
   // The sender address provides the conventional fallback, never an unrelated tab/frame.
-  try {const url=new URL(update.sender.url);faviconCandidates.push({src:new URL("/favicon.ico",url.origin).href});} catch {}
+  try {const url=new URL(update.sender.url);fallbackFavicon={src:new URL("/favicon.ico",url.origin).href};} catch {}
   const artwork=await artworkFor(key,media);
   if(!currentFrame(state) || generation!==settingsGeneration) return;
-  const favicon=await artworkFor(`favicon:${key}`,{favicon_candidates:faviconCandidates},true);
+  const favicon=await artworkFor(`favicon:${key}`,{favicon_candidates:media.favicon_candidates},true,fallbackFavicon);
   const payload={
     ...media,
     page_url:pageAddress(update.sender.url),

@@ -105,6 +105,22 @@ test("Now Playing operates the session last sent to the display, and never falls
   await rotate(2,{seekStep:10});assert.equal(driver.commands.at(-1).position,65);
   await rotate(100);assert.equal(driver.commands.at(-1).position,100);
   await rotate(-100);assert.equal(driver.commands.at(-1).position,0);
+  // Taps use the displayed timeline, even if only a narrower interval is seekable.
+  const windowedMedia={...seekMedia,timeline:{position_sec:120,start_sec:60,end_sec:180,min_seek_sec:90,max_seek_sec:170}};
+  driver.sessions=[windowedMedia];driver.current=windowedMedia;
+  const tap=async x=>{
+    seeking.seeking.clear(dial.id);
+    await seeking.onTouchTap({action:dial,payload:{settings:{},tapPos:[x,90],hold:false}});
+  };
+  await tap(100);assert.equal(driver.commands.at(-1).position,120,'the midpoint must match the displayed timeline');
+  await tap(6);assert.equal(driver.commands.at(-1).position,90,'the start clamps to the seekable window');
+  await tap(194);assert.equal(driver.commands.at(-1).position,170,'the end clamps to the seekable window');
+  driver.sessions=[{...windowedMedia,timeline:{...windowedMedia.timeline,end_sec:null}}];
+  const unavailableTimelineCommands=driver.commands.length,unavailableTimelineAlerts=alerts;
+  await tap(100);
+  assert.equal(driver.commands.length,unavailableTimelineCommands,'an unavailable progress bar has no tap coordinate mapping');
+  assert.equal(alerts,unavailableTimelineAlerts+1);
+  driver.sessions=[seekMedia,b];driver.current=seekMedia;
   await rotate(1,{dialMode:"volume",audioTarget:"per-app"});
   assert.deepEqual(driver.commands.at(-1),{command:"volume",target:"per-app",delta:0.02});
   const before=driver.commands.length,previousAlerts=alerts;
