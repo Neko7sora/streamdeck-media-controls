@@ -1,6 +1,11 @@
 let socket,context,action,settings={},sessions=[],audioTargets=[],settingsRevision=0;
 const media=document.getElementById("media"),audio=document.getElementById("audio"),global=document.getElementById("global"),details=document.getElementById("details");
 const dialMode=document.getElementById("dial-mode"),seekStep=document.getElementById("seek-step");
+const displaySettings=[
+  ["show-title","showTitle"],["show-artist","showArtist"],["show-artwork","showArtwork"],
+  ["show-app-icon","showAppIcon"],["show-status","showStatus"],["show-position","showPosition"],
+  ["show-duration","showDuration"],["show-progress","showProgress"],["show-dial-info","showDialInfo"]
+].map(([id,key])=>[document.getElementById(id),key]);
 const registerChrome=document.getElementById("register-chrome"),chromeStatus=document.getElementById("chrome-registration-status");
 let registrationRequestId=null,registrationTimeout;
 let lastOptionsAt=0;
@@ -18,7 +23,7 @@ function showChromeConnection(connection){
     const element=document.getElementById(id);if(element.textContent!==value) element.textContent=value;
   }
 }
-function setSettingsDisabled(disabled){for(const element of [media,audio,global,dialMode,seekStep]) element.disabled=disabled;}
+function setSettingsDisabled(disabled){for(const element of [media,audio,global,dialMode,seekStep,...displaySettings.map(([element])=>element)]) element.disabled=disabled;}
 setSettingsDisabled(true);
 function send(event,payload){if(socket?.readyState===WebSocket.OPEN) socket.send(JSON.stringify({event,context,action,payload}));}
 function requestOptions(){send("sendToPlugin",{request:"options",settingsRevision});}
@@ -42,6 +47,11 @@ function show(){
   dialMode.value=settings.dialMode==="volume"?"volume":"seek";
   seekStep.value=String([1,5,10,30,60].includes(settings.seekStep)?settings.seekStep:5);
   document.getElementById("dial-settings").hidden=action!=="dev.local.media-controls.now-playing-dial";
+  const isDial=action==="dev.local.media-controls.now-playing-dial";
+  document.getElementById("display-settings").hidden=!isDial&&action!=="dev.local.media-controls.now-playing";
+  document.getElementById("dial-display-settings").hidden=!isDial;
+  for(const [element,key] of displaySettings) element.checked=settings[key]!==false;
+  document.getElementById("progress-display-note").hidden=!isDial||settings.showProgress!==false;
   document.getElementById("seek-settings").hidden=dialMode.value!=="seek";
   details.textContent=sessions.find(s=>s.id===media.value)?.details??"自動選択、または対象なし。セッションを選択すると全取得項目を確認できます。";
 }
@@ -93,7 +103,8 @@ for(const [element,key,value] of [
   [audio,"audioTarget",()=>audio.value],
   [global,"globalKeys",()=>global.checked],
   [dialMode,"dialMode",()=>dialMode.value],
-  [seekStep,"seekStep",()=>Number(seekStep.value)]
+  [seekStep,"seekStep",()=>Number(seekStep.value)],
+  ...displaySettings.map(([element,key])=>[element,key,()=>element.checked])
 ]) element.addEventListener("change",()=>{
   if(socket?.readyState!==WebSocket.OPEN){show();return;}
   settingsRevision++;settings={...settings,[key]:value()};send("setSettings",settings);show();

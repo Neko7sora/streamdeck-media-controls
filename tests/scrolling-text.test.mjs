@@ -104,3 +104,28 @@ test('application badge changes and clears without changing album pixels elsewhe
  assert.deepEqual(at(first,72,40),at(next,72,40));
 });
 
+test('hiding key overlays removes their text and shade independently, including cached backgrounds',async()=>{
+ const image=async (width,height,color)=>'data:image/png;base64,'+(await sharp({create:{width,height,channels:4,background:color}}).png().toBuffer()).toString('base64');
+ const art=await image(144,144,'#7f40b0'),text=await image(1,1,'white'),icon=await image(32,32,'red');
+ const render=async (title,artist,status,appIcon)=>pixels(await nowPlayingImage(art,title,artist,status,appIcon));
+ const at=(frame,x,y)=>[...frame.data.subarray((y*144+x)*4,(y*144+x)*4+4)];
+ const all=await render(text,text,text,icon);
+ const none=await render();
+ assert.ok(none.data.every((value,index)=>value===[127,64,176,255][index%4]),'artwork-only view must have no text shading or badges');
+ const noTitle=await render(undefined,text,text,icon);
+ assert.deepEqual(at(noTitle,8,78),at(none,8,78));
+ assert.deepEqual(at(noTitle,8,110),at(all,8,110));
+ assert.notDeepEqual(at(noTitle,72,120),at(none,72,120),'artist shade remains');
+ const noArtist=await render(text,undefined,text,icon);
+ assert.deepEqual(at(noArtist,8,110),at(none,8,110));
+ assert.deepEqual(at(noArtist,8,78),at(all,8,78));
+ const noStatus=await render(text,text,undefined,icon);
+ assert.deepEqual(at(noStatus,6,6),at(none,6,6));
+ assert.deepEqual(at(noStatus,120,16),[255,0,0,255],'app icon stays independent of status');
+ const noIcon=await render(text,text,text);
+ assert.deepEqual(at(noIcon,120,16),at(none,120,16));
+ assert.deepEqual((await render(text,text,text,icon)).data,all.data,'restoring overlays must also restore their cached shade');
+ const blank=await pixels(await nowPlayingImage());
+ assert.ok(blank.data.every((value,index)=>value===[16,16,24,255][index%4]));
+});
+

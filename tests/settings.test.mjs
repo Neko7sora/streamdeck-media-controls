@@ -5,10 +5,11 @@ import vm from "node:vm";
 import {randomUUID} from "node:crypto";
 
 const source=readFileSync(new URL("../dev.local.media-controls.sdPlugin/ui/settings.js",import.meta.url),"utf8");
-function inspector(settings={},{connect=true}={}) {
+const displayFields={"show-title":"showTitle","show-artist":"showArtist","show-artwork":"showArtwork","show-app-icon":"showAppIcon","show-status":"showStatus","show-position":"showPosition","show-duration":"showDuration","show-progress":"showProgress","show-dial-info":"showDialInfo"};
+function inspector(settings={},{connect=true,action="dev.local.media-controls.now-playing-dial"}={}) {
   const selects=new Set(["media","audio","dial-mode","seek-step"]);
   const elements=new Map();
-  for(const id of ["media","audio","global","details","dial-mode","seek-step","dial-settings","seek-settings","status","register-chrome","chrome-registration-status","chrome-connection","chrome-connection-title","chrome-connection-detail"]) {
+  for(const id of ["media","audio","global","details","dial-mode","seek-step","dial-settings","seek-settings","status","register-chrome","chrome-registration-status","chrome-connection","chrome-connection-title","chrome-connection-detail","display-settings","dial-display-settings","progress-display-note",...Object.keys(displayFields)]) {
     let value="";
     const element={dataset:{},children:[],listeners:{},checked:false,hidden:false,textContent:"",disabled:id==="register-chrome",
       get value(){return value;},
@@ -36,7 +37,7 @@ function inspector(settings={},{connect=true}={}) {
     getElementById:id=>elements.get(id),createElement:()=>({})
   }});
   window.connectElgatoStreamDeckSocket(1234,"context","registerPropertyInspector","{}",JSON.stringify({
-    action:"dev.local.media-controls.now-playing-dial",payload:{settings}
+    action,payload:{settings}
   }));
   const open=()=>{socket.readyState=1;socket.onopen();};
   if(connect) open();
@@ -46,13 +47,13 @@ function inspector(settings={},{connect=true}={}) {
     timeout(){for(const [id,fn] of timers){timers.delete(id);fn();}},
     close(){socket.readyState=3;socket.onclose();},
     receive:(event,payload)=>socket.onmessage({data:JSON.stringify({event,payload})}),
-    change(id,value){const element=elements.get(id);if(id==="global") element.checked=value;else element.value=value;element.listeners.change();}};
+    change(id,value){const element=elements.get(id);if(id==="global"||id in displayFields) element.checked=value;else element.value=value;element.listeners.change();}};
 }
 
 test("settings are editable only while connected so unsaved changes are never shown as applied",()=>{
   const pi=inspector({globalKeys:true},{connect:false});
   const assertDisabled=disabled=>{
-    for(const id of ["media","audio","global","dial-mode","seek-step"]) assert.equal(pi.elements.get(id).disabled,disabled,id);
+    for(const id of ["media","audio","global","dial-mode","seek-step",...Object.keys(displayFields)]) assert.equal(pi.elements.get(id).disabled,disabled,id);
   };
   assertDisabled(true);
   pi.change("global",false);
@@ -69,6 +70,41 @@ test("settings are editable only while connected so unsaved changes are never sh
   assert.equal(pi.elements.get("global").checked,false);
   assert.equal(pi.messages.length,count);
   assert.match(pi.elements.get("status").textContent,/接続が切れました/);
+});
+
+test('display settings default to visible and appear only for the matching Now Playing action',()=>{
+  for(const [action,showDisplay,showDial] of [["now-playing",true,false],["now-playing-dial",true,true],["play-pause",false,false],["volume-dial",false,false]]) {
+    const pi=inspector({},{action:`dev.local.media-controls.${action}`});
+    assert.equal(pi.elements.get("display-settings").hidden,!showDisplay);
+    assert.equal(pi.elements.get("dial-display-settings").hidden,!showDial);
+    for(const id of Object.keys(displayFields)) assert.equal(pi.elements.get(id).checked,true);
+  }
+});
+
+test('display toggles persist independently, survive stale options, and restore saved values on reconnect',()=>{
+  const saved={mediaTarget:"A",audioTarget:"app",showArtist:false,showProgress:false,extra:"preserved"};
+  const pi=inspector(saved);
+  assert.equal(pi.elements.get("show-artist").checked,false);
+  assert.equal(pi.elements.get("progress-display-note").hidden,false);
+  const initial=pi.messages.at(-1).payload;
+  const expected={...saved};
+  for(const [id,key] of Object.entries(displayFields)) {
+    pi.change(id,false);expected[key]=false;
+    assert.deepEqual(pi.messages.at(-1).payload,expected);
+  }
+  pi.receive("sendToPropertyInspector",{settingsRevision:initial.settingsRevision,settings:saved});
+  for(const id of Object.keys(displayFields)) assert.equal(pi.elements.get(id).checked,false,id);
+  pi.change("show-progress",true);expected.showProgress=true;
+  assert.equal(pi.elements.get("progress-display-note").hidden,true);
+  assert.deepEqual(pi.messages.at(-1).payload,expected);
+  const reopened=inspector(expected);
+  for(const [id,key] of Object.entries(displayFields)) assert.equal(reopened.elements.get(id).checked,expected[key]);
+  pi.close();const count=pi.messages.length;
+  pi.change("show-title",true);
+  assert.equal(pi.elements.get("show-title").checked,false);
+  assert.equal(pi.messages.length,count);
+  pi.receive("didReceiveSettings",{settings:{...expected,showTitle:true}});
+  assert.equal(pi.elements.get("show-title").checked,true);
 });
 
 test('Chrome connection is independent of registration and distinguishes idle, receiving and disconnected',()=>{

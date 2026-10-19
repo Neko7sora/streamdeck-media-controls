@@ -12,7 +12,9 @@ import {nowPlayingImage} from "./now-playing-image.js";
 
 const UUID="dev.local.media-controls";
 const EMPTY_ICON="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAAC0lEQVR42mNgAAIAAAUAAen63NgAAAAASUVORK5CYII=";
-type Settings={mediaTarget?:string;audioTarget?:string;globalKeys?:boolean;dialMode?:string;seekStep?:number};
+type Settings={mediaTarget?:string;audioTarget?:string;globalKeys?:boolean;dialMode?:string;seekStep?:number;
+  showTitle?:boolean;showArtist?:boolean;showArtwork?:boolean;showAppIcon?:boolean;showStatus?:boolean;
+  showPosition?:boolean;showDuration?:boolean;showProgress?:boolean;showDialInfo?:boolean};
 type Instance=KeyAction<Settings>|DialAction<Settings>;
 const short=(s:string,n=28)=>[...s].length>n?[...s].slice(0,n-1).join("")+"…":s;
 const time=(s:number|null)=>s===null?"--:--":`${Math.floor(Math.max(0,s)/60)}:${String(Math.floor(Math.max(0,s))%60).padStart(2,"0")}`;
@@ -66,7 +68,8 @@ abstract class ConfiguredAction extends SingletonAction<Settings> {
         if(!instance.isKey()&&!instance.isDial()) continue;
         const appearance=this.appearances.get(instance.id);
         if(!appearance) continue;
-        try {await this.render(instance,this.settings.get(instance.id)??{},()=>this.appearances.get(instance.id)===appearance);} catch(e) {this.hashes.delete(instance.id);streamDeck.logger.warn(`Display update: ${String(e)}`);}
+        const settings=this.settings.get(instance.id);
+        try {await this.render(instance,settings??{},()=>this.appearances.get(instance.id)===appearance&&this.settings.get(instance.id)===settings);} catch(e) {this.hashes.delete(instance.id);streamDeck.logger.warn(`Display update: ${String(e)}`);}
       }
     }} finally {this.refreshing=false;}})();
   }
@@ -105,18 +108,19 @@ class VolumeDial extends ConfiguredAction {
 class NowPlaying extends ConfiguredAction {
   protected override async render(a:Instance,s:Settings,isCurrent:()=>boolean=()=>true):Promise<void> {
     if(!a.isKey()) return;
-    const m=currentMedia(s.mediaTarget),image=(await artwork(m?.artwork_data_url))??await artwork(m?.fallback_artwork_data_url);
-    const appIcon=await applicationIcon(m);
+    const m=currentMedia(s.mediaTarget),image=s.showArtwork===false?undefined:(await artwork(m?.artwork_data_url))??await artwork(m?.fallback_artwork_data_url);
+    const appIcon=s.showAppIcon===false?undefined:await applicationIcon(m);
     if(!isCurrent()) return;
     const identity=m?trackIdentity(m):"unavailable";
     const [title,artist,status]=await Promise.all([
-      this.scrolling.frame(a.id,"title",displayTitle(m),{width:128,height:30,fontSize:24,scale:2},identity),
-      this.scrolling.frame(a.id,"artist",m?.artist??"",{width:128,height:28,fontSize:22,scale:2},identity),
-      this.scrolling.frame(a.id,"status",m?.playback_state==="playing"?"▶":m?.playback_state==="paused"?"Ⅱ":"?",{width:24,height:24,fontSize:18},identity)
+      this.scrolling.frame(a.id,"title",s.showTitle===false?"":displayTitle(m),{width:128,height:30,fontSize:24,scale:2},identity),
+      this.scrolling.frame(a.id,"artist",s.showArtist===false?"":m?.artist??"",{width:128,height:28,fontSize:22,scale:2},identity),
+      this.scrolling.frame(a.id,"status",s.showStatus===false?"":m?.playback_state==="playing"?"▶":m?.playback_state==="paused"?"Ⅱ":"?",{width:24,height:24,fontSize:18},identity)
     ]);
     if(!isCurrent()) return;
-    if(this.changed(a,{image,appIcon,title:title.image,artist:artist.image,status:status.image},"image")) {
-      const rendered=await nowPlayingImage(image,title.image,artist.image,status.image,appIcon);
+    const titleImage=s.showTitle===false?undefined:title.image,artistImage=s.showArtist===false?undefined:artist.image,statusImage=s.showStatus===false?undefined:status.image;
+    if(this.changed(a,{image,appIcon,title:titleImage,artist:artistImage,status:statusImage},"image")) {
+      const rendered=await nowPlayingImage(image,titleImage,artistImage,statusImage,appIcon);
       if(!isCurrent()) return;
       await a.setImage(rendered);
     }
@@ -141,17 +145,17 @@ class NowPlayingDial extends ConfiguredAction {
     const m=currentMedia(s.mediaTarget), p=progress(m), v=audioTarget(s.audioTarget);
     const identity=m?trackIdentity(m):"unavailable";
     const [title,artist]=await Promise.all([
-      this.scrolling.frame(a.id,"title",displayTitle(m),{width:188,height:22,fontSize:14},identity),
-      this.scrolling.frame(a.id,"artist",m?.artist??"",{width:142,height:18,fontSize:12},identity)
+      this.scrolling.frame(a.id,"title",s.showTitle===false?"":displayTitle(m),{width:188,height:22,fontSize:14},identity),
+      this.scrolling.frame(a.id,"artist",s.showArtist===false?"":m?.artist??"",{width:142,height:18,fontSize:12},identity)
     ]);
     const payload={
       trackTitle:title.image,artist:artist.image,
-      status:playbackLabel(m?.playback_state),
-      appIcon:(await applicationIcon(m,18))??EMPTY_ICON,
-      position:`${time(p.position)} / ${time(p.duration)}`,
-      indicator:{value:p.percent??0,enabled:p.percent!==null},
-      volume:s.dialMode!=="volume"?`±${seekStep(s)}s`:v?.volume==null?"Vol --":`${v.muted?"Mute ":"Vol "}${Math.round(v.volume*100)}%`,
-      artwork:(await artwork(m?.artwork_data_url,72))??(await artwork(m?.fallback_artwork_data_url,72))??"imgs/actions/play-pause.png"
+      status:s.showStatus===false?"":playbackLabel(m?.playback_state),
+      appIcon:s.showAppIcon===false?EMPTY_ICON:(await applicationIcon(m,18))??EMPTY_ICON,
+      position:[...(s.showPosition===false?[]:[time(p.position)]),...(s.showDuration===false?[]:[time(p.duration)])].join(" / "),
+      indicator:{value:p.percent??0,enabled:s.showProgress!==false&&p.percent!==null},
+      volume:s.showDialInfo===false?"":s.dialMode!=="volume"?`±${seekStep(s)}s`:v?.volume==null?"Vol --":`${v.muted?"Mute ":"Vol "}${Math.round(v.volume*100)}%`,
+      artwork:s.showArtwork===false?EMPTY_ICON:(await artwork(m?.artwork_data_url,72))??(await artwork(m?.fallback_artwork_data_url,72))??"imgs/actions/play-pause.png"
     };
     if(!isCurrent()) return;
     const changes=Object.fromEntries(Object.entries(payload).filter(([key,value])=>this.changed(a,value,`feedback:${key}`)));
@@ -180,7 +184,7 @@ class NowPlayingDial extends ConfiguredAction {
         await this.saveSettings(ev.action,{...ev.payload.settings,mediaTarget:sessions[(index+1)%sessions.length]!.session_id});
         return;
       }
-      if(y>=86) {
+      if(y>=86&&settings.showProgress!==false) {
         if(!m?.controls?.seek) throw new Error("Seek unavailable");
         const p=progress(m);
         if(p.duration===null) throw new Error("Seek unavailable");

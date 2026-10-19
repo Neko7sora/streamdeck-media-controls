@@ -1,5 +1,6 @@
 import {test} from "node:test";
 import assert from "node:assert/strict";
+import sharp from "sharp";
 import {load} from "./load.mjs";
 test("Now Playing operates the session last sent to the display, and never falls back after removal",async()=>{
   const a={source:"windows",session_id:"A",title:"Track",controls:{toggle:true}},b={...a,session_id:"B"};
@@ -181,6 +182,35 @@ test("Now Playing operates the session last sent to the display, and never falls
   driver.current=long;
   await seeking.render(scrollDial,{});assert.match(feedback.at(-1).appIcon,/^data:image\/png;base64,/);
   assert.deepEqual(Object.keys(updates.at(-1)),['appIcon'],'clearing the badge must not resend unrelated fields');
+  const hiddenSettings=Object.fromEntries(['Title','Artist','Artwork','AppIcon','Status','Position','Duration','Progress','DialInfo'].map(field=>[`show${field}`,false]));
+  driver.current={...long,playback_state:'paused',timeline:{position_sec:30,end_sec:120}};
+  driver.sessions=[driver.current];
+  const raw=async image=>sharp(Buffer.from(image.split(',')[1],'base64')).ensureAlpha().raw().toBuffer();
+  const transparent=async image=>assert.ok((await raw(image)).every(value=>value===0));
+  await action.render(scrollKey,hiddenSettings);await seeking.render(scrollDial,hiddenSettings);
+  const blankKey=images.at(-1);
+  assert.ok((await raw(images.at(-1))).every((value,index)=>value===[16,16,24,255][index%4]),'hiding every key element leaves only the plain background');
+  for(const field of ['trackTitle','artist','artwork','appIcon']) await transparent(feedback.at(-1)[field]);
+  for(const field of ['status','position','volume']) assert.equal(feedback.at(-1)[field],'');
+  assert.equal(feedback.at(-1).indicator.enabled,false);
+  assert.equal(action.scrolling.active,false);assert.equal(seeking.scrolling.active,false);
+  await seeking.onTouchTap({action:scrollDial,payload:{settings:hiddenSettings,tapPos:[100,90],hold:false}});
+  assert.equal(driver.commands.at(-1).command,'play-pause','a hidden progress bar must not keep an invisible seek target');
+  await seeking.render(scrollDial,{showPosition:false});
+  assert.equal(feedback.at(-1).position,'2:00');
+  assert.equal(feedback.at(-1).status,'Paused');
+  assert.equal(feedback.at(-1).indicator.enabled,true);
+  assert.equal(feedback.at(-1).volume,'±5s');
+  await seeking.render(scrollDial,{showDuration:false});assert.equal(feedback.at(-1).position,'0:30');
+  await seeking.render(scrollDial,{});assert.equal(feedback.at(-1).position,'0:30 / 2:00');
+  for(const [setting,field,expected] of [['showStatus','status',''],['showDialInfo','volume',''],['showArtwork','artwork',null],['showAppIcon','appIcon',null]]) {
+    await seeking.render(scrollDial,{[setting]:false});
+    if(expected===null) await transparent(feedback.at(-1)[field]);else assert.equal(feedback.at(-1)[field],expected);
+    assert.equal(feedback.at(-1).position,'0:30 / 2:00','unrelated time fields remain visible');
+  }
+  await action.render(scrollKey,{});await seeking.render(scrollDial,{});
+  assert.notEqual(images.at(-1),blankKey,'restoring key settings must redraw its text');
+  assert.equal(action.scrolling.active,true);assert.equal(seeking.scrolling.active,true);
   // Image work may finish after a page/profile switch removes an action.
   for(const name of ['NowPlaying','NowPlayingDial']) {
     const visual=driver.instances.find(x=>x.constructor.name===name);
@@ -221,6 +251,17 @@ test("Now Playing operates the session last sent to the display, and never falls
     while(visual.refreshing) await new Promise(resolve=>setTimeout(resolve,1));
     assert.equal(sent.length,2,`${name}: reusing the same action ID must discard its previous render`);
     assert.equal(visual.displayedSessions.get(hidden.id),'B');
+    const settingsArtworkStarted=new Promise(resolve=>{startedArtwork=resolve;});
+    driver.artwork=()=>{driver.artwork=undefined;startedArtwork();return new Promise(resolve=>{releaseArtwork=resolve;});};
+    visual.refresh();await settingsArtworkStarted;
+    visual.onDidReceiveSettings({action:hidden,payload:{settings:{...hiddenSettings,mediaTarget:'B'}}});
+    releaseArtwork();
+    while(visual.refreshing) await new Promise(resolve=>setTimeout(resolve,1));
+    assert.equal(sent.length,3,`${name}: settings changed during rendering must discard the earlier frame`);
+    if(isDial) {
+      assert.equal(sent.at(-1).status,'');assert.equal(sent.at(-1).position,'');
+      assert.equal(sent.at(-1).indicator.enabled,false);
+    } else assert.ok((await raw(sent.at(-1))).every((value,index)=>value===[16,16,24,255][index%4]));
     visual.onWillDisappear({action:hidden});
     visual.actions=originalActions;
   }
