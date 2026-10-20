@@ -1,0 +1,12 @@
+{
+  "$schema":"https://schemas.elgato.com/streamdeck/plugins/layout.json",
+  "id":"volume-dial",
+  "controller":"Encoder",
+  "items":[
+    {"key":"scope","type":"pixmap","rect":[8,4,184,16]},
+    {"key":"targetName","type":"pixmap","rect":[8,24,184,28]},
+    {"key":"status","type":"pixmap","rect":[8,58,110,20]},
+    {"key":"value","type":"text","rect":[122,54,70,30],"font":{"size":24},"alignment":"right"},
+    {"key":"indicator","type":"bar","rect":[8,88,184,6],"value":0,"subtype":4,"border_w":0}
+  ]
+}

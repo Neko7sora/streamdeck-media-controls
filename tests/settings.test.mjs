@@ -5,11 +5,12 @@ import vm from "node:vm";
 import {randomUUID} from "node:crypto";
 
 const source=readFileSync(new URL("../dev.local.media-controls.sdPlugin/ui/settings.js",import.meta.url),"utf8");
-const displayFields={"show-title":"showTitle","show-artist":"showArtist","show-artwork":"showArtwork","show-app-icon":"showAppIcon","show-status":"showStatus","show-position":"showPosition","show-duration":"showDuration","show-progress":"showProgress","show-dial-info":"showDialInfo"};
+const displayFields={"show-title":"showTitle","show-artist":"showArtist","show-artwork":"showArtwork","show-app-icon":"showAppIcon","show-status":"showStatus","show-position":"showPosition","show-duration":"showDuration","show-progress":"showProgress","show-dial-info":"showDialInfo","show-control-icon":"showControlIcon","show-target":"showTarget","show-scope":"showScope","show-volume":"showVolume","show-volume-bar":"showVolumeBar"};
+const displayGroups=["control-icon-setting","scope-setting","target-setting","title-setting","artist-setting","artwork-setting","app-icon-setting","volume-setting","status-setting","volume-bar-setting","control-display-note","title-label","status-label"];
 function inspector(settings={},{connect=true,action="dev.local.media-controls.now-playing-dial"}={}) {
   const selects=new Set(["media","audio","dial-mode","seek-step"]);
   const elements=new Map();
-  for(const id of ["media","audio","global","global-settings","details","dial-mode","seek-step","dial-settings","seek-settings","status","register-chrome","chrome-registration-status","chrome-connection","chrome-connection-title","chrome-connection-detail","display-settings","dial-display-settings","progress-display-note",...Object.keys(displayFields)]) {
+  for(const id of ["media","audio","media-settings","audio-settings","target-note","now-playing-help","scroll-help","global","global-settings","details","dial-mode","seek-step","dial-settings","seek-settings","status","register-chrome","chrome-registration-status","chrome-connection","chrome-connection-title","chrome-connection-detail","display-settings","dial-display-settings","progress-display-note",...displayGroups,...Object.keys(displayFields)]) {
     let value="";
     const element={dataset:{},children:[],listeners:{},checked:false,hidden:false,textContent:"",disabled:id==="register-chrome",
       get value(){return value;},
@@ -72,12 +73,60 @@ test("settings are editable only while connected so unsaved changes are never sh
   assert.match(pi.elements.get("status").textContent,/接続が切れました/);
 });
 
-test('display settings default to visible and appear only for the matching Now Playing action',()=>{
-  for(const [action,showDisplay,showDial] of [["now-playing",true,false],["now-playing-dial",true,true],["play-pause",false,false],["volume-dial",false,false]]) {
+test('display settings default to visible and show only items supported by each action',()=>{
+  for(const action of ["now-playing","now-playing-dial","play-pause","previous","next","stop","mute","volume-up","volume-down","volume-dial"]) {
     const pi=inspector({},{action:`dev.local.media-controls.${action}`});
-    assert.equal(pi.elements.get("display-settings").hidden,!showDisplay);
-    assert.equal(pi.elements.get("dial-display-settings").hidden,!showDial);
+    const nowPlaying=action.startsWith('now-playing'),volume=['mute','volume-up','volume-down','volume-dial'].includes(action),volumeDial=action==='volume-dial';
+    assert.equal(pi.elements.get("display-settings").hidden,false);
+    assert.equal(pi.elements.get("dial-display-settings").hidden,action!=='now-playing-dial');
+    for(const [id,visible] of [
+      ['control-icon-setting',!nowPlaying&&!volumeDial],['scope-setting',volumeDial],['target-setting',!nowPlaying],
+      ['title-setting',nowPlaying||!volume],['artist-setting',nowPlaying],['artwork-setting',nowPlaying],
+      ['app-icon-setting',nowPlaying||!volume],['volume-setting',volume],['status-setting',nowPlaying||volume],['volume-bar-setting',volumeDial]
+    ]) assert.equal(pi.elements.get(id).hidden,!visible,`${action}: ${id}`);
     for(const id of Object.keys(displayFields)) assert.equal(pi.elements.get(id).checked,true);
+  }
+});
+
+test('control display toggles save per action, survive stale replies and restore after reconnect',()=>{
+  for(const action of ['play-pause','previous','next','stop','mute','volume-up','volume-down','volume-dial']) {
+    const saved={mediaTarget:'A',audioTarget:'app',extra:'preserved'};
+    const pi=inspector(saved,{action:`dev.local.media-controls.${action}`});
+    const request=pi.messages.at(-1).payload;
+    const expected={...saved};
+    for(const [id,key] of Object.entries(displayFields)) {
+      pi.change(id,false);expected[key]=false;
+      assert.deepEqual(pi.messages.at(-1).payload,expected);
+    }
+    pi.receive('sendToPropertyInspector',{settingsRevision:request.settingsRevision,settings:saved});
+    const reopened=inspector(expected,{action:`dev.local.media-controls.${action}`});
+    for(const id of Object.keys(displayFields)) {
+      assert.equal(pi.elements.get(id).checked,false);
+      assert.equal(reopened.elements.get(id).checked,false);
+    }
+    pi.change('global',true);
+    assert.equal(pi.elements.get('display-settings').hidden,false);
+    if(action==='play-pause') {
+      assert.equal(pi.elements.get('app-icon-setting').hidden,true);
+      assert.equal(pi.elements.get('title-label').textContent,'操作対象の説明');
+    }
+  }
+});
+
+test('target controls match the operation and global mode without discarding saved targets',()=>{
+  for(const name of ['play-pause','previous','next','stop','mute','volume-up','volume-down','volume-dial']) {
+    const isVolume=['mute','volume-up','volume-down','volume-dial'].includes(name);
+    const pi=inspector({mediaTarget:'A',audioTarget:'app'},{action:`dev.local.media-controls.${name}`});
+    assert.equal(pi.elements.get('media-settings').hidden,isVolume,name);
+    assert.equal(pi.elements.get('audio-settings').hidden,!isVolume,name);
+    assert.equal(pi.elements.get('now-playing-help').hidden,true);
+    pi.change('global',true);
+    assert.equal(pi.elements.get('media-settings').hidden,true);
+    assert.equal(pi.elements.get('audio-settings').hidden,true);
+    assert.match(pi.elements.get('target-note').textContent,isVolume?/PC全体/:/Windows/);
+    pi.change('global',false);
+    assert.equal(pi.elements.get('media').value,'A');
+    assert.equal(pi.elements.get('audio').value,'app');
   }
 });
 

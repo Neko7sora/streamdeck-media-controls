@@ -1,19 +1,21 @@
 import {test} from "node:test";
 import assert from "node:assert/strict";
 import sharp from "sharp";
+import {readFileSync} from "node:fs";
 import {load} from "./load.mjs";
 test("Now Playing operates the session last sent to the display, and never falls back after removal",async()=>{
   const a={source:"windows",session_id:"A",title:"Track",controls:{toggle:true}},b={...a,session_id:"B"};
   const driver={instances:[],commands:[],audioRequests:[],inspectorReplies:[],current:a,sessions:[a,b]};globalThis.__mediaTest=driver;
   const mocks={
     sdk:`const d=globalThis.__mediaTest;export class SingletonAction{actions=[];} export function action(){return c=>c;} export default {actions:{registerAction(a){d.instances.push(a);}},ui:{get action(){return d.inspectorAction;},onSendToPlugin(fn){d.onSendToPlugin=fn;},async sendToPropertyInspector(payload){d.inspectorReplies.push(payload);}},logger:{warn(){},error(){},info(){}},async connect(){}};`,
-    state:`const d=globalThis.__mediaTest;export function currentMedia(id="auto"){return id==="auto"?d.current:d.sessions.find(x=>x.session_id===id)??null;}export function availableSessions(){return d.sessions;}export function audioTarget(id){d.audioRequests.push(id);return {name:id,volume:0.5,muted:false};}export function audioTargets(){return [];}export function subscribe(){}export function startMediaPolling(){return ()=>{};}`,
+    state:`const d=globalThis.__mediaTest;export function currentMedia(id="auto"){return id==="auto"?d.current:d.sessions.find(x=>x.session_id===id)??null;}export function availableSessions(){return d.sessions;}export function audioTarget(id){d.audioRequests.push(id);return "audio" in d?d.audio:{name:id,volume:0.5,muted:false};}export function audioTargets(){return [];}export function subscribe(){}export function startMediaPolling(){return ()=>{};}`,
     native:`export async function nativeCommand(c){const d=globalThis.__mediaTest;d.commands.push(c);await d.command?.(c);}`,
     chrome:`export function chromeConnectionStatus(){return {state:"connected",lastSeen:123,sessions:0};}export function startChromeServer(){return {close(){},closeAllConnections(){}};}export async function chromeCommand(){throw Error("Unexpected Chrome command");}`,
     registration:`export function registerChromeHost(){const d=globalThis.__mediaTest;d.registrations=(d.registrations??0)+1;return d.registration??Promise.resolve({status:"registered",message:"Registered"});}export function stopChromeRegistration(){}`,
     art:`export async function artwork(){await globalThis.__mediaTest.artwork?.();return undefined;} export async function applicationIcon(m){return m?.favicon_data_url??m?.app_icon_data_url;}`
   };
   const plugin={name:"test-ports",setup(build){
+    build.onLoad({filter:/control-image\.ts$/},args=>({contents:readFileSync(args.path,"utf8").replaceAll("import.meta.url",JSON.stringify(new URL("../dev.local.media-controls.sdPlugin/bin/plugin.js",import.meta.url).href)),loader:"ts"}));
     build.onResolve({filter:/@elgato\/streamdeck$|\.\/media-state\.js$|\.\/native-client\.js$|\.\/chrome-server\.js$|\.\/chrome-registration\.js$|\.\/artwork\.js$/},args=>({path:args.path==="@elgato/streamdeck"?"sdk":args.path.includes("media-state")?"state":args.path.includes("native-client")?"native":args.path.includes("chrome-server")?"chrome":args.path.includes("chrome-registration")?"registration":"art",namespace:"test"}));
     build.onLoad({filter:/.*/,namespace:"test"},args=>({contents:mocks[args.path],loader:"js"}));
   }};
@@ -70,12 +72,142 @@ test("Now Playing operates the session last sent to the display, and never falls
   // End each appearance so the animation timer cannot redraw an earlier scenario.
   action.onWillDisappear({action:key});
   action.actions.splice(action.actions.indexOf(key),1);
+  // Basic transport buttons must operate their displayed target, too.
+  const basic=driver.instances.find(x=>x.constructor.name==="PlayPause");
+  driver.sessions=[a,b];driver.current=a;
+  let basicImage;
+  const basicKey={...key,id:"basic",async setImage(image){basicImage=image;}};
+  await basic.render(basicKey,{});
+  assert.match(basicImage,/^data:image\/png;base64,/);
+  driver.current=b;
+  await basic.onKeyDown({action:basicKey,payload:{settings:{}}});
+  assert.equal(driver.commands.at(-1).session_id,"A");
+  driver.sessions=[b];
+  const beforeBasicRemoval=driver.commands.length;
+  await basic.onKeyDown({action:basicKey,payload:{settings:{}}});
+  assert.equal(driver.commands.length,beforeBasicRemoval);
+  await basic.render(basicKey,{mediaTarget:"A"});
+  assert.equal(basic.displayedSessions.get(basicKey.id),"unavailable");
+  const mute=driver.instances.find(x=>x.constructor.name==="Mute");
+  await mute.render({...basicKey,id:"mute"},{audioTarget:"per-app"});
+  assert.equal(driver.audioRequests.at(-1),"per-app");
+  await mute.onKeyDown({action:basicKey,payload:{settings:{audioTarget:"per-app"}}});
+  assert.deepEqual(driver.commands.at(-1),{command:"mute",target:"per-app",delta:0.02});
   const volume=driver.instances.find(x=>x.constructor.name==="VolumeDial");
-  await volume.render({...key,id:"dial",isDial:()=>true,async setFeedback(){}},{globalKeys:true,audioTarget:"per-app"});
+  const volumeLayouts=[],volumeUpdates=[],volumeText=[];
+  let volumeClock=0;
+  const volumeFrame=volume.scrolling.frame.bind(volume.scrolling);
+  volume.scrolling.frame=(...args)=>{volumeText.push(args[2]);return volumeFrame(...args,volumeClock);};
+  const volumeDial={...key,id:"volume-dial",isDial:()=>true,
+    async setFeedbackLayout(layout){volumeLayouts.push(layout);},async setFeedback(payload){volumeUpdates.push(payload);}};
+  await volume.render(volumeDial,{globalKeys:true,audioTarget:"per-app"});
   assert.equal(driver.audioRequests.at(-1),"master");
+  assert.deepEqual(volumeLayouts,["layouts/volume-dial.json"],"existing dials must replace the old built-in layout");
+  assert.deepEqual(volumeText.slice(-3),["システム音量","PC全体","押すとミュート"]);
+  assert.equal(volumeUpdates.at(-1).value,"50%");
+  driver.audio={name:"Spotify — とても長いアプリケーションの操作対象名",volume:0.65,muted:false};
+  await volume.render(volumeDial,{audioTarget:"per-app"});
+  assert.deepEqual(volumeText.slice(-3),["アプリ別音量",driver.audio.name,"押すとミュート"]);
+  assert.equal(volumeUpdates.at(-1).value,"65%");
+  const firstTarget=volumeUpdates.at(-1).targetName;
+  assert.equal((await sharp(Buffer.from(firstTarget.split(',')[1],'base64')).metadata()).width,184);
+  assert.equal(volume.scrolling.active,true);
+  volumeClock=2000;await volume.render(volumeDial,{audioTarget:"per-app"});
+  assert.notEqual(volumeUpdates.at(-1).targetName,firstTarget,"long targets must scroll instead of being truncated");
+  assert.deepEqual(Object.keys(volumeUpdates.at(-1)),["targetName"],"animation updates only the target text");
+  driver.audio={...driver.audio,volume:0.66,muted:true};
+  await volume.render(volumeDial,{audioTarget:"per-app"});
+  assert.equal(volumeText.at(-1),"ミュート中");
+  assert.equal(volumeUpdates.at(-1).value,"66%");
+  assert.equal(volumeUpdates.at(-1).targetName,undefined,"volume changes must not restart or resend the target name");
+  const hiddenVolume={audioTarget:"per-app",showScope:false,showTarget:false,showVolume:false,showStatus:false,showVolumeBar:false};
+  await volume.render(volumeDial,hiddenVolume);
+  assert.deepEqual(volumeText.slice(-3),["","",""]);
+  for(const field of ['scope','targetName','status']) {
+    const pixels=await sharp(Buffer.from(volumeUpdates.at(-1)[field].split(',')[1],'base64')).ensureAlpha().raw().toBuffer();
+    assert.ok(pixels.every(value=>value===0),`${field}: hidden text must be transparent`);
+  }
+  assert.equal(volumeUpdates.at(-1).value,"");
+  assert.equal(volumeUpdates.at(-1).indicator.enabled,false);
+  assert.equal(volume.scrolling.active,false,"hidden targets must stop scrolling");
+  await volume.onDialRotate({action:volumeDial,payload:{settings:hiddenVolume,ticks:1}});
+  assert.deepEqual(driver.commands.at(-1),{command:'volume',target:'per-app',delta:0.02});
+  await volume.onDialDown({action:volumeDial,payload:{settings:hiddenVolume}});
+  assert.equal(driver.commands.at(-1).command,'mute');
+  await volume.render(volumeDial,{audioTarget:'per-app'});
+  assert.equal(volumeUpdates.at(-1).value,'66%');
+  for(const [setting,field] of [['showScope','scope'],['showTarget','targetName'],['showStatus','status'],['showVolume','value'],['showVolumeBar','indicator']]) {
+    await volume.render(volumeDial,{audioTarget:'per-app',[setting]:false});
+    const update=volumeUpdates.at(-1);
+    if(field==='value') assert.equal(update.value,'');
+    else if(field==='indicator') assert.equal(update.indicator.enabled,false);
+    else assert.ok((await sharp(Buffer.from(update[field].split(',')[1],'base64')).ensureAlpha().raw().toBuffer()).every(value=>value===0));
+    if(field!=='value') assert.notEqual(update.value,'','hiding another field must not hide the volume');
+    await volume.render(volumeDial,{audioTarget:'per-app'});
+  }
+  driver.audio=null;await volume.render(volumeDial,{audioTarget:"per-app"});
+  assert.deepEqual(volumeText.slice(-3),["アプリ別音量","対象なし","切断済み"]);
+  assert.equal(volumeUpdates.at(-1).value,"--%");
+  assert.equal(volumeUpdates.at(-1).indicator.enabled,false);
+  const beforeStaleVolume=volumeUpdates.length;
+  await volume.render(volumeDial,{audioTarget:"another-app"},()=>false);
+  assert.equal(volumeUpdates.length,beforeStaleVolume,"outdated renders must not send feedback");
+  assert.equal(volumeLayouts.length,1,"ordinary feedback updates must preserve the layout");
+  volume.onWillDisappear({action:volumeDial});
+  assert.equal(volume.scrolling.active,false);
+  delete driver.audio;
+  // Every basic key can hide its elements independently without changing its command target.
+  const badge='data:image/png;base64,'+(await sharp({create:{width:28,height:28,channels:4,background:'magenta'}}).png().toBuffer()).toString('base64');
+  const controlMedia={...a,app_id:'VeryLongMediaApplicationName.exe',title:'長い曲名を表示する基本操作のテスト',app_icon_data_url:badge,controls:{toggle:true,previous:true,next:true,stop:true}};
+  driver.sessions=[controlMedia];driver.current=controlMedia;
+  driver.audio={name:'長い音量操作対象アプリケーションの名前',volume:0.66,muted:true};
+  const plain=async(image,rect)=>{
+    let pixels=sharp(Buffer.from(image.split(',')[1],'base64'));
+    if(rect) pixels=pixels.extract(rect);
+    return (await pixels.ensureAlpha().raw().toBuffer()).every((value,index)=>value===[16,16,24,255][index%4]);
+  };
+  for(const name of ['PlayPause','Previous','Next','Stop','Mute','VolumeUp','VolumeDown']) {
+    const visual=driver.instances.find(x=>x.constructor.name===name),isAudio=['Mute','VolumeUp','VolumeDown'].includes(name);
+    const inputs=new Map(),frame=visual.scrolling.frame.bind(visual.scrolling);
+    visual.scrolling.frame=(...args)=>{inputs.set(args[1],args[2]);return frame(...args);};
+    let image;
+    const instance={...key,id:`visibility-${name}`,async setImage(value){image=value;}};
+    const configured={mediaTarget:'A',audioTarget:'per-app'};
+    await visual.render(instance,configured);
+    assert.ok(!await plain(image));
+    await visual.render(instance,{...configured,showControlIcon:false});
+    assert.ok(await plain(image,{left:36,top:4,width:72,height:72}),`${name}: operation icon`);
+    await visual.render(instance,{...configured,showTarget:false});
+    assert.equal(inputs.get('target'),'');
+    assert.notEqual(inputs.get('detail'),'');
+    if(isAudio) {
+      await visual.render(instance,{...configured,showVolume:false});
+      assert.equal(inputs.get('detail'),'ミュート');
+      await visual.render(instance,{...configured,showStatus:false});
+      assert.equal(inputs.get('detail'),'66%');
+    } else {
+      await visual.render(instance,{...configured,showTitle:false});
+      assert.equal(inputs.get('detail'),'');
+      assert.notEqual(inputs.get('target'),'');
+      await visual.render(instance,{...configured,showAppIcon:false});
+      assert.ok(await plain(image,{left:108,top:4,width:28,height:28}),`${name}: application badge`);
+    }
+    const hidden={...configured,showControlIcon:false,showTarget:false,showTitle:false,showAppIcon:false,showVolume:false,showStatus:false};
+    await visual.render(instance,hidden);
+    assert.ok(await plain(image),`${name}: hiding every element leaves a plain background`);
+    assert.equal(visual.scrolling.active,false,`${name}: hidden lines stop scrolling`);
+    await visual.onKeyDown({action:instance,payload:{settings:hidden}});
+    if(isAudio) assert.equal(driver.commands.at(-1).target,'per-app');
+    else assert.equal(driver.commands.at(-1).session_id,'A');
+    await visual.render(instance,configured);
+    assert.ok(!await plain(image),`${name}: restored elements must redraw`);
+    visual.onWillDisappear({action:instance});
+    visual.scrolling.frame=frame;
+  }
+  delete driver.audio;
   // A failed or pending display update must not redirect a press to another session.
   driver.sessions=[a,{...b,title:"New track"}];
-  for(const name of ["NowPlaying","NowPlayingDial"]) {
+  for(const name of ["PlayPause","NowPlaying","NowPlayingDial"]) {
     const visual=driver.instances.find(x=>x.constructor.name===name);
     const dial=name==="NowPlayingDial";
     let fail=false, pending=null;

@@ -1,12 +1,13 @@
 <!doctype html><html lang="ja"><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Media Controls 設定</title><style>
-body{font:13px system-ui;color:#eee;background:#282828;margin:12px}label{display:block;margin:12px 0 5px}select,button{width:100%;padding:6px;color:inherit;background:#444;border:1px solid #666}pre{white-space:pre-wrap;overflow-wrap:anywhere;font-size:11px}p{line-height:1.6;color:#ccc}
+[hidden]{display:none!important}body{font:13px system-ui;color:#eee;background:#282828;margin:12px}label{display:block;margin:12px 0 5px}select,button{width:100%;padding:6px;color:inherit;background:#444;border:1px solid #666}pre{white-space:pre-wrap;overflow-wrap:anywhere;font-size:11px}p{line-height:1.6;color:#ccc}
 fieldset{border:1px solid #666;border-radius:8px;padding:8px 12px 12px;margin:16px 0}legend{padding:0 5px}fieldset label{display:flex;align-items:center;gap:6px;margin:8px 0}input[type=checkbox]{accent-color:#55ce91}fieldset p{margin:8px 0 0}
 .connection{border:1px solid #666;border-radius:8px;padding:12px;margin-bottom:16px;background:#333}.connection strong{display:flex;align-items:center;gap:8px}.connection strong::before{content:"";width:9px;height:9px;flex:none;border-radius:50%;background:#aaa}.connection[data-state=connected]{border-color:#55ce91}.connection[data-state=connected] strong::before{background:#55ce91}.connection[data-state=disconnected] strong::before,.connection[data-state=unavailable] strong::before{background:#ffc46b}.connection p{margin:6px 0 0}
 </style>
 <section class="connection" id="chrome-connection" data-state="checking" role="status" aria-live="polite" aria-atomic="true"><strong id="chrome-connection-title">Chrome：接続を確認中</strong><p id="chrome-connection-detail">プラグインからの応答を待っています。</p></section>
-<label for="media">表示・再生操作のセッション</label><select id="media" disabled><option value="auto">自動（再生中を優先・現在の対象を維持）</option></select>
-<label for="audio">音量の操作対象（再生セッションとは独立）</label><select id="audio" disabled><option value="master">マスター（既定のマルチメディア出力）</option></select>
+<div id="media-settings"><label for="media">表示・再生操作の対象</label><select id="media" disabled><option value="auto">自動（再生中を優先・現在の対象を維持）</option></select></div>
+<div id="audio-settings"><label for="audio">音量・ミュートの対象</label><select id="audio" disabled><option value="master">PC全体（既定の音声出力）</option></select></div>
+<p id="target-note"></p>
 <div id="global-settings" hidden>
 <label><input type="checkbox" id="global" disabled>従来のグローバルメディアキーを使用</label>
 <p>有効にすると、キーボードのメディアキーと同じ信号を送り、Windows が操作対象を決めます。</p>
@@ -17,11 +18,16 @@ fieldset{border:1px solid #666;border-radius:8px;padding:8px 12px 12px;margin:16
 <div id="seek-settings"><label for="seek-step">1目盛りあたりの移動秒数</label><select id="seek-step" disabled><option value="1">1秒</option><option value="5">5秒</option><option value="10">10秒</option><option value="30">30秒</option><option value="60">60秒</option></select></div>
 </div>
 <fieldset id="display-settings" hidden><legend>表示する項目</legend>
-<label><input type="checkbox" id="show-title" checked disabled>曲名・タイトル</label>
-<label><input type="checkbox" id="show-artist" checked disabled>アーティスト</label>
-<label><input type="checkbox" id="show-artwork" checked disabled>アートワーク</label>
-<label><input type="checkbox" id="show-app-icon" checked disabled>アプリ／サイトアイコン</label>
-<label><input type="checkbox" id="show-status" checked disabled>再生状態</label>
+<label id="control-icon-setting" hidden><input type="checkbox" id="show-control-icon" checked disabled>操作アイコン</label>
+<label id="scope-setting" hidden><input type="checkbox" id="show-scope" checked disabled>対象の種類（システム音量／アプリ別音量）</label>
+<label id="target-setting" hidden><input type="checkbox" id="show-target" checked disabled>操作対象名（PC全体／アプリ／サイト）</label>
+<label id="title-setting"><input type="checkbox" id="show-title" checked disabled><span id="title-label">曲名・タイトル</span></label>
+<label id="artist-setting"><input type="checkbox" id="show-artist" checked disabled>アーティスト</label>
+<label id="artwork-setting"><input type="checkbox" id="show-artwork" checked disabled>アートワーク</label>
+<label id="app-icon-setting"><input type="checkbox" id="show-app-icon" checked disabled>アプリ／サイトアイコン</label>
+<label id="volume-setting" hidden><input type="checkbox" id="show-volume" checked disabled>音量（%）</label>
+<label id="status-setting"><input type="checkbox" id="show-status" checked disabled><span id="status-label">再生状態</span></label>
+<label id="volume-bar-setting" hidden><input type="checkbox" id="show-volume-bar" checked disabled>音量バー</label>
 <div id="dial-display-settings" hidden>
 <label><input type="checkbox" id="show-position" checked disabled>再生位置（経過時間）</label>
 <label><input type="checkbox" id="show-duration" checked disabled>総時間</label>
@@ -29,10 +35,11 @@ fieldset{border:1px solid #666;border-radius:8px;padding:8px 12px 12px;margin:16
 <label><input type="checkbox" id="show-dial-info" checked disabled>ダイヤル情報（移動秒数／音量）</label>
 </div>
 <p>このキー／ダイヤルだけに適用され、変更するとすぐに反映されます。初期設定はすべて表示です。</p>
+<p id="control-display-note" hidden>表示を非表示にしても、選択した操作対象とキー／ダイヤルの操作は変わりません。</p>
 <p id="progress-display-note" hidden>進捗バーを非表示にすると、画面下部のタップも再生／一時停止になります。ダイヤル回転でのシークは引き続き利用できます。</p>
 </fieldset>
-<p>Now Playing +：右回転＝早送り、左回転＝巻き戻し（初期値5秒/目盛り、音量へ変更可）、押下＝再生/一時停止、進捗バーをタップ＝シーク（対応時）、長押し＝次のセッション。</p>
-<p>長い曲名・アーティスト名はピクセル単位で滑らかにスクロールし、末尾まで表示します。先頭と末尾で少し止まり、曲が変わると先頭から表示します。通常キーの文字も画像内に描画します。</p>
+<p id="now-playing-help">Now Playing +：右回転＝早送り、左回転＝巻き戻し（初期値5秒/目盛り、音量へ変更可）、押下＝再生/一時停止、進捗バーをタップ＝シーク（対応時）、長押し＝次のセッション。</p>
+<p id="scroll-help">長い曲名・アーティスト名はピクセル単位で滑らかにスクロールし、末尾まで表示します。先頭と末尾で少し止まり、曲が変わると先頭から表示します。通常キーの文字も画像内に描画します。</p>
 <label for="register-chrome">Chrome 連携</label>
 <p>Chrome に拡張機能を読み込んだ後、下のボタンで連携を登録できます。</p>
 <button id="register-chrome" type="button" disabled>Chrome 連携を登録</button>

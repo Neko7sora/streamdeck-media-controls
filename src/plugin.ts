@@ -9,14 +9,16 @@ import {progress,displayTitle} from "./media-model.js";
 import {DialSeeking,seekPosition,trackIdentity} from "./media-seek.js";
 import {ScrollingText,ANIMATION_INTERVAL_MS} from "./scrolling-text.js";
 import {nowPlayingImage} from "./now-playing-image.js";
+import {controlImage} from "./control-image.js";
+import {mediaTargetName,audioTargetName} from "./control-display.js";
 
 const UUID="dev.local.media-controls";
 const EMPTY_ICON="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAAC0lEQVR42mNgAAIAAAUAAen63NgAAAAASUVORK5CYII=";
 type Settings={mediaTarget?:string;audioTarget?:string;globalKeys?:boolean;dialMode?:string;seekStep?:number;
   showTitle?:boolean;showArtist?:boolean;showArtwork?:boolean;showAppIcon?:boolean;showStatus?:boolean;
-  showPosition?:boolean;showDuration?:boolean;showProgress?:boolean;showDialInfo?:boolean};
+  showPosition?:boolean;showDuration?:boolean;showProgress?:boolean;showDialInfo?:boolean;
+  showControlIcon?:boolean;showTarget?:boolean;showScope?:boolean;showVolume?:boolean;showVolumeBar?:boolean};
 type Instance=KeyAction<Settings>|DialAction<Settings>;
-const short=(s:string,n=28)=>[...s].length>n?[...s].slice(0,n-1).join("")+"…":s;
 const time=(s:number|null)=>s===null?"--:--":`${Math.floor(Math.max(0,s)/60)}:${String(Math.floor(Math.max(0,s))%60).padStart(2,"0")}`;
 const playbackLabel=(state?:string)=>({playing:"Playing",paused:"Paused",stopped:"Stopped",opened:"Opened",changing:"Loading",closed:"Closed"}[state??""]??"Unavailable");
 const seekStep=(s:Settings)=>typeof s.seekStep==="number"&&Number.isFinite(s.seekStep)&&s.seekStep>=1&&s.seekStep<=60?s.seekStep:5;
@@ -76,11 +78,39 @@ abstract class ConfiguredAction extends SingletonAction<Settings> {
 }
 abstract class MediaButton extends ConfiguredAction {
   protected abstract readonly command:MediaCommand;
+  protected override async render(a:Instance,s:Settings,isCurrent:()=>boolean=()=>true):Promise<void> {
+    if(!a.isKey()) return;
+    const isVolume=this.command==="mute"||this.command.startsWith("volume-");
+    const m=isVolume||s.globalKeys?null:currentMedia(s.mediaTarget);
+    const selected=s.globalKeys?"master":s.audioTarget??"master";
+    const v=isVolume?audioTarget(selected):null;
+    const target=s.showTarget===false?"":isVolume?audioTargetName(v,selected):s.globalKeys?"OS自動":mediaTargetName(m);
+    const detail=isVolume?[
+      s.showVolume===false?"":v?.volume==null?"--%":`${Math.round(v.volume*100)}%`,
+      s.showStatus===false?"":v?.volume==null?"対象なし":v.muted?"ミュート":""
+    ].filter(Boolean).join(" · "):s.showTitle===false?"":s.globalKeys?"対象はOSが選択":
+      m?displayTitle(m):s.mediaTarget&&s.mediaTarget!=="auto"?"切断済み":"再生対象なし";
+    const identity=isVolume?selected:s.globalKeys?"global":m?.session_id??"unavailable";
+    const [name,line,appIcon]=await Promise.all([
+      this.scrolling.frame(a.id,"target",target,{width:128,height:28,fontSize:22,scale:2},identity),
+      this.scrolling.frame(a.id,"detail",detail,{width:128,height:22,fontSize:18,scale:2},identity),
+      s.showAppIcon===false?undefined:applicationIcon(m,28)
+    ]);
+    if(!isCurrent()) return;
+    if(this.changed(a,{target:name.image,detail:line.image,appIcon,showControlIcon:s.showControlIcon!==false},"image")) {
+      const image=await controlImage(this.command,name.image,line.image,appIcon,s.showControlIcon!==false);
+      if(!isCurrent()) return;
+      await a.setImage(image);
+    }
+    if(!isCurrent()) return;
+    if(this.changed(a,"","title")) await a.setTitle("");
+    if(isCurrent()&&!isVolume&&!s.globalKeys) this.displaySession(a,m?.session_id);
+  }
   override async onKeyDown(ev:KeyDownEvent<Settings>):Promise<void> {
     await guarded(ev.action,async()=>{
       if(ev.payload.settings.globalKeys) {await sendMediaKey(this.command);return;}
       if(this.command==="mute"||this.command.startsWith("volume-")) await volume(ev.payload.settings,this.command==="volume-down"?-1:1,this.command==="mute");
-      else await transport(ev.payload.settings,this.command);
+      else await transport(this.displayedSettings(ev.action,ev.payload.settings),this.command);
     });
   }
 }
@@ -97,11 +127,23 @@ class VolumeDial extends ConfiguredAction {
   override async onDialRotate(ev:DialRotateEvent<Settings>):Promise<void> {if(ev.payload.ticks) await guarded(ev.action,()=>ev.payload.settings.globalKeys?sendMediaKey(ev.payload.ticks>0?"volume-up":"volume-down",Math.min(32,Math.abs(ev.payload.ticks))):volume(ev.payload.settings,ev.payload.ticks));}
   override async onDialDown(ev:DialDownEvent<Settings>):Promise<void> {await guarded(ev.action,()=>ev.payload.settings.globalKeys?sendMediaKey("mute"):volume(ev.payload.settings,0,true));}
   override async onTouchTap(ev:TouchTapEvent<Settings>):Promise<void> {await guarded(ev.action,()=>ev.payload.settings.globalKeys?sendMediaKey("mute"):volume(ev.payload.settings,0,true));}
-  protected override async render(a:Instance,s:Settings):Promise<void> {
+  protected override async render(a:Instance,s:Settings,isCurrent:()=>boolean=()=>true):Promise<void> {
     if(!a.isDial()) return;
-    const v=audioTarget(s.globalKeys?"master":s.audioTarget), value=v?.volume==null?"Unavailable":`${Math.round(v.volume*100)}%${v.muted?" Mute":""}`;
-    const payload={title:short(v?.name||"System volume",22),value,indicator:{value:v?.volume==null?0:v.volume*100,enabled:v?.volume!=null},icon:"imgs/actions/volume-dial.png"};
-    if(this.changed(a,payload)) await a.setFeedback(payload);
+    const selected=s.globalKeys?"master":s.audioTarget??"master",v=audioTarget(selected);
+    const [scope,targetName,status]=await Promise.all([
+      this.scrolling.frame(a.id,"scope",s.showScope===false?"":selected==="master"?"システム音量":"アプリ別音量",{width:184,height:16,fontSize:11}),
+      this.scrolling.frame(a.id,"target",s.showTarget===false?"":audioTargetName(v,selected),{width:184,height:28,fontSize:20,bold:true},selected),
+      this.scrolling.frame(a.id,"status",s.showStatus===false?"":v?.volume==null?(selected==="master"?"取得できません":"切断済み"):v.muted?"ミュート中":"押すとミュート",{width:110,height:20,fontSize:12},selected)
+    ]);
+    if(!isCurrent()) return;
+    // Replace the old built-in layout for already-configured dial instances, too.
+    if(this.changed(a,"layouts/volume-dial.json","layout")) await a.setFeedbackLayout("layouts/volume-dial.json");
+    if(!isCurrent()) return;
+    const payload={scope:scope.image,targetName:targetName.image,status:status.image,
+      value:s.showVolume===false?"":v?.volume==null?"--%":`${Math.round(v.volume*100)}%`,
+      indicator:{value:v?.volume==null?0:v.volume*100,enabled:s.showVolumeBar!==false&&v?.volume!=null,bar_fill_c:v?.muted?"#ffc46b":"#55ce91"}};
+    const changes=Object.fromEntries(Object.entries(payload).filter(([key,value])=>this.changed(a,value,`feedback:${key}`)));
+    if(Object.keys(changes).length) await a.setFeedback(changes);
   }
 }
 @action({UUID:`${UUID}.now-playing`})

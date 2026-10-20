@@ -4,7 +4,9 @@ const dialMode=document.getElementById("dial-mode"),seekStep=document.getElement
 const displaySettings=[
   ["show-title","showTitle"],["show-artist","showArtist"],["show-artwork","showArtwork"],
   ["show-app-icon","showAppIcon"],["show-status","showStatus"],["show-position","showPosition"],
-  ["show-duration","showDuration"],["show-progress","showProgress"],["show-dial-info","showDialInfo"]
+  ["show-duration","showDuration"],["show-progress","showProgress"],["show-dial-info","showDialInfo"],
+  ["show-control-icon","showControlIcon"],["show-target","showTarget"],["show-scope","showScope"],
+  ["show-volume","showVolume"],["show-volume-bar","showVolumeBar"]
 ].map(([id,key])=>[document.getElementById(id),key]);
 const registerChrome=document.getElementById("register-chrome"),chromeStatus=document.getElementById("chrome-registration-status");
 let registrationRequestId=null,registrationTimeout;
@@ -42,15 +44,36 @@ function populate(select,items,current,defaultValue,defaultLabel){
 }
 function show(){
   populate(media,sessions,settings.mediaTarget??"auto","auto","自動（再生中を優先・現在の対象を維持）");
-  populate(audio,audioTargets,settings.audioTarget??"master","master","マスター（既定のマルチメディア出力）");
+  populate(audio,audioTargets,settings.audioTarget??"master","master","PC全体（既定の音声出力）");
   global.checked=settings.globalKeys===true;
   dialMode.value=settings.dialMode==="volume"?"volume":"seek";
   seekStep.value=String([1,5,10,30,60].includes(settings.seekStep)?settings.seekStep:5);
   document.getElementById("dial-settings").hidden=action!=="dev.local.media-controls.now-playing-dial";
   const isDial=action==="dev.local.media-controls.now-playing-dial";
   const isNowPlaying=isDial||action==="dev.local.media-controls.now-playing";
+  const isVolume=["mute","volume-up","volume-down","volume-dial"].some(name=>action===`dev.local.media-controls.${name}`);
+  const isVolumeDial=action==="dev.local.media-controls.volume-dial";
+  const globalMode=!isNowPlaying&&settings.globalKeys===true;
+  document.getElementById("media-settings").hidden=globalMode||isVolume;
+  document.getElementById("audio-settings").hidden=globalMode||(!isVolume&&!isNowPlaying);
+  document.getElementById("target-note").textContent=globalMode?
+    isVolume?"操作対象：PC全体。グローバルメディアキーで音量・ミュートを操作します。":"操作対象：Windows が選択する再生アプリ。キーには「OS自動」と表示します。":
+    isVolume?"選択した対象の音量・ミュートだけを操作します。「PC全体」は既定の音声出力全体です。対象名と音量をキー／ダイヤルに表示します。":
+    isNowPlaying?"再生対象と音量対象は独立しています。設定はこのキー／ダイヤルだけに適用されます。":"選択したアプリ／サイトの再生を操作します。キーに対象名と曲名を表示します。自動選択でも、表示したセッションに操作を送ります。";
+  document.getElementById("now-playing-help").hidden=!isDial;
+  document.getElementById("scroll-help").hidden=!isNowPlaying;
   document.getElementById("global-settings").hidden=isNowPlaying;
-  document.getElementById("display-settings").hidden=!isNowPlaying;
+  document.getElementById("display-settings").hidden=false;
+  for(const [id,visible] of [
+    ["control-icon-setting",!isNowPlaying&&!isVolumeDial],["scope-setting",isVolumeDial],
+    ["target-setting",!isNowPlaying],["title-setting",isNowPlaying||!isVolume],
+    ["artist-setting",isNowPlaying],["artwork-setting",isNowPlaying],
+    ["app-icon-setting",isNowPlaying||(!isVolume&&!globalMode)],
+    ["volume-setting",isVolume],["status-setting",isNowPlaying||isVolume],
+    ["volume-bar-setting",isVolumeDial],["control-display-note",!isNowPlaying]
+  ]) document.getElementById(id).hidden=!visible;
+  document.getElementById("title-label").textContent=globalMode?"操作対象の説明":"曲名・タイトル";
+  document.getElementById("status-label").textContent=isNowPlaying?"再生状態":isVolumeDial?"ミュート状態・操作ヒント":"ミュート状態";
   document.getElementById("dial-display-settings").hidden=!isDial;
   for(const [element,key] of displaySettings) element.checked=settings[key]!==false;
   document.getElementById("progress-display-note").hidden=!isDial||settings.showProgress!==false;

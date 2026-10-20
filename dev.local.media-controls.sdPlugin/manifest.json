@@ -150,7 +150,7 @@
         "Encoder"
       ],
       "Encoder": {
-        "layout": "$B1",
+        "layout": "layouts/volume-dial.json",
         "TriggerDescription": {
           "Rotate": "Adjust volume",
           "Push": "Toggle mute"
