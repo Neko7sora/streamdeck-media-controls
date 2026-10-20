@@ -33,6 +33,7 @@ export interface MediaItem {
   fallback_artwork_data_url?: string | null;
   artwork_candidates?: Array<{src:string; sizes?:string; type?:string}>;
   browser_media?: {
+    target_id?: string;
     element_type?: string;
     muted?: boolean;
     volume?: number;

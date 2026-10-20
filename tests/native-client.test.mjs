@@ -30,6 +30,32 @@ async function harness() {
 
 const snapshot={current:null,sessions:[],audio:null};
 
+test("native commands expire at the client timeout and cannot override their expiry",async t=>{
+  const {driver,client}=await harness();
+  const now=1_000_000;
+  t.mock.timers.enable({apis:["setTimeout","setInterval","Date"],now});
+  const stop=client.startNative(()=>{},()=>{});t.after(stop);
+  const child=driver.children[0];
+  let settled=false;
+  const command=client.nativeCommand({command:"mute",target:"master",expires_at:now+60000});
+  void command.then(()=>{settled=true;},()=>{settled=true;});
+  const pending=assert.rejects(command,/timed out/);
+  assert.equal(child.writes[0].expires_at,now+5000);
+  t.mock.timers.tick(4999);
+  await Promise.resolve();
+  assert.equal(settled,false);
+  assert.equal(Date.now(),child.writes[0].expires_at-1);
+  t.mock.timers.tick(1);
+  await pending;
+  assert.equal(settled,true);
+  // A late reply to the expired request must not settle a subsequent command.
+  const recovered=client.nativeCommand({command:"next",session_id:"new"});
+  assert.equal(child.writes[1].expires_at,now+10000);
+  child.output({reply:child.writes[0].id,ok:false,error:"Command expired before execution"});
+  child.output({reply:child.writes[1].id,ok:true});
+  await recovered;
+});
+
 test("a broken native input pipe rejects commands and restarts without unhandled stream errors",async t=>{
   const {driver,client}=await harness();
   t.mock.timers.enable({apis:["setTimeout","setInterval"]});

@@ -10,7 +10,7 @@ test("Now Playing operates the session last sent to the display, and never falls
     sdk:`const d=globalThis.__mediaTest;export class SingletonAction{actions=[];} export function action(){return c=>c;} export default {actions:{registerAction(a){d.instances.push(a);}},ui:{get action(){return d.inspectorAction;},onSendToPlugin(fn){d.onSendToPlugin=fn;},async sendToPropertyInspector(payload){d.inspectorReplies.push(payload);}},logger:{warn(){},error(){},info(){}},async connect(){}};`,
     state:`const d=globalThis.__mediaTest;export function currentMedia(id="auto"){return id==="auto"?d.current:d.sessions.find(x=>x.session_id===id)??null;}export function availableSessions(){return d.sessions;}export function audioTarget(id){d.audioRequests.push(id);return "audio" in d?d.audio:{name:id,volume:0.5,muted:false};}export function audioTargets(){return [];}export function subscribe(){}export function startMediaPolling(){return ()=>{};}`,
     native:`export async function nativeCommand(c){const d=globalThis.__mediaTest;d.commands.push(c);await d.command?.(c);}`,
-    chrome:`export function chromeConnectionStatus(){return {state:"connected",lastSeen:123,sessions:0};}export function startChromeServer(){return {close(){},closeAllConnections(){}};}export async function chromeCommand(){throw Error("Unexpected Chrome command");}`,
+    chrome:`export function chromeConnectionStatus(){return {state:"connected",lastSeen:123,sessions:0};}export function startChromeServer(){return {close(){},closeAllConnections(){}};}export async function chromeCommand(...args){const d=globalThis.__mediaTest;if(!d.chromeCommands) throw Error("Unexpected Chrome command");d.chromeCommands.push(args);await d.chromeCommand?.(...args);}`,
     registration:`export function registerChromeHost(){const d=globalThis.__mediaTest;d.registrations=(d.registrations??0)+1;return d.registration??Promise.resolve({status:"registered",message:"Registered"});}export function stopChromeRegistration(){}`,
     art:`export async function artwork(){await globalThis.__mediaTest.artwork?.();return undefined;} export async function applicationIcon(m){return m?.favicon_data_url??m?.app_icon_data_url;}`
   };
@@ -302,6 +302,26 @@ test("Now Playing operates the session last sent to the display, and never falls
   driver.command=undefined;releaseSeek();await Promise.all([oldRotation,oldTap]);
   assert.equal(driver.commands.length,changedTrackCommands,'a queued tap cannot seek a different track');
   assert.equal(alerts,changedTrackAlerts+1);
+  // Chrome targets can change within one document without any metadata change.
+  const chromeMedia={...seekMedia,source:'chrome',session_id:'chrome:1:0:document',tab_id:1,frame_id:0,document_id:'document',
+    browser_media:{target_id:'media-1'}};
+  driver.sessions=[chromeMedia];driver.current=chromeMedia;driver.chromeCommands=[];
+  await seeking.render(dial,{});
+  await seeking.onDialDown({action:dial,payload:{settings:{}}});
+  assert.deepEqual(driver.chromeCommands.at(-1),[1,0,'document','Track','play-pause',undefined,'media-1']);
+  seeking.seeking.clear(dial.id);
+  let releaseChrome;
+  driver.chromeCommand=()=>new Promise(resolve=>{releaseChrome=resolve;});
+  const chromeRotation=rotate(1);
+  const chromeTap=seeking.onTouchTap({action:dial,payload:{settings:{},tapPos:[100,90],hold:false}});
+  const chromeAlerts=alerts,chromeCommands=driver.chromeCommands.length;
+  driver.sessions=[{...chromeMedia,browser_media:{target_id:'media-2'}}];driver.current=driver.sessions[0];
+  driver.chromeCommand=undefined;releaseChrome();await Promise.all([chromeRotation,chromeTap]);
+  assert.equal(driver.chromeCommands.length,chromeCommands,'queued seeks cannot adopt a replacement source target ID');
+  assert.equal(alerts,chromeAlerts+1);
+  await rotate(1);
+  assert.deepEqual(driver.chromeCommands.at(-1),[1,0,'document','Track','seek',55,'media-2']);
+  delete driver.chromeCommands;
   const long={...a,title:"春夏秋冬東西南北朝昼夕夜一二三四五六七八九十",artist:"あいうえおかきくけこさしすせそ",playback_state:"playing"};
   driver.current=long;driver.sessions=[long];
   let clock=0;const images=[],titles=[],feedback=[],updates=[];

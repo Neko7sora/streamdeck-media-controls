@@ -1,7 +1,8 @@
 import {playbackPosition, type MediaItem} from "./media-model.js";
 
 export function trackIdentity(media: MediaItem): string {
-  return JSON.stringify([media.session_id, media.title, media.artist, media.album, media.track_number]);
+  return JSON.stringify([media.session_id, media.title, media.artist, media.album, media.track_number,
+    media.source === "chrome" ? media.browser_media?.target_id : undefined]);
 }
 
 /** Clamp to the provider's actual seekable ranges, including gaps in browser media. */

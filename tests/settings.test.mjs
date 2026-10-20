@@ -221,6 +221,57 @@ test("inspector loads saved targets immediately and edits only the changed setti
   assert.deepEqual(pi.messages.at(-1).payload,{...saved,globalKeys:false,seekStep:10});
 });
 
+test("custom seek steps show the actual saved value and preserve options during polling",()=>{
+  for(const step of [12,1.5,59.75]) {
+    const saved={seekStep:step,mediaTarget:"A"};
+    const pi=inspector(saved);
+    const select=pi.elements.get("seek-step");
+    const options=[...select.children];
+    assert.equal(select.value,String(step));
+    assert.equal(select.children.find(option=>option.value===String(step)).textContent,`${step}秒`);
+    assert.deepEqual(select.children.map(option=>Number(option.value)),[1,5,10,30,60,step].sort((a,b)=>a-b));
+    pi.change("scroll-text",false);
+    assert.deepEqual(pi.messages.at(-1).payload,{...saved,scrollText:false});
+    for(let i=0;i<3;i++) {
+      const request=pi.poll();
+      pi.receive("sendToPropertyInspector",{settingsRevision:request.settingsRevision,settings:{...saved,scrollText:false}});
+      assert.equal(select.value,String(step));
+      select.children.forEach((option,index)=>assert.equal(option,options[index],"unchanged options must retain their DOM nodes"));
+    }
+    const reopened=inspector({...saved,scrollText:false});
+    assert.equal(reopened.elements.get("seek-step").value,String(step));
+  }
+});
+
+test("switching custom seek steps to a preset saves the new value and removes the custom option",()=>{
+  const pi=inspector({seekStep:12,mediaTarget:"A"});
+  const select=pi.elements.get("seek-step");
+  pi.change("seek-step","10");
+  assert.equal(select.value,"10");
+  assert.deepEqual(pi.messages.at(-1).payload,{seekStep:10,mediaTarget:"A"});
+  assert.deepEqual(select.children.map(option=>option.value),["1","5","10","30","60"]);
+  pi.receive("didReceiveSettings",{settings:{seekStep:2.5,mediaTarget:"A"}});
+  assert.equal(select.value,"2.5");
+  assert.equal(select.children.find(option=>option.value==="2.5").textContent,"2.5秒");
+  assert.equal(select.children.some(option=>option.value==="12"),false);
+});
+
+test("seek step bounds and invalid values match the plugin fallback",()=>{
+  for(const step of [1,60]) {
+    const select=inspector({seekStep:step}).elements.get("seek-step");
+    assert.equal(select.value,String(step));
+    assert.equal(select.children.length,5);
+  }
+  for(const step of [undefined,null,"12",0,0.5,-1,60.5,61,NaN,Infinity,-Infinity]) {
+    const pi=inspector({seekStep:step});
+    const select=pi.elements.get("seek-step");
+    assert.equal(select.value,"5",String(step));
+    assert.deepEqual(select.children.map(option=>option.value),["1","5","10","30","60"]);
+    pi.change("seek-step","30");
+    assert.deepEqual(pi.messages.at(-1).payload,{seekStep:30});
+  }
+});
+
 test("Chrome registration runs on click, blocks duplicate clicks, and keeps selected sessions intact",()=>{
   const pi=inspector({mediaTarget:"A",audioTarget:"app"});
   pi.receive("sendToPropertyInspector",{sessions:[{id:"A",label:"Track A",details:"Track details"}],audio:[{id:"app",label:"Player"}]});

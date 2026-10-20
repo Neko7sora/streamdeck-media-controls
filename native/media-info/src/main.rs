@@ -432,10 +432,23 @@ mod system {
         Ok(())
     }
 
+    fn check_command_expiry(v: &Value, timestamp: u64) -> Result<(), &'static str> {
+        // Keep older callers compatible; new clients bound how long queued actions may wait.
+        let Some(expiry) = v.get("expires_at") else {
+            return Ok(());
+        };
+        let expiry = expiry.as_u64().ok_or("Invalid command expiry")?;
+        if timestamp >= expiry {
+            return Err("Command expired before execution");
+        }
+        Ok(())
+    }
+
     fn command_of(
         v: &Value,
         sessions: &[(String, GlobalSystemMediaTransportControlsSession)],
     ) -> Result<(), Box<dyn std::error::Error>> {
+        check_command_expiry(v, now())?;
         let op = v["command"].as_str().ok_or("Missing command")?;
         if op == "volume" || op == "mute" {
             return crate::audio::command(v);
@@ -488,6 +501,38 @@ mod system {
     #[cfg(test)]
     mod tests {
         use super::*;
+        #[test]
+        fn command_expiry_preserves_legacy_callers_and_rejects_expired_or_invalid_deadlines() {
+            assert!(check_command_expiry(&json!({}), 1000).is_ok());
+            assert!(check_command_expiry(&json!({"expires_at":1001}), 1000).is_ok());
+            assert_eq!(
+                check_command_expiry(&json!({"expires_at":1000}), 1000),
+                Err("Command expired before execution")
+            );
+            assert_eq!(
+                check_command_expiry(&json!({"expires_at":999}), 1000),
+                Err("Command expired before execution")
+            );
+            for invalid in [json!(null), json!(-1), json!(1.5), json!("1001"), json!(true)] {
+                assert_eq!(
+                    check_command_expiry(&json!({"expires_at":invalid}), 1000),
+                    Err("Invalid command expiry")
+                );
+            }
+        }
+        #[test]
+        fn expired_commands_are_rejected_before_media_or_audio_access() {
+            for command in [
+                json!({"command":"next","session_id":"missing","expires_at":0}),
+                json!({"command":"mute","target":"master","expires_at":0}),
+                json!({"command":"volume","target":"master","delta":0.02,"expires_at":0}),
+            ] {
+                assert_eq!(
+                    command_of(&command, &[]).unwrap_err().to_string(),
+                    "Command expired before execution"
+                );
+            }
+        }
         #[test]
         fn commands_never_fall_back_to_another_session() {
             assert!(command_of(&json!({}), &[]).is_err());

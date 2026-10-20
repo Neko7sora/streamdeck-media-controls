@@ -15,6 +15,16 @@ function page(players=[],icons=[]) {
   vm.runInNewContext(source,context);
   return {session,messages,events,window,tick:()=>tick(),advance:ms=>{now+=ms;}};
 }
+function player(src='https://media.test/private-a?token=secret') {
+  return {currentSrc:src,tagName:'AUDIO',readyState:4,paused:false,ended:false,seeking:false,
+    currentTime:10,duration:100,playbackRate:1,seekable:{length:1,start:()=>0,end:()=>100},
+    pause(){this.paused=true;},async play(){this.paused=false;}};
+}
+async function command(p,media,operation='play-pause',extra={}) {
+  await p.events.get('message')({source:p.window,origin:'https://example.test',data:{kind:'__streamdeck_media_metadata_v1___command',
+    command:{id:'command',title:media.title,target_id:media.browser_media?.target_id,command:operation,...extra}}});
+  return p.messages.at(-1).ok;
+}
 test("empty pages do not invent track titles; setPositionState reset clears stale position",()=>{
   const p=page();assert.equal(p.messages.at(-1).media.title,"");
   p.session.metadata={title:"Track",artist:"Artist",artwork:[]};
@@ -81,4 +91,62 @@ test('TVer style precomposed touch icons are collected for videos without Media 
  assert.equal(media.title,'');
  assert.deepEqual(Array.from(media.favicon_candidates,a=>a.src),icons.slice(0,2).map(a=>a.href));
  assert.equal(media.artwork_candidates.length,0);
+});
+
+test('media target IDs stay stable across timeline and playback changes without exposing source URLs',async()=>{
+ const element=player(),p=page([element]);
+ const first=p.messages.at(-1).media,id=first.browser_media.target_id;
+ assert.match(id,/^[A-Za-z0-9_-]{1,100}$/);
+ assert.equal(JSON.stringify(first).includes(element.currentSrc),false);
+ p.advance(1000);element.currentTime=11;element.playbackRate=1.5;element.duration=120;p.tick();
+ assert.equal(p.messages.at(-1).media.browser_media.target_id,id);
+ assert.equal(await command(p,first),true);assert.equal(element.paused,true);
+ assert.equal(p.messages.at(-2).media.browser_media.target_id,id);
+ assert.equal(await command(p,first),true);assert.equal(element.paused,false);
+ assert.equal(await command(p,first,'seek',{position:40}),true);assert.equal(element.currentTime,40);
+ assert.equal(await command(p,first,'stop'),true);assert.equal(element.paused,true);assert.equal(element.currentTime,0);
+ assert.equal(p.messages.at(-2).media.browser_media.target_id,id);
+});
+
+test('queued commands cannot operate a different track with the same title',async()=>{
+ for(const field of ['title','artist','album']) {
+  const element=player(),p=page([element]);
+  p.session.metadata={title:'Same title',artist:'Artist A',album:'Album A',artwork:[]};p.tick();
+  const previous=p.messages.at(-1).media;
+  p.session.metadata={...p.session.metadata,[field]:'Changed'};
+  assert.equal(await command(p,previous),false,field);
+  assert.equal(element.paused,false,`${field}: stale command must not pause the new track`);
+  p.tick();const fresh=p.messages.at(-1).media;
+  assert.notEqual(fresh.browser_media.target_id,previous.browser_media.target_id,field);
+  assert.equal(await command(p,fresh),true,`${field}: fresh commands remain available`);
+ }
+});
+
+test('same-title and untitled source replacements invalidate queued commands',async()=>{
+ for(const titled of [false,true]) for(const replace of ['source','element','stream']) {
+  const players=[player()],p=page(players);
+  if(titled) p.session.metadata={title:'Same title',artist:'Artist',artwork:[]};
+  p.tick();const previous=p.messages.at(-1).media;
+  if(replace==='source') players[0].currentSrc='https://media.test/private-b?token=secret';
+  else if(replace==='element') players[0]=player();
+  else players[0].srcObject={};
+  assert.equal(await command(p,previous),false,`${titled}/${replace}`);
+  assert.equal(players[0].paused,false);
+  p.tick();const fresh=p.messages.at(-1).media;
+  assert.notEqual(fresh.browser_media.target_id,previous.browser_media.target_id);
+  assert.equal(await command(p,fresh),true);
+ }
+});
+
+test('ambiguous selection expires an old media target and commands without target IDs are rejected',async()=>{
+ const element=player(),players=[element],p=page(players),previous=p.messages.at(-1).media;
+ assert.equal(await command(p,previous,'play-pause',{target_id:undefined}),false);
+ assert.equal(element.paused,false);
+ players.push(player('other'));p.tick();
+ assert.equal(await command(p,previous),false);
+ players.pop();p.tick();
+ const fresh=p.messages.at(-1).media;
+ assert.notEqual(fresh.browser_media.target_id,previous.browser_media.target_id);
+ assert.equal(await command(p,previous),false);
+ assert.equal(await command(p,fresh),true);
 });

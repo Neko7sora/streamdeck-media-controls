@@ -82,3 +82,14 @@ test("untrusted media fields are individually sanitized",()=>{
   assert.throws(()=>validation.validateSnapshot({sessions:"wrong"}));
   assert.throws(()=>validation.validateSnapshot({current:null,sessions:Array(129).fill({})}));
 });
+
+test('Chrome media target IDs survive ingestion and malformed IDs are not accepted',()=>{
+ const media={title:'Track',browser_media:{element_type:'audio',target_id:'media-12'}};
+ state.ingestChrome(21,0,media,1,'document');
+ assert.equal(state.currentMedia('chrome:21:0:document').browser_media.target_id,'media-12');
+ for(const target_id of [undefined,null,12,'','x'.repeat(101),'https://private.test/media']) {
+  assert.equal(validation.validateMedia({...media,browser_media:{...media.browser_media,target_id}},'chrome').browser_media.target_id,undefined);
+ }
+ assert.equal(validation.validateMedia(media,'windows').browser_media,undefined);
+ state.ingestChrome(21,0,null,2,'document');
+});

@@ -32,6 +32,9 @@ function requestOptions(){send("sendToPlugin",{request:"options",settingsRevisio
 function populate(select,items,current,defaultValue,defaultLabel){
   const options=[{id:defaultValue,label:defaultLabel},...items.filter(item=>item.id!==defaultValue)];
   if(current!==defaultValue&&!items.some(x=>x.id===current)) options.push({id:current,label:"切断済み — 対象を再選択してください"});
+  populateOptions(select,options,current);
+}
+function populateOptions(select,options,current){
   // Preserve the open selection and keyboard navigation during the one-second refresh.
   const unchanged=select.children.length===options.length&&options.every((item,index)=>{
     const option=select.children[index];return option.value===item.id&&option.textContent===item.label;
@@ -48,7 +51,10 @@ function show(){
   global.checked=settings.globalKeys===true;
   scrollText.checked=settings.scrollText!==false;
   dialMode.value=settings.dialMode==="volume"?"volume":"seek";
-  seekStep.value=String([1,5,10,30,60].includes(settings.seekStep)?settings.seekStep:5);
+  const step=typeof settings.seekStep==="number"&&Number.isFinite(settings.seekStep)&&settings.seekStep>=1&&settings.seekStep<=60?settings.seekStep:5;
+  const steps=[1,5,10,30,60];
+  if(!steps.includes(step)) steps.push(step);
+  populateOptions(seekStep,steps.sort((a,b)=>a-b).map(value=>({id:String(value),label:`${value}秒`})),String(step));
   document.getElementById("dial-settings").hidden=action!=="dev.local.media-controls.now-playing-dial";
   const isDial=action==="dev.local.media-controls.now-playing-dial";
   const isNowPlaying=isDial||action==="dev.local.media-controls.now-playing";

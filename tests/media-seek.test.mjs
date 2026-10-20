@@ -111,6 +111,22 @@ test('track changes wait for the previous seek and discard its accumulated desti
  assert.deepEqual(sent,[['old',55],['new',25]]);
 });
 
+test('same-metadata Chrome target changes reset accumulated seeks and replace waiting ticks',async()=>{
+ const dial=new DialSeeking(),sent=[];let release;
+ const old={...media,source:'chrome',browser_media:{target_id:'media-1'}};
+ const send=async p=>{sent.push(p);};
+ await dial.rotate('dial',old,5,send,10000);
+ const changed={...old,browser_media:{target_id:'media-2'}};
+ await dial.rotate('dial',changed,5,send,10001);
+ assert.deepEqual(sent,[55,55],'a new media source starts at its own position');
+ const first=dial.rotate('dial',changed,5,async p=>{sent.push(p);await new Promise(resolve=>{release=resolve;});},10002);
+ const queued=dial.rotate('dial',changed,5,async()=>assert.fail('old queued callback'),10003);
+ const replacement={...changed,browser_media:{target_id:'media-3'},timeline:{...media.timeline,position_sec:20}};
+ const next=dial.rotate('dial',replacement,5,send,10004);
+ release();await Promise.all([first,queued,next]);
+ assert.deepEqual(sent,[55,55,60,25]);
+});
+
 test('clearing and reusing a dial waits for its in-flight command',async()=>{
  const dial=new DialSeeking(),sent=[];let release;
  const first=dial.rotate('dial',media,5,async p=>{sent.push(p);await new Promise(resolve=>{release=resolve;});},10000);

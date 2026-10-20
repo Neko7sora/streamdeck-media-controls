@@ -12,6 +12,7 @@ export function validateMedia(value: unknown, source: "windows" | "chrome", now 
   const controls: Record<string, boolean> = {};
   for (const key of ["play","pause","toggle","stop","next","previous","seek","rate","shuffle","repeat"]) if (typeof c[key] === "boolean") controls[key] = c[key];
   const browser: NonNullable<MediaItem["browser_media"]> = {};
+  if (typeof b.target_id === "string" && /^[A-Za-z0-9_-]{1,100}$/.test(b.target_id)) browser.target_id = b.target_id;
   for (const key of ["muted","loop","ended","seeking","picture_in_picture"] as const) if (typeof b[key] === "boolean") browser[key] = b[key];
   if (typeof b.volume === "number" && b.volume >= 0 && b.volume <= 1) browser.volume = b.volume;
   if (Number.isInteger(b.ready_state) && Number(b.ready_state) >= 0 && Number(b.ready_state) <= 4) browser.ready_state = Number(b.ready_state);

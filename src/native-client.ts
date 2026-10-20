@@ -5,6 +5,7 @@ import {validateSnapshot} from "./media-validation.js";
 import type {MediaSnapshot} from "./media-model.js";
 
 const helper = fileURLToPath(new URL("../native/media-info.exe",import.meta.url));
+const COMMAND_TIMEOUT_MS=5000;
 type PendingCommand={resolve:()=>void;reject:(e:Error)=>void;timer:NodeJS.Timeout};
 type Connection={child:ChildProcessWithoutNullStreams;pending:Map<number,PendingCommand>};
 let connection:Connection|undefined;
@@ -14,9 +15,10 @@ export function nativeCommand(command: Record<string,string|number>):Promise<voi
   if(!current || current.child.killed || current.child.stdin.destroyed || !current.child.stdin.writable || current.pending.size>=32) return Promise.reject(new Error("Windows helper unavailable or busy"));
   return new Promise((resolve,reject)=>{
     const id=++sequence;
-    const timer=setTimeout(()=>{current.pending.delete(id);reject(new Error("Windows command timed out"));},5000);
+    const expiresAt=Date.now()+COMMAND_TIMEOUT_MS;
+    const timer=setTimeout(()=>{current.pending.delete(id);reject(new Error("Windows command timed out"));},COMMAND_TIMEOUT_MS);
     current.pending.set(id,{resolve,reject,timer});
-    current.child.stdin.write(JSON.stringify({...command,id})+"\n",error=>{
+    current.child.stdin.write(JSON.stringify({...command,id,expires_at:expiresAt})+"\n",error=>{
       if(error) {clearTimeout(timer);current.pending.delete(id);reject(error);}
     });
   });

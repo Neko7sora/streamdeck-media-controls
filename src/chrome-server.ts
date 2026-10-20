@@ -41,14 +41,15 @@ function authorized(req:IncomingMessage,token:string):boolean {
   const a=Buffer.from(v.slice(7)),b=Buffer.from(token);
   return a.length===b.length&&timingSafeEqual(a,b);
 }
-type Command={id:string;tab_id:number;frame_id:number;document_id:string;command:string;position?:number;title:string};
+type Command={id:string;tab_id:number;frame_id:number;document_id:string;command:string;position?:number;title:string;target_id:string};
 const pending=new Map<string,{command:Command;sent:boolean;resolve:()=>void;reject:(e:Error)=>void;timer:NodeJS.Timeout}>();
-export function chromeCommand(tab_id:number,frame_id:number,document_id:string,title:string,command:string,position?:number):Promise<void> {
+export function chromeCommand(tab_id:number,frame_id:number,document_id:string,title:string,command:string,position?:number,targetId?:string):Promise<void> {
+  if(typeof targetId!=="string" || !/^[A-Za-z0-9_-]{1,100}$/.test(targetId)) return Promise.reject(new Error("Chrome media target unavailable; reload the extension and media page"));
   if(pending.size>=32) return Promise.reject(new Error("Chrome command queue full"));
   return new Promise((resolve,reject)=>{
     const id=randomBytes(16).toString("hex");
     const timer=setTimeout(()=>{pending.delete(id);reject(new Error("Chrome command timed out; no global fallback was sent"));},6500);
-    pending.set(id,{command:{id,tab_id,frame_id,document_id,title,command,position},sent:false,resolve,reject,timer});
+    pending.set(id,{command:{id,tab_id,frame_id,document_id,title,command,position,target_id:targetId},sent:false,resolve,reject,timer});
   });
 }
 export function startChromeServer(log:(s:string)=>void,options:{token?:string;port?:number}={}):Server {

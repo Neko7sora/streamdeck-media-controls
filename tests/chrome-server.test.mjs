@@ -28,12 +28,13 @@ test("loopback bridge authenticates, validates, routes exact-frame commands and 
   assert.equal((await fetch(base+"/chrome",{method:"POST",headers:{authorization:`Bearer ${token}`,"content-type":"text/plain"},body:"{}"})).status,415);
   for(const invalid of ["{",[],{tab_id:-1,frame_id:0,sequence:1,media:{}},{tab_id:1,sequence:1,media:{}},{tab_id:1,frame_id:0,sequence:1,media:42}]) assert.equal((await post("/chrome",invalid)).status,400);
   const update=(frame)=>({tab_id:9,frame_id:frame,document_id:"document",sequence:Date.now(),media:{title:"Song",artist:"Artist"}});
-  const command=bridge.chromeCommand(9,1,"document","Song","play-pause");
+  await assert.rejects(bridge.chromeCommand(9,1,"document","Song","play-pause"),/reload the extension and media page/);
+  const command=bridge.chromeCommand(9,1,"document","Song","play-pause",undefined,"media-1");
   const other=await (await post("/chrome",update(0))).json();assert.deepEqual(other.commands,[]);
-  const reply=await (await post("/chrome",update(1))).json();assert.equal(reply.commands.length,1);assert.equal(reply.commands[0].frame_id,1);
+  const reply=await (await post("/chrome",update(1))).json();assert.equal(reply.commands.length,1);assert.equal(reply.commands[0].frame_id,1);assert.equal(reply.commands[0].target_id,"media-1");
   assert.deepEqual((await (await post("/chrome",update(1))).json()).commands,[]);
   await post("/chrome/result",{id:reply.commands[0].id,ok:true});await command;
-  const failed=bridge.chromeCommand(9,1,"document","Song","next");const rejected=assert.rejects(failed,/unavailable|rejected/);
+  const failed=bridge.chromeCommand(9,1,"document","Song","next",undefined,"media-1");const rejected=assert.rejects(failed,/unavailable|rejected/);
   const next=await (await post("/chrome",update(1))).json();await post("/chrome/result",{id:next.commands[0].id,ok:false});await rejected;
   assert.equal((await post("/chrome",{...update(1),media:null})).status,200);
 });

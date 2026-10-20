@@ -7,6 +7,17 @@
   // Capture future calls opportunistically; never break playback if wrapping fails.
   let lastPositionState;
   let positionMetadata;
+  let currentTarget,targetSequence=0;
+  function targetId(player,meta) {
+    if(!player) {currentTarget=undefined;return undefined;}
+    const identity={player,src:player.currentSrc||player.src||"",srcObject:player.srcObject,
+      title:meta?.title,artist:meta?.artist,album:meta?.album};
+    if(!currentTarget || Object.keys(identity).some(key=>currentTarget[key]!==identity[key])) {
+      // The ID is scoped to this document. Media URLs and objects stay in the page.
+      currentTarget={...identity,id:`media-${++targetSequence}`};
+    }
+    return currentTarget.id;
+  }
   try {
     const session = navigator.mediaSession;
     if(session && typeof session.setPositionState === "function") {
@@ -55,6 +66,7 @@
     const active = players.filter(p=>!p.paused && !p.ended);
     // Multiple active elements are ambiguous; don't attach an arbitrary element to Media Session metadata.
     const playing = active.length===1 ? active[0] : players.length===1 ? players[0] : undefined;
+    const target=targetId(playing,meta);
     if(!meta?.title && !playing) return {title:""};
     const artwork = (meta?.artwork ?? []).slice(0,16).map(a=>({
       src:clean(a.src,2048), sizes:clean(a.sizes,50), type:clean(a.type,50)
@@ -71,6 +83,7 @@
       timeline:{updated_at:observed,start_sec:0,position_sec:position,end_sec:duration,min_seek_sec:playing?.seekable.length?playing.seekable.start(0):undefined,max_seek_sec:playing?.seekable.length?playing.seekable.end(playing.seekable.length-1):undefined},
       controls:{toggle:!!playing,play:!!playing,pause:!!playing,stop:!!playing,seek:!!playing && playing.seekable.length>0,next:false,previous:false},
       browser_media:playing ? {
+        target_id:target,
         element_type:playing.tagName.toLowerCase(), muted:playing.muted,
         volume:playing.volume,loop:playing.loop,ended:playing.ended,seeking:playing.seeking,
         ready_state:playing.readyState,
@@ -86,7 +99,7 @@
     let ok=false;
     try {
       const media=snapshot();
-      if(c.title!==media.title) throw new Error("Media changed");
+      if(c.title!==media.title || !media.browser_media?.target_id || c.target_id!==media.browser_media.target_id) throw new Error("Media changed");
       const players=Array.from(document.querySelectorAll("audio,video")).filter(p=>p.currentSrc||p.src||p.readyState>0);
       const active=players.filter(p=>!p.paused&&!p.ended);
       const player=active.length===1?active[0]:players.length===1?players[0]:undefined;
