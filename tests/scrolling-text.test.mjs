@@ -31,6 +31,26 @@ test('long text holds both ends and reaches the entire suffix before looping',as
  assert.equal((await frame(end+HOLD+1)).image,first.image);
 });
 
+test('turning scrolling off fixes long text at the start and on restarts its hold independently per action',async()=>{
+ const scrolling=new ScrollingText();
+ const frame=(id,scroll,now)=>scrolling.frame(id,'title',text,{...style,scroll},'A',now);
+ const first=await frame('one',undefined,0);
+ await frame('two',true,0);
+ assert.ok((await frame('one',undefined,HOLD+500)).offset>0);
+ const moving=await frame('two',true,HOLD+500);
+ assert.ok(moving.offset>0);
+ const stopped=await frame('two',false,HOLD+500);
+ assert.equal(stopped.image,first.image);assert.equal(stopped.offset,0);assert.ok(stopped.distance>0);
+ assert.equal(scrolling.active,true,'other actions keep animating');
+ scrolling.clear('one');assert.equal(scrolling.active,false);
+ assert.equal((await frame('two',false,50000)).image,stopped.image);
+ assert.equal(scrolling.active,false);
+ assert.equal((await frame('two',true,50000)).offset,0);
+ assert.equal(scrolling.active,true);
+ assert.equal((await frame('two',true,50000+HOLD-1)).offset,0);
+ assert.ok((await frame('two',true,50000+HOLD+500)).offset>0);
+});
+
 test('successive 30fps frames advance one pixel, keeping the same shaped glyphs',async()=>{
  const scrolling=new ScrollingText();
  const frame=now=>scrolling.frame('dial','title',text,style,'A',now);

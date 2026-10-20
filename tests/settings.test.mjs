@@ -10,7 +10,7 @@ const displayGroups=["control-icon-setting","scope-setting","target-setting","ti
 function inspector(settings={},{connect=true,action="dev.local.media-controls.now-playing-dial"}={}) {
   const selects=new Set(["media","audio","dial-mode","seek-step"]);
   const elements=new Map();
-  for(const id of ["media","audio","media-settings","audio-settings","target-note","now-playing-help","scroll-help","global","global-settings","details","dial-mode","seek-step","dial-settings","seek-settings","status","register-chrome","chrome-registration-status","chrome-connection","chrome-connection-title","chrome-connection-detail","display-settings","dial-display-settings","progress-display-note",...displayGroups,...Object.keys(displayFields)]) {
+  for(const id of ["media","audio","media-settings","audio-settings","target-note","now-playing-help","scroll-help","scroll-text","global","global-settings","details","dial-mode","seek-step","dial-settings","seek-settings","status","register-chrome","chrome-registration-status","chrome-connection","chrome-connection-title","chrome-connection-detail","display-settings","dial-display-settings","progress-display-note",...displayGroups,...Object.keys(displayFields)]) {
     let value="";
     const element={dataset:{},children:[],listeners:{},checked:false,hidden:false,textContent:"",disabled:id==="register-chrome",
       get value(){return value;},
@@ -48,13 +48,13 @@ function inspector(settings={},{connect=true,action="dev.local.media-controls.no
     timeout(){for(const [id,fn] of timers){timers.delete(id);fn();}},
     close(){socket.readyState=3;socket.onclose();},
     receive:(event,payload)=>socket.onmessage({data:JSON.stringify({event,payload})}),
-    change(id,value){const element=elements.get(id);if(id==="global"||id in displayFields) element.checked=value;else element.value=value;element.listeners.change();}};
+    change(id,value){const element=elements.get(id);if(id==="global"||id==="scroll-text"||id in displayFields) element.checked=value;else element.value=value;element.listeners.change();}};
 }
 
 test("settings are editable only while connected so unsaved changes are never shown as applied",()=>{
   const pi=inspector({globalKeys:true},{connect:false});
   const assertDisabled=disabled=>{
-    for(const id of ["media","audio","global","dial-mode","seek-step",...Object.keys(displayFields)]) assert.equal(pi.elements.get(id).disabled,disabled,id);
+    for(const id of ["media","audio","global","dial-mode","seek-step","scroll-text",...Object.keys(displayFields)]) assert.equal(pi.elements.get(id).disabled,disabled,id);
   };
   assertDisabled(true);
   pi.change("global",false);
@@ -71,6 +71,30 @@ test("settings are editable only while connected so unsaved changes are never sh
   assert.equal(pi.elements.get("global").checked,false);
   assert.equal(pi.messages.length,count);
   assert.match(pi.elements.get("status").textContent,/接続が切れました/);
+});
+
+test('scrolling defaults on for every action and saved toggles survive stale replies and reconnects',()=>{
+  for(const action of ['now-playing','now-playing-dial','play-pause','previous','next','stop','mute','volume-up','volume-down','volume-dial']) {
+    const options={action:`dev.local.media-controls.${action}`},saved={mediaTarget:'A',showTitle:false,extra:'preserved'};
+    const pi=inspector(saved,options),initial=pi.messages.at(-1).payload;
+    assert.equal(pi.elements.get('scroll-text').checked,true);
+    assert.equal(pi.elements.get('scroll-help').hidden,false);
+    pi.change('scroll-text',false);
+    const expected={...saved,scrollText:false};
+    assert.deepEqual(pi.messages.at(-1).payload,expected);
+    pi.receive('sendToPropertyInspector',{settingsRevision:initial.settingsRevision,settings:saved});
+    assert.equal(pi.elements.get('scroll-text').checked,false);
+    const reopened=inspector(expected,options);
+    assert.equal(reopened.elements.get('scroll-text').checked,false);
+    reopened.change('scroll-text',true);
+    assert.deepEqual(reopened.messages.at(-1).payload,{...expected,scrollText:true});
+    pi.close();const count=pi.messages.length;
+    pi.change('scroll-text',true);
+    assert.equal(pi.elements.get('scroll-text').checked,false);
+    assert.equal(pi.messages.length,count);
+    pi.receive('didReceiveSettings',{settings:{...expected,scrollText:true}});
+    assert.equal(pi.elements.get('scroll-text').checked,true);
+  }
 });
 
 test('display settings default to visible and show only items supported by each action',()=>{

@@ -38,8 +38,11 @@ fieldset{border:1px solid #666;border-radius:8px;padding:8px 12px 12px;margin:16
 <p id="control-display-note" hidden>表示を非表示にしても、選択した操作対象とキー／ダイヤルの操作は変わりません。</p>
 <p id="progress-display-note" hidden>進捗バーを非表示にすると、画面下部のタップも再生／一時停止になります。ダイヤル回転でのシークは引き続き利用できます。</p>
 </fieldset>
+<fieldset><legend>文字送り</legend>
+<label><input type="checkbox" id="scroll-text" checked disabled>文字送りを有効にする</label>
+<p id="scroll-help">長い曲名・アーティスト名・操作対象名などを滑らかにスクロールします。OFFでは先頭を固定表示し、表示範囲を超える部分は切り取ります。このキー／ダイヤルだけに適用され、すぐに反映されます。初期設定はONです。</p>
+</fieldset>
 <p id="now-playing-help">Now Playing +：右回転＝早送り、左回転＝巻き戻し（初期値5秒/目盛り、音量へ変更可）、押下＝再生/一時停止、進捗バーをタップ＝シーク（対応時）、長押し＝次のセッション。</p>
-<p id="scroll-help">長い曲名・アーティスト名はピクセル単位で滑らかにスクロールし、末尾まで表示します。先頭と末尾で少し止まり、曲が変わると先頭から表示します。通常キーの文字も画像内に描画します。</p>
 <label for="register-chrome">Chrome 連携</label>
 <p>Chrome に拡張機能を読み込んだ後、下のボタンで連携を登録できます。</p>
 <button id="register-chrome" type="button" disabled>Chrome 連携を登録</button>

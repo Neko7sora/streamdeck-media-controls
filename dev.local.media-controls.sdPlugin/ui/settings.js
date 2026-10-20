@@ -1,6 +1,6 @@
 let socket,context,action,settings={},sessions=[],audioTargets=[],settingsRevision=0;
 const media=document.getElementById("media"),audio=document.getElementById("audio"),global=document.getElementById("global"),details=document.getElementById("details");
-const dialMode=document.getElementById("dial-mode"),seekStep=document.getElementById("seek-step");
+const dialMode=document.getElementById("dial-mode"),seekStep=document.getElementById("seek-step"),scrollText=document.getElementById("scroll-text");
 const displaySettings=[
   ["show-title","showTitle"],["show-artist","showArtist"],["show-artwork","showArtwork"],
   ["show-app-icon","showAppIcon"],["show-status","showStatus"],["show-position","showPosition"],
@@ -25,7 +25,7 @@ function showChromeConnection(connection){
     const element=document.getElementById(id);if(element.textContent!==value) element.textContent=value;
   }
 }
-function setSettingsDisabled(disabled){for(const element of [media,audio,global,dialMode,seekStep,...displaySettings.map(([element])=>element)]) element.disabled=disabled;}
+function setSettingsDisabled(disabled){for(const element of [media,audio,global,dialMode,seekStep,scrollText,...displaySettings.map(([element])=>element)]) element.disabled=disabled;}
 setSettingsDisabled(true);
 function send(event,payload){if(socket?.readyState===WebSocket.OPEN) socket.send(JSON.stringify({event,context,action,payload}));}
 function requestOptions(){send("sendToPlugin",{request:"options",settingsRevision});}
@@ -46,6 +46,7 @@ function show(){
   populate(media,sessions,settings.mediaTarget??"auto","auto","自動（再生中を優先・現在の対象を維持）");
   populate(audio,audioTargets,settings.audioTarget??"master","master","PC全体（既定の音声出力）");
   global.checked=settings.globalKeys===true;
+  scrollText.checked=settings.scrollText!==false;
   dialMode.value=settings.dialMode==="volume"?"volume":"seek";
   seekStep.value=String([1,5,10,30,60].includes(settings.seekStep)?settings.seekStep:5);
   document.getElementById("dial-settings").hidden=action!=="dev.local.media-controls.now-playing-dial";
@@ -61,7 +62,6 @@ function show(){
     isVolume?"選択した対象の音量・ミュートだけを操作します。「PC全体」は既定の音声出力全体です。対象名と音量をキー／ダイヤルに表示します。":
     isNowPlaying?"再生対象と音量対象は独立しています。設定はこのキー／ダイヤルだけに適用されます。":"選択したアプリ／サイトの再生を操作します。キーに対象名と曲名を表示します。自動選択でも、表示したセッションに操作を送ります。";
   document.getElementById("now-playing-help").hidden=!isDial;
-  document.getElementById("scroll-help").hidden=!isNowPlaying;
   document.getElementById("global-settings").hidden=isNowPlaying;
   document.getElementById("display-settings").hidden=false;
   for(const [id,visible] of [
@@ -129,6 +129,7 @@ for(const [element,key,value] of [
   [global,"globalKeys",()=>global.checked],
   [dialMode,"dialMode",()=>dialMode.value],
   [seekStep,"seekStep",()=>Number(seekStep.value)],
+  [scrollText,"scrollText",()=>scrollText.checked],
   ...displaySettings.map(([element,key])=>[element,key,()=>element.checked])
 ]) element.addEventListener("change",()=>{
   if(socket?.readyState!==WebSocket.OPEN){show();return;}

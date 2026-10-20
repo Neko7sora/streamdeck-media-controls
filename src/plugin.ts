@@ -14,7 +14,7 @@ import {mediaTargetName,audioTargetName} from "./control-display.js";
 
 const UUID="dev.local.media-controls";
 const EMPTY_ICON="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAAC0lEQVR42mNgAAIAAAUAAen63NgAAAAASUVORK5CYII=";
-type Settings={mediaTarget?:string;audioTarget?:string;globalKeys?:boolean;dialMode?:string;seekStep?:number;
+type Settings={mediaTarget?:string;audioTarget?:string;globalKeys?:boolean;dialMode?:string;seekStep?:number;scrollText?:boolean;
   showTitle?:boolean;showArtist?:boolean;showArtwork?:boolean;showAppIcon?:boolean;showStatus?:boolean;
   showPosition?:boolean;showDuration?:boolean;showProgress?:boolean;showDialInfo?:boolean;
   showControlIcon?:boolean;showTarget?:boolean;showScope?:boolean;showVolume?:boolean;showVolumeBar?:boolean};
@@ -92,8 +92,8 @@ abstract class MediaButton extends ConfiguredAction {
       m?displayTitle(m):s.mediaTarget&&s.mediaTarget!=="auto"?"切断済み":"再生対象なし";
     const identity=isVolume?selected:s.globalKeys?"global":m?.session_id??"unavailable";
     const [name,line,appIcon]=await Promise.all([
-      this.scrolling.frame(a.id,"target",target,{width:128,height:28,fontSize:22,scale:2},identity),
-      this.scrolling.frame(a.id,"detail",detail,{width:128,height:22,fontSize:18,scale:2},identity),
+      this.scrolling.frame(a.id,"target",target,{width:128,height:28,fontSize:22,scale:2,scroll:s.scrollText},identity),
+      this.scrolling.frame(a.id,"detail",detail,{width:128,height:22,fontSize:18,scale:2,scroll:s.scrollText},identity),
       s.showAppIcon===false?undefined:applicationIcon(m,28)
     ]);
     if(!isCurrent()) return;
@@ -131,9 +131,9 @@ class VolumeDial extends ConfiguredAction {
     if(!a.isDial()) return;
     const selected=s.globalKeys?"master":s.audioTarget??"master",v=audioTarget(selected);
     const [scope,targetName,status]=await Promise.all([
-      this.scrolling.frame(a.id,"scope",s.showScope===false?"":selected==="master"?"システム音量":"アプリ別音量",{width:184,height:16,fontSize:11}),
-      this.scrolling.frame(a.id,"target",s.showTarget===false?"":audioTargetName(v,selected),{width:184,height:28,fontSize:20,bold:true},selected),
-      this.scrolling.frame(a.id,"status",s.showStatus===false?"":v?.volume==null?(selected==="master"?"取得できません":"切断済み"):v.muted?"ミュート中":"押すとミュート",{width:110,height:20,fontSize:12},selected)
+      this.scrolling.frame(a.id,"scope",s.showScope===false?"":selected==="master"?"システム音量":"アプリ別音量",{width:184,height:16,fontSize:11,scroll:s.scrollText}),
+      this.scrolling.frame(a.id,"target",s.showTarget===false?"":audioTargetName(v,selected),{width:184,height:28,fontSize:20,bold:true,scroll:s.scrollText},selected),
+      this.scrolling.frame(a.id,"status",s.showStatus===false?"":v?.volume==null?(selected==="master"?"取得できません":"切断済み"):v.muted?"ミュート中":"押すとミュート",{width:110,height:20,fontSize:12,scroll:s.scrollText},selected)
     ]);
     if(!isCurrent()) return;
     // Replace the old built-in layout for already-configured dial instances, too.
@@ -155,9 +155,9 @@ class NowPlaying extends ConfiguredAction {
     if(!isCurrent()) return;
     const identity=m?trackIdentity(m):"unavailable";
     const [title,artist,status]=await Promise.all([
-      this.scrolling.frame(a.id,"title",s.showTitle===false?"":displayTitle(m),{width:128,height:30,fontSize:24,scale:2},identity),
-      this.scrolling.frame(a.id,"artist",s.showArtist===false?"":m?.artist??"",{width:128,height:28,fontSize:22,scale:2},identity),
-      this.scrolling.frame(a.id,"status",s.showStatus===false?"":m?.playback_state==="playing"?"▶":m?.playback_state==="paused"?"Ⅱ":"?",{width:24,height:24,fontSize:18},identity)
+      this.scrolling.frame(a.id,"title",s.showTitle===false?"":displayTitle(m),{width:128,height:30,fontSize:24,scale:2,scroll:s.scrollText},identity),
+      this.scrolling.frame(a.id,"artist",s.showArtist===false?"":m?.artist??"",{width:128,height:28,fontSize:22,scale:2,scroll:s.scrollText},identity),
+      this.scrolling.frame(a.id,"status",s.showStatus===false?"":m?.playback_state==="playing"?"▶":m?.playback_state==="paused"?"Ⅱ":"?",{width:24,height:24,fontSize:18,scroll:s.scrollText},identity)
     ]);
     if(!isCurrent()) return;
     const titleImage=s.showTitle===false?undefined:title.image,artistImage=s.showArtist===false?undefined:artist.image,statusImage=s.showStatus===false?undefined:status.image;
@@ -187,8 +187,8 @@ class NowPlayingDial extends ConfiguredAction {
     const m=currentMedia(s.mediaTarget), p=progress(m), v=audioTarget(s.audioTarget);
     const identity=m?trackIdentity(m):"unavailable";
     const [title,artist]=await Promise.all([
-      this.scrolling.frame(a.id,"title",s.showTitle===false?"":displayTitle(m),{width:188,height:22,fontSize:14},identity),
-      this.scrolling.frame(a.id,"artist",s.showArtist===false?"":m?.artist??"",{width:142,height:18,fontSize:12},identity)
+      this.scrolling.frame(a.id,"title",s.showTitle===false?"":displayTitle(m),{width:188,height:22,fontSize:14,scroll:s.scrollText},identity),
+      this.scrolling.frame(a.id,"artist",s.showArtist===false?"":m?.artist??"",{width:142,height:18,fontSize:12,scroll:s.scrollText},identity)
     ]);
     const payload={
       trackTitle:title.image,artist:artist.image,
