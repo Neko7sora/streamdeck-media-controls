@@ -2,8 +2,10 @@ import {test} from "node:test";
 import assert from "node:assert/strict";
 import {readFileSync} from "node:fs";
 import vm from "node:vm";
+import {load} from "./load.mjs";
+const {playbackPosition}=await load("media-model");
 const source=readFileSync(new URL("../chrome-extension/page-main.js",import.meta.url),"utf8");
-function page(players=[],icons=[]) {
+function page(players=[],icons=[],modern=true) {
   const messages=[],events=new Map(),session={metadata:null,playbackState:"none",setPositionState(){}};
   const window={postMessage(v){messages.push(v);},addEventListener(name,fn){events.set(name,fn);}};
   let tick,now=10000;
@@ -13,6 +15,7 @@ function page(players=[],icons=[]) {
     return icons.filter(icon=>relations.some(([,token,rel])=>token?(icon.rel??'icon').split(/\s+/).includes(rel):(icon.rel??'icon')===rel));
   },addEventListener(){}},location:{origin:"https://example.test"},setInterval(fn){tick=fn;},Date:{now:()=>now},Number,Array};
   vm.runInNewContext(source,context);
+  if(modern) events.get('message')({source:window,origin:'https://example.test',data:{kind:'__streamdeck_media_metadata_v1___transport',protocol:2}});
   return {session,messages,events,window,tick:()=>tick(),advance:ms=>{now+=ms;}};
 }
 function player(src='https://media.test/private-a?token=secret') {
@@ -47,12 +50,12 @@ test("ambiguous media elements do not enable arbitrary controls",()=>{
 test('observed Media Session position advances at its rate and holds across pause/resume',()=>{
  const p=page();p.session.metadata={title:'Track',artwork:[]};p.session.playbackState='playing';
  p.session.setPositionState({position:10,duration:100,playbackRate:2});
- p.advance(2000);p.tick();assert.equal(p.messages.at(-1).media.timeline.position_sec,14);
- assert.equal(p.messages.at(-1).media.timeline.updated_at,12000);
+ p.advance(2000);p.tick();assert.equal(playbackPosition({...p.messages.at(-1).media,source:'chrome'},12000),14);
+ assert.equal(p.messages.at(-1).media.timeline.updated_at,10000,'normal playback uses local interpolation');
  p.session.playbackState='paused';p.tick();
  p.advance(5000);p.tick();assert.equal(p.messages.at(-1).media.timeline.position_sec,14);
  p.session.playbackState='playing';p.tick();
- p.advance(1000);p.tick();assert.equal(p.messages.at(-1).media.timeline.position_sec,16);
+ p.advance(1000);p.tick();assert.equal(playbackPosition({...p.messages.at(-1).media,source:'chrome'},18000),16);
  p.session.setPositionState({duration:100});
  assert.equal(p.messages.at(-1).media.timeline.position_sec,0);
  assert.equal(p.messages.at(-1).media.playback_rate,1);
@@ -69,8 +72,9 @@ test('HTML media position, duration, timestamp and seek range are sampled togeth
  assert.equal(p.messages.at(-1).media.timeline.min_seek_sec,5);
  assert.equal(p.messages.at(-1).media.timeline.max_seek_sec,90);
  p.advance(1000);player.currentTime=16.5;p.tick();
- assert.equal(p.messages.at(-1).media.timeline.position_sec,16.5);
- assert.equal(p.messages.at(-1).media.timeline.updated_at,11000);
+ assert.equal(playbackPosition({...p.messages.at(-1).media,source:'chrome'},11000),16.5);
+ assert.equal(p.messages.at(-1).media.timeline.updated_at,10000);
+ player.currentTime=40;p.tick();assert.equal(p.messages.at(-1).media.timeline.position_sec,40,'a position discontinuity resynchronizes immediately');
 });
 
 test('page favicons follow link changes without replacing media artwork',()=>{
@@ -149,4 +153,21 @@ test('ambiguous selection expires an old media target and commands without targe
  assert.notEqual(fresh.browser_media.target_id,previous.browser_media.target_id);
  assert.equal(await command(p,previous),false);
  assert.equal(await command(p,fresh),true);
+});
+
+test('idle pages send no recurring traffic; normal playback resynchronizes every five seconds',()=>{
+ const idle=page(),element=player(),playing=page([element]);
+ for(let second=1;second<=60;second++) {
+   idle.advance(1000);idle.tick();playing.advance(1000);element.currentTime=10+second;playing.tick();
+ }
+ assert.equal(idle.messages.length,1);
+ assert.equal(playing.messages.length,13);
+ element.paused=true;playing.tick();assert.equal(playing.messages.at(-1).media.playback_state,'paused');
+ element.currentTime=5;playing.tick();assert.equal(playing.messages.at(-1).media.timeline.position_sec,5);
+});
+
+test('older transport retains one-second command polling while modern transport is negotiated',()=>{
+ const element=player(),p=page([element],[],false);
+ for(let second=1;second<=5;second++) {p.advance(1000);element.currentTime=10+second;p.tick();}
+ assert.equal(p.messages.length,6);
 });

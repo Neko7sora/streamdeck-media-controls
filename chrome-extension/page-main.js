@@ -2,6 +2,7 @@
   // Read only page-provided Media Session metadata and HTML media element state.
   // We do not inspect page text, cookies, credentials, audio/video bytes or DRM streams.
   const TAG = "__streamdeck_media_metadata_v1__";
+  let resyncInterval=1000;
   const clean = (x,max=500) => typeof x === "string" ? x.slice(0,max) : "";
   // MediaSession has no public getter for the last setPositionState argument.
   // Capture future calls opportunistically; never break playback if wrapping fails.
@@ -93,6 +94,7 @@
     };
   }
   window.addEventListener("message",async event=>{
+    if(event.source===window&&event.origin===location.origin&&event.data?.kind===TAG+"_transport") {resyncInterval=event.data.protocol===2?5000:1000;return;}
     if(event.source!==window || event.origin!==location.origin || event.data?.kind!==TAG+"_command") return;
     const c=event.data.command;
     if(!c || typeof c.id!=="string") return;
@@ -112,8 +114,23 @@
     } catch { /* Result is returned to the plugin, without a global-key fallback. */ }
     window.postMessage({kind:TAG+"_result",id:c.id,ok},location.origin);
   });
-  function send() {
-    try { window.postMessage({kind:TAG,media:snapshot()}, location.origin); }
+  let lastMedia,lastSignature,lastSent=0;
+  function send(event) {
+    try {
+      const media=snapshot(),now=Date.now(),active=!!media.title||!!media.browser_media;
+      const stable={...media,timeline:media.timeline?{...media.timeline,updated_at:undefined,position_sec:undefined}:undefined};
+      const signature=JSON.stringify(stable);
+      const previous=lastMedia?.timeline,position=media.timeline?.position_sec;
+      const advancing=lastMedia?.playback_state==='playing'&&!lastMedia?.browser_media?.seeking&&!lastMedia?.browser_media?.ended&&(lastMedia?.browser_media?.ready_state??4)>=3;
+      const predicted=typeof previous?.position_sec==='number'?previous.position_sec+(advancing?Math.max(0,now-previous.updated_at)/1000*(lastMedia.playback_rate??1):0):undefined;
+      const drift=typeof position==='number'&&typeof predicted==='number'?Math.abs(position-predicted)>0.25:position!==predicted;
+      // Keep the one-second local discovery check for APIs without change events.
+      // Only a compact five-second resync crosses the extension boundary.
+      const important=event&&event.type!=='timeupdate';
+      if(signature===lastSignature&&!drift&&!important&&(!active||now-lastSent<resyncInterval)) return;
+      lastMedia=media;lastSignature=signature;lastSent=now;
+      window.postMessage({kind:TAG,media}, location.origin);
+    }
     catch { /* inaccessible site; ignore */ }
   }
   setInterval(send,1000);

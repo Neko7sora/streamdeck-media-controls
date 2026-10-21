@@ -1,0 +1,79 @@
+{
+  "measured_date": "2026-10-21",
+  "traffic": {
+    "baseline_commit": "344746fce64a6985e4724f629d8af9187b1d6bc5",
+    "workload": "60 seconds; one playing page; timeupdate at 4Hz; discovery at 1Hz; 200000-byte artwork; one favicon; unchanged metadata; separate idle page. Inspector: one 4KiB detail record, volume change at 30s and track change at 45s.",
+    "payload_scope": "UTF-8 JSON request bodies; excludes HTTP, TCP, Native Messaging headers, stream heartbeats and USB framing",
+    "before": {
+      "idle_page_updates_60s": 61,
+      "playing_updates_60s": 241,
+      "local_state_requests": 241,
+      "local_state_payload_bytes": 64222183,
+      "native_request_messages": 255,
+      "native_request_bytes": 64230361,
+      "image_content_transfers": 240,
+      "external_image_fetches": 2,
+      "status_requests": 14,
+      "page_to_extension_bytes": 168939,
+      "inspector": {
+        "requests": 61,
+        "responses": 61,
+        "full_list_responses": 61,
+        "payload_bytes": 271555
+      }
+    },
+    "after": {
+      "idle_page_updates_60s": 1,
+      "playing_updates_60s": 13,
+      "local_state_requests": 15,
+      "local_state_payload_bytes": 270894,
+      "native_request_messages": 17,
+      "native_request_bytes": 271430,
+      "image_content_transfers": 1,
+      "external_image_fetches": 2,
+      "status_requests": 1,
+      "page_to_extension_bytes": 9087,
+      "inspector": {
+        "requests": 21,
+        "responses": 23,
+        "full_list_responses": 1,
+        "payload_bytes": 11297
+      }
+    }
+  },
+  "command_latency": {
+    "baseline_commit": "344746fce64a6985e4724f629d8af9187b1d6bc5",
+    "scope": "Command promise completion, including real localhost HTTP and Native Messaging result acknowledgement; no browser or hardware. Legacy: twenty phases from 0 to 950ms in a 1Hz paused-page interval. New: no state updates during twenty commands.",
+    "before": {
+      "samples": 20,
+      "p50_ms": 592.4706999999999,
+      "p95_ms": 987.5480999999997,
+      "max_ms": 1031.9692,
+      "mean_ms": 554.6129349999999
+    },
+    "after": {
+      "samples": 20,
+      "p50_ms": 15.825000000000728,
+      "p95_ms": 16.34110000000146,
+      "max_ms": 16.46099999999933,
+      "mean_ms": 14.885829999999805
+    }
+  },
+  "native_traffic": {
+    "scope": "Two concurrent read-only helper processes on the same Windows desktop, legacy full snapshots versus --delta. Includes stdout newlines. Session availability and external audio changes affect results.",
+    "before": {
+      "window_ms": 6200,
+      "bytes": 9709,
+      "packets": 7,
+      "decoded_changes": 7,
+      "max_media_sessions": 0
+    },
+    "after": {
+      "window_ms": 6200,
+      "bytes": 1469,
+      "packets": 2,
+      "decoded_changes": 1,
+      "max_media_sessions": 0
+    }
+  }
+}

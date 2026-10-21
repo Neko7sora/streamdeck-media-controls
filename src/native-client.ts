@@ -3,6 +3,7 @@ import {fileURLToPath} from "node:url";
 import {createInterface} from "node:readline";
 import {validateSnapshot} from "./media-validation.js";
 import type {MediaSnapshot} from "./media-model.js";
+import {NativeWire} from "./native-wire.js";
 
 const helper = fileURLToPath(new URL("../native/media-info.exe",import.meta.url));
 const COMMAND_TIMEOUT_MS=5000;
@@ -30,7 +31,8 @@ export function startNative(onSnapshot:(s:MediaSnapshot)=>void,onError:(s:string
   const report=(message:string)=>{if(message!==lastError||Date.now()-lastErrorAt>30000){lastError=message;lastErrorAt=Date.now();onError(message);}};
   const start=()=>{
     if(stopped || process.platform!=="win32") return;
-    const processChild=spawn(helper,["--watch"],{windowsHide:true,stdio:"pipe"});
+    const processChild=spawn(helper,["--watch","--delta"],{windowsHide:true,stdio:"pipe"});
+    const wire=new NativeWire();
     const current:Connection={child:processChild,pending:new Map()};
     connection=current;
     let finished=false, watchdog:NodeJS.Timeout|undefined;
@@ -74,7 +76,11 @@ export function startNative(onSnapshot:(s:MediaSnapshot)=>void,onError:(s:string
           const p=current.pending.get(record.reply); if(!p) return;
           current.pending.delete(record.reply);clearTimeout(p.timer);
           if(record.ok===true) p.resolve(); else p.reject(new Error(typeof record.error==="string" ? record.error : "Native command failed"));
-        } else {onSnapshot(validateSnapshot(v));lastSeen=Date.now();}
+        } else {
+          const decoded=record.native_wire===2?wire.decode(record):v;
+          if(decoded!==undefined) onSnapshot(validateSnapshot(decoded));
+          lastSeen=Date.now();
+        }
       } catch(e) {report(`Native output: ${String(e)}`);}
     });
     processChild.stderr.on("data",(b:Buffer)=>{if(!finished) report(b.toString().slice(0,2000));});

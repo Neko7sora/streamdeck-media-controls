@@ -1,6 +1,19 @@
 const enable=document.getElementById("enabled"), status=document.getElementById("status"), save=document.getElementById("save");
 let loaded=false,saving=false;
 let connectionRequest=0,connectionPending=false,connectionTimeout;
+let statusPort,lastStatusAt=0;
+function connectStatus(){
+  if(statusPort||!chrome.runtime.connect) return;
+  try {
+    const port=chrome.runtime.connect({name:"bridge-status"});statusPort=port;
+    port.onMessage.addListener(message=>{
+      if(statusPort!==port) return;
+      connectionRequest++;connectionPending=false;clearTimeout(connectionTimeout);
+      lastStatusAt=Date.now();showConnection(message.state);
+    });
+    port.onDisconnect.addListener(()=>{if(statusPort===port) {statusPort=undefined;showConnection("unavailable");}});
+  } catch {statusPort=undefined;}
+}
 async function refreshConnection(force=false){
   if(connectionPending&&!force) return;
   const request=++connectionRequest;
@@ -27,7 +40,13 @@ function showConnection(state){
   }
 }
 void refreshConnection();
-setInterval(()=>{void refreshConnection();},5000);
+connectStatus();
+setInterval(()=>{
+  if(statusPort) {
+    if(Date.now()-lastStatusAt>6000) showConnection("unavailable");
+    try {statusPort.postMessage({type:"status"});} catch {statusPort=undefined;}
+  } else {connectStatus();void refreshConnection();}
+},5000);
 function setDisabled(disabled){for(const element of [enable,save]) element.disabled=disabled;}
 setDisabled(true);
 chrome.storage.local.get(["enabled"]).then(v=>{

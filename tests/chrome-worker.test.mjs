@@ -1,47 +1,8 @@
-import {test} from "node:test";
-import assert from "node:assert/strict";
-import {readFileSync} from "node:fs";
-import vm from "node:vm";
-const source=readFileSync(new URL("../chrome-extension/background.js",import.meta.url),"utf8");
-function worker(enabled=true,imageResponse,hooks={}){
-  let listener,access,removed,settingsChanged,disconnect,pulse;
-  let connections=0;
-  const settings={enabled,token:"a".repeat(64)};
-  const requests=[],commands=[],images=[],probes=[],badges=[];
-  const chrome={storage:{local:{async setAccessLevel(v){access=v.accessLevel;},async get(){return {...settings};}},onChanged:{addListener(fn){settingsChanged=fn;}}},runtime:{onMessage:{addListener(fn){listener=fn;}}},tabs:{onRemoved:{addListener(fn){removed=fn;}},async sendMessage(tab,message,options){commands.push({tab,message,options});if(hooks.sendMessage) return hooks.sendMessage(tab,message,options);return {ok:true};}}};
-  const fetch=async(url,options)=>{
-    if(!String(url).startsWith("http://127.0.0.1:39761/chrome")) {
-      images.push({url,options});
-      if(imageResponse) return imageResponse(url,options);
-      return {ok:false,headers:new Headers()};
-    }
-    if(String(url).endsWith('/status')) {
-      probes.push({url,options});
-      return hooks.statusResponse?hooks.statusResponse():{ok:true,json:async()=>({ok:true})};
-    }
-    requests.push({url,options});
-    assert.ok(String(url).startsWith("http://127.0.0.1:39761/chrome"));
-    const body=JSON.parse(options.body);
-    if(hooks.bridgeResponse) return hooks.bridgeResponse(url,body);
-    return {ok:true,json:async()=>({commands:String(url).endsWith("/result")?[]:[{id:"cmd",tab_id:body.tab_id,frame_id:body.frame_id,document_id:body.document_id,title:"Track",command:"play-pause"}]})};
-  };
-  chrome.runtime.connectNative=name=>{
-    assert.equal(name,'dev.local.media_controls');connections++;
-    let receive;
-    return {onMessage:{addListener(fn){receive=fn;}},onDisconnect:{addListener(fn){disconnect=fn;}},postMessage(message){
-      const url='http://127.0.0.1:39761/chrome'+message.path;
-      void fetch(url,{body:JSON.stringify(message.body)}).then(r=>r.json()).then(body=>receive({id:message.id,body}),()=>receive({id:message.id,error:'unavailable'}));
-    }};
-  };
-  class OffscreenCanvas {getContext(){return {drawImage(){}};}async convertToBlob(){return new Blob([new Uint8Array([137,80,78,71])],{type:'image/png'});}}
-  chrome.runtime.id='extension-id';
-  chrome.runtime.getURL=path=>`chrome-extension://extension-id/${path}`;
-  chrome.action={async setBadgeText(value){badges.push(value.text);},async setBadgeBackgroundColor(){},async setTitle(){}};
-  vm.runInNewContext(source,{chrome,fetch,setTimeout,clearTimeout,setInterval(fn){pulse=fn;},URL,AbortSignal,AbortController,Map,Date:hooks.now?{now:hooks.now}:Date,Number,JSON,Uint8Array,btoa,console,Headers,Blob,OffscreenCanvas,async createImageBitmap(){return {width:32,height:32,close(){}};}});
-  const status=()=>new Promise(resolve=>listener({type:'BRIDGE_STATUS'},{id:chrome.runtime.id,url:chrome.runtime.getURL('options.html')},resolve));
-  hooks.inspect?.({probes,badges,status,pulse:()=>pulse(),message:(message,sender,reply)=>listener(message,sender,reply)});
-  return {disconnect:()=>disconnect(),connections:()=>connections,send:(media,frame=0,tab=4,documentId=`doc-${frame}`)=>listener({type:"MEDIA_UPDATE",media},{tab:{id:tab,title:"Tab"},frameId:frame,documentId,url:`https://user:password@site.test/frame-${frame}?access_token=private#secret`}),remove:id=>removed(id),changeSettings(values){const changes={};for(const [key,value] of Object.entries(values)) {changes[key]={oldValue:settings[key],newValue:value};settings[key]=value;}settingsChanged(changes,"local");},requests,commands,images,access:()=>access};
-}
+import {test} from 'node:test';
+import assert from 'node:assert/strict';
+import {load} from './load.mjs';
+import {worker} from './worker-harness.mjs';
+const {ChromeWire}=await load('chrome-wire');
 const settle=()=>new Promise(resolve=>setTimeout(resolve,30));
 const flush=()=>new Promise(setImmediate);
 const deferred=()=>{let resolve;const promise=new Promise(done=>{resolve=done;});return {promise,resolve};};
@@ -340,4 +301,99 @@ test('native host disconnect rejects pending work and reconnects on the next upd
  w.send({title:'Track'});await flush();assert.equal(w.connections(),1);
  w.disconnect();await flush();w.send({title:'Track'});await flush();assert.equal(w.connections(),2);
  gate.resolve();await flush();assert.equal(w.commands.length,0);
+});
+
+test('v2 transfers image content once, coalesces URL downloads, and delivers commands while metadata is blocked',async()=>{
+  const wire=new ChromeWire(),received=[],gate=deferred();let block=false,ui;
+  const w=worker(true,async url=>new Response(new Uint8Array([1]),{headers:{'content-type':'image/png'}}),{
+    protocol2:true,inspect(value){ui=value;},async bridgeResponse(url,body){
+      if(url.endsWith('/result')) return {json:async()=>({ok:true})};
+      if(block) await gate.promise;
+      const result=wire.decode(body);if(result.media) received.push(result.media);
+      return {json:async()=>({ok:!result.resync&&!result.missing,...(result.resync?{resync:true,epoch:'epoch-1'}:{}),...(result.missing?{missing:result.missing}:{}),commands:[]})};
+    }
+  });
+  await flush();
+  const media={title:'Track',artist:'Artist',artwork_candidates:[{src:'https://cdn.test/shared.png'}],timeline:{position_sec:10,updated_at:10000}};
+  w.send(media);await settle();w.send(media,1);await settle();
+  assert.equal(w.images.filter(x=>x.url.endsWith('/shared.png')).length,1,'same URL is shared across frames');
+  const transfers=updates(w).flatMap(body=>Object.values(body.images??{}));
+  assert.equal(transfers.filter(x=>x==='data:image/png;base64,AQ==').length,1,'content-identical images cross Native Messaging/HTTP once');
+  assert.equal(received.at(-1).artwork_data_url,'data:image/png;base64,AQ==');
+  const before=updates(w).length;w.send(media,1);await settle();assert.equal(updates(w).length,before,'unchanged state is not resent');
+  block=true;w.send({...media,title:'Next'},1);await flush();
+  const started=performance.now();ui.event({event:'command',command:{id:'pushed',tab_id:4,frame_id:1,document_id:'doc-1',title:'Next',target_id:'media-1',command:'seek',position:20}});
+  await flush();assert.equal(w.commands.at(-1).message.command.id,'pushed');assert.ok(performance.now()-started<250,'command bypasses pending metadata');
+  gate.resolve();await settle();
+});
+
+test('v2 restores full state and image references after plugin restart and lost receiver caches',async()=>{
+  let ui,epoch='epoch-1';const wire=new ChromeWire(),decoded=[];
+  const w=worker(true,async()=>new Response(new Uint8Array([2]),{headers:{'content-type':'image/png'}}),{protocol2:true,inspect(value){ui=value;},async bridgeResponse(url,body){
+    if(url.endsWith('/result')) return {json:async()=>({ok:true})};
+    const result=wire.decode(body);if(result.media) decoded.push(result.media);
+    return {json:async()=>({ok:!result.resync&&!result.missing,epoch,...(result.resync?{resync:true}:{}),...(result.missing?{missing:result.missing}:{}),commands:[]})};
+  }});
+  await flush();const media={title:'Track',artwork_candidates:[{src:'https://cdn.test/a.png'}]};w.send(media);await settle();
+  wire.clear();epoch='epoch-2';ui.event({event:'disconnected'});ui.event({event:'ready',epoch});await settle();
+  assert.equal(decoded.at(-1).title,'Track');assert.equal(decoded.at(-1).artwork_data_url,'data:image/png;base64,Ag==');
+  wire.clear();w.send({...media,title:'Changed'});await settle();
+  assert.equal(decoded.at(-1).title,'Changed');assert.equal(decoded.at(-1).artwork_data_url,'data:image/png;base64,Ag==');
+  const probes=ui.probes.length;ui.event({event:'heartbeat'});ui.pulse();await flush();assert.equal(ui.probes.length,probes,'stream traffic replaces status probes');
+  w.changeSettings({enabled:false});ui.event({event:'command',command:{id:'disabled',tab_id:4,frame_id:0,document_id:'doc-0'}});await flush();assert.equal(w.commands.length,0);
+});
+
+test('v2 empty pages never download images, and simultaneous frames share a single content transfer',async()=>{
+  const w=worker(true,async()=>new Response(new Uint8Array([1]),{headers:{'content-type':'image/png'}}),{protocol2:true});await flush();
+  w.send({title:''});await settle();assert.equal(w.images.length,0);
+  const media={title:'Track',artwork_candidates:[{src:'https://cdn.test/shared.png'}]};
+  w.send(media,0);w.send(media,1);await settle();await settle();
+  const data=updates(w).flatMap(body=>Object.values(body.images??{}));
+  assert.equal(data.filter(x=>x==='data:image/png;base64,AQ==').length,1);
+});
+
+test('pushed commands remain serial per document and an interrupted opt-in cannot run queued commands',async()=>{
+  let ui;const gate=deferred();
+  const w=worker(true,undefined,{protocol2:true,inspect(value){ui=value;},async sendMessage(){await gate.promise;return {ok:true};}});await flush();
+  const command=id=>({event:'command',command:{id,tab_id:4,frame_id:0,document_id:'doc',command:'play-pause',target_id:'media-1'}});
+  ui.event(command('first'));ui.event(command('queued'));await flush();assert.equal(w.commands.length,1);
+  w.changeSettings({enabled:false});w.changeSettings({enabled:true});gate.resolve();await flush();assert.equal(w.commands.length,1);
+});
+
+test('new plugin with an old installed host falls back to full updates without advertising slow polling',async()=>{
+  let ui;const w=worker(true,undefined,{protocol2:true,failStream:true,inspect(value){ui=value;}});await flush();
+  let capability;ui.message({type:'MEDIA_UPDATE',media:{title:'Track'}},{tab:{id:4,title:'Tab'},frameId:0,documentId:'doc',url:'https://site.test/'},value=>{capability=value;});
+  await flush();assert.equal(capability.protocol,1);assert.equal(updates(w).at(-1).protocol,undefined);
+});
+
+test('idle stream challenges require Chrome acknowledgement and cannot override disabled sending',async()=>{
+  let now=10000,ui;const w=worker(true,undefined,{protocol2:true,now:()=>now,inspect(value){ui=value;}});await flush();
+  const initial=ui.probes.length;ui.event({event:'heartbeat'});await flush();assert.equal(ui.probes.length,initial);
+  now+=6000;ui.event({event:'heartbeat'});await flush();assert.equal(ui.probes.length,initial+1);
+  ui.event({event:'heartbeat'});await flush();assert.equal(ui.probes.length,initial+1);
+  w.changeSettings({enabled:false});await flush();ui.event({event:'disconnected'});assert.equal(ui.badges.at(-1),'OFF');
+});
+
+test('track changes revalidate mutable artwork URLs while content identity still deduplicates transfers',async()=>{
+  let value=1;const wire=new ChromeWire(),received=[];
+  const w=worker(true,async()=>new Response(new Uint8Array([value]),{headers:{'content-type':'image/png'}}),{protocol2:true,async bridgeResponse(url,body){
+    if(url.endsWith('/result')) return {json:async()=>({ok:true})};
+    const decoded=wire.decode(body);if(decoded.media) received.push(decoded.media);return {json:async()=>({ok:true,commands:[]})};
+  }});await flush();
+  const media={title:'First',artwork_candidates:[{src:'https://cdn.test/current.png'}]};
+  w.send(media);await settle();assert.equal(received.at(-1).artwork_data_url,'data:image/png;base64,AQ==');
+  value=2;w.send({...media,title:'Second'});await settle();assert.equal(received.at(-1).artwork_data_url,'data:image/png;base64,Ag==');
+  w.send({...media,title:'Third'});await settle();
+  const transferred=updates(w).flatMap(body=>Object.values(body.images??{}));
+  assert.equal(transferred.filter(data=>data==='data:image/png;base64,Ag==').length,1,'new track with unchanged bytes does not retransmit image content');
+});
+
+test('popup subscription authenticates the extension page and pushes state changes',async()=>{
+  let ui;const w=worker(true,undefined,{protocol2:true,inspect(value){ui=value;}});await flush();
+  const replies=[];let incoming,closed=false;
+  const port={name:'bridge-status',sender:{id:'extension-id',url:'chrome-extension://extension-id/options.html'},onMessage:{addListener(fn){incoming=fn;}},onDisconnect:{addListener(){}},postMessage(value){replies.push(value);},disconnect(){closed=true;}};
+  ui.connect(port);assert.equal(replies.at(-1).state,'connected');
+  w.changeSettings({enabled:false});await flush();assert.equal(replies.at(-1).state,'disabled');
+  incoming({type:'status'});assert.equal(replies.at(-1).state,'disabled');assert.equal(closed,false);
+  ui.connect({...port,sender:{id:'extension-id',url:'https://site.test/'}});assert.equal(closed,true);
 });

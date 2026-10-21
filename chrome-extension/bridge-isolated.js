@@ -7,7 +7,10 @@
     const media=latestMedia;latestMedia=undefined;
     // Reloading/disabling the extension can invalidate scripts in existing tabs.
     // sendMessage may throw synchronously, before it returns a Promise.
-    try {await chrome.runtime.sendMessage({type:"MEDIA_UPDATE",media});} catch {}
+    try {
+      const response=await chrome.runtime.sendMessage({type:"MEDIA_UPDATE",media});
+      window.postMessage?.({kind:tag+"_transport",protocol:response?.protocol===2?2:1},location.origin);
+    } catch {}
   }
   window.addEventListener("message",async event=>{
     if(event.source!==window||event.origin!==location.origin) return;

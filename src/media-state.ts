@@ -6,9 +6,12 @@ let windows:MediaSnapshot={current:null,sessions:[]};
 let autoSession:string|undefined;
 const chrome=new Map<string,{item:MediaItem;lastSeen:number;sequence:number}>();
 const listeners=new Set<()=>void>();
+const changeListeners=new Set<()=>void>();
 export const CHROME_TTL=15000;
 export function chromeSessions(now=Date.now()):MediaItem[] {
+  const count=chrome.size;
   for(const [id,v] of chrome) if(now-v.lastSeen>=CHROME_TTL) chrome.delete(id);
+  if(chrome.size!==count) for(const fn of changeListeners) fn();
   return [...chrome.values()].map(v=>v.item);
 }
 export function currentMedia(selected="auto"):MediaItem|null {
@@ -22,7 +25,8 @@ export function audioTarget(id="master"):AudioTarget|null {
 }
 export function audioTargets():AudioTarget[] {return [...(windows.audio?.master ? [windows.audio.master] : []),...(windows.audio?.sessions ?? [])];}
 export function subscribe(fn:()=>void):()=>void {listeners.add(fn);return ()=>{listeners.delete(fn);};}
-export function publish():void {for(const fn of listeners) fn();}
+export function subscribeChanges(fn:()=>void):()=>void {changeListeners.add(fn);return ()=>{changeListeners.delete(fn);};}
+export function publish(changed=true):void {for(const fn of listeners) fn();if(changed) for(const fn of changeListeners) fn();}
 export function ingestChrome(tabId:number,frameId:number,data:unknown,sequence=0,documentId=""):boolean {
   if(!Number.isSafeInteger(tabId)||tabId<0||!Number.isSafeInteger(frameId)||frameId<0) return false;
   const id=`chrome:${tabId}:${frameId}`;
@@ -38,6 +42,6 @@ export function ingestChrome(tabId:number,frameId:number,data:unknown,sequence=0
 }
 export function startMediaPolling(onError:(s:string)=>void):()=>void {
   const stop=startNative(s=>{windows=s;publish();},onError);
-  const interval=setInterval(()=>{chromeSessions();publish();},250);
+  const interval=setInterval(()=>{chromeSessions();publish(false);},250);
   return ()=>{clearInterval(interval);stop();};
 }

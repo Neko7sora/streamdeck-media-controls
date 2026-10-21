@@ -10,7 +10,7 @@ function deferred(){
   const promise=new Promise((done,fail)=>{resolve=done;reject=fail;});
   return {promise,resolve,reject};
 }
-function options({load=Promise.resolve({}),write=async()=>{},connection=Promise.resolve({state:'disabled'})}={}){
+function options({load=Promise.resolve({}),write=async()=>{},connect,connection=Promise.resolve({state:'disabled'})}={}){
   const elements=new Map(["enabled","token","status","save","connection","connection-title","connection-detail"].map(id=>[id,{
     dataset:{},
     checked:false,value:"",textContent:"",disabled:false,listeners:{},
@@ -18,7 +18,7 @@ function options({load=Promise.resolve({}),write=async()=>{},connection=Promise.
   }]));
   const writes=[];
   const timers=new Map();let nextTimer=0,poll;
-  vm.runInNewContext(source,{setInterval(fn){poll=fn;},setTimeout(fn){timers.set(++nextTimer,fn);return nextTimer;},clearTimeout(id){timers.delete(id);},document:{getElementById:id=>elements.get(id)},chrome:{runtime:{async sendMessage(){return typeof connection==="function"?connection():connection;}},storage:{local:{
+  vm.runInNewContext(source,{setInterval(fn){poll=fn;},setTimeout(fn){timers.set(++nextTimer,fn);return nextTimer;},clearTimeout(id){timers.delete(id);},document:{getElementById:id=>elements.get(id)},chrome:{runtime:{connect,async sendMessage(){return typeof connection==="function"?connection():connection;}},storage:{local:{
     get:()=>load,
     set(value){writes.push({...value});return write(value);}
   }}}});
@@ -27,6 +27,17 @@ function options({load=Promise.resolve({}),write=async()=>{},connection=Promise.
 function assertDisabled(page,disabled){
   for(const id of ["enabled","save"]) assert.equal(page.elements.get(id).disabled,disabled,id);
 }
+
+test('popup receives pushed changes and ignores an older status request after a push',async()=>{
+  const gate=deferred(),sent=[];let receive,disconnect;
+  const port={onMessage:{addListener(fn){receive=fn;}},onDisconnect:{addListener(fn){disconnect=fn;}},postMessage(value){sent.push(value);}};
+  const page=options({connection:gate.promise,connect:()=>port});
+  receive({state:'connected'});gate.resolve({state:'disabled'});await flush();
+  assert.equal(page.elements.get('connection').dataset.state,'connected');
+  page.poll();assert.equal(sent.at(-1).type,'status');
+  receive({state:'disabled'});assert.equal(page.elements.get('connection').dataset.state,'disabled');
+  disconnect();assert.equal(page.elements.get('connection').dataset.state,'unavailable');
+});
 
 test('popup shows live connection, disabled sending and connection failures separately from saved settings',async()=>{
   for(const [state,label] of [['connected','接続済み'],['disabled','送信は無効'],['disconnected','未接続']]) {

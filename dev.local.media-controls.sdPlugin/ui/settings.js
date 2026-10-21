@@ -10,7 +10,7 @@ const displaySettings=[
 ].map(([id,key])=>[document.getElementById(id),key]);
 const registerChrome=document.getElementById("register-chrome"),chromeStatus=document.getElementById("chrome-registration-status");
 let registrationRequestId=null,registrationTimeout;
-let lastOptionsAt=0;
+let lastOptionsAt=0,pushOptions=false,lastProbeAt=0;
 function showChromeConnection(connection){
   const state=connection?.state??"checking";
   const connected=state==="connected";
@@ -90,10 +90,10 @@ window.connectElgatoStreamDeckSocket=(port,uuid,registerEvent,_info,actionInfo)=
   const info=JSON.parse(actionInfo);context=uuid;action=info.action;settings=info.payload.settings??{};
   show();
   socket=new WebSocket(`ws://127.0.0.1:${port}`);
-  socket.onopen=()=>{socket.send(JSON.stringify({event:registerEvent,uuid}));setSettingsDisabled(false);registerChrome.disabled=false;lastOptionsAt=Date.now();document.getElementById("status").textContent="";requestOptions();};
+  socket.onopen=()=>{pushOptions=false;lastProbeAt=0;socket.send(JSON.stringify({event:registerEvent,uuid}));setSettingsDisabled(false);registerChrome.disabled=false;lastOptionsAt=Date.now();document.getElementById("status").textContent="";requestOptions();};
   socket.onmessage=event=>{
     const msg=JSON.parse(event.data);
-    if(msg.event==="didReceiveSettings"){settingsRevision++;settings=msg.payload.settings??{};show();}
+    if(msg.event==="didReceiveSettings"){settingsRevision++;settings=msg.payload.settings??{};show();if(pushOptions) send("sendToPlugin",{request:"watch",settingsRevision});}
     if(msg.event==="sendToPropertyInspector"){
       if(msg.payload.response==="chromeHostRegistration") {
         if(registrationRequestId===null||msg.payload.requestId!==registrationRequestId) return;
@@ -101,12 +101,14 @@ window.connectElgatoStreamDeckSocket=(port,uuid,registerEvent,_info,actionInfo)=
         chromeStatus.textContent=msg.payload.message;
         return;
       }
+      if(msg.payload.protocol===2) pushOptions=true;
       if(msg.payload.settingsRevision===settingsRevision&&msg.payload.settings!=null){
         settings=msg.payload.settings;settingsRevision++;
+        if(pushOptions) send("sendToPlugin",{request:"watch",settingsRevision});
       }
-      sessions=msg.payload.sessions??[];
-      audioTargets=msg.payload.audio??[];
-      lastOptionsAt=Date.now();showChromeConnection(msg.payload.chromeConnection);
+      if(msg.payload.sessions!==undefined) sessions=msg.payload.sessions;
+      if(msg.payload.audio!==undefined) audioTargets=msg.payload.audio;
+      lastOptionsAt=Date.now();if(msg.payload.chromeConnection!==undefined) showChromeConnection(msg.payload.chromeConnection);
       show();
     }
   };
@@ -140,5 +142,10 @@ for(const [element,key,value] of [
 ]) element.addEventListener("change",()=>{
   if(socket?.readyState!==WebSocket.OPEN){show();return;}
   settingsRevision++;settings={...settings,[key]:value()};send("setSettings",settings);show();
+  if(pushOptions) send("sendToPlugin",{request:"watch",settingsRevision});
 });
-setInterval(()=>{requestOptions();if(lastOptionsAt&&Date.now()-lastOptionsAt>6000) showChromeConnection({state:"unavailable"});},1000);
+setInterval(()=>{
+  if(!pushOptions) requestOptions();
+  else if(Date.now()-Math.max(lastProbeAt,lastOptionsAt)>=3000) {lastProbeAt=Date.now();send("sendToPlugin",{request:"alive"});}
+  if(lastOptionsAt&&Date.now()-lastOptionsAt>6000) showChromeConnection({state:"unavailable"});
+},1000);

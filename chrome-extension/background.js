@@ -1,27 +1,79 @@
 const NATIVE_HOST="dev.local.media_controls";
 let nativePort,requestId=0;
 let connectionState,checkingConnection;
+let protocol=1,bridgeEpoch,streamStarted=false,lastContact=-Infinity,lastPostContact=-Infinity,wireGeneration=0;
+const sentImages=new Set(),imageIds=new Map();
+const transferringImages=new Set();
+let wireSequence=0;
+const commandQueues=new Map();
+let pushedCommands=0;
+function queueCommand(command) {
+  if(!command||typeof command.id!=="string") return;
+  if(pushedCommands>=32) {void post("/result",{id:command.id,ok:false}).catch(logUnavailable);return;}
+  const key=`${command.tab_id}:${command.frame_id}:${command.document_id}`,generation=settingsGeneration;
+  const previous=commandQueues.get(key)??Promise.resolve();pushedCommands++;
+  const next=previous.then(()=>receiveCommand(command,generation)).finally(()=>{pushedCommands--;if(commandQueues.get(key)===next) commandQueues.delete(key);});
+  commandQueues.set(key,next);
+}
+function contact(){lastContact=Date.now();if(connectionState!=="disabled") setConnectionState("connected");}
+function resetWire(){wireGeneration++;sentImages.clear();transferringImages.clear();for(const state of frames.values()) {state.sent=undefined;state.sequence=undefined;}}
+function replayFrames(){for(const state of frames.values()) if(state.sample&&Date.now()-state.sample.receivedAt<15000) {state.latest??=state.sample;queueFrame(state);}drainFrames();}
+async function receiveCommand(command,generation) {
+  if(!command||typeof command.id!=="string"||!Number.isSafeInteger(command.tab_id)||!Number.isSafeInteger(command.frame_id)||typeof command.document_id!=="string") return;
+  if(generation!==settingsGeneration) return;
+  try {
+    const {enabled=false}=await chrome.storage.local.get(["enabled"]);
+    if(!enabled||generation!==settingsGeneration) return;
+    // The content bridge and page independently revalidate document and target ID.
+    let result={ok:false};
+    try {result=await chrome.tabs.sendMessage(command.tab_id,{type:"MEDIA_COMMAND",command},{documentId:command.document_id,frameId:command.frame_id});} catch {}
+    if(generation===settingsGeneration) await post("/result",{id:command.id,ok:result?.ok===true});
+  } catch {logUnavailable();}
+}
 const connectionLabels={checking:"接続を確認中",connected:"Stream Deck に接続済み",disconnected:"Stream Deck に未接続",disabled:"送信は無効です"};
+const statusPorts=new Set();
 function setConnectionState(state) {
   if(connectionState===state) return;
   connectionState=state;
+  for(const port of statusPorts) {try {port.postMessage({state});} catch {statusPorts.delete(port);}}
   void chrome.action.setBadgeText({text:{checking:"…",connected:"ON",disconnected:"!",disabled:"OFF"}[state]});
   void chrome.action.setBadgeBackgroundColor({color:{checking:"#596579",connected:"#157a46",disconnected:"#a44800",disabled:"#596579"}[state]});
   void chrome.action.setTitle({title:`Media Bridge：${connectionLabels[state]}`});
 }
 const nativeRequests=new Map();
+chrome.runtime.onConnect?.addListener(port=>{
+  const sender=port.sender;
+  if(port.name!=="bridge-status"||sender?.id!==chrome.runtime.id||sender.url?.split(/[?#]/,1)[0]!==chrome.runtime.getURL("options.html")) {port.disconnect();return;}
+  if(statusPorts.size>=8) {port.disconnect();return;}
+  statusPorts.add(port);port.onDisconnect.addListener(()=>statusPorts.delete(port));
+  port.onMessage.addListener(message=>{if(message?.type==="status") {port.postMessage({state:connectionState});}});
+  port.postMessage({state:connectionState});
+});
 function connectNative() {
   if(nativePort) return nativePort;
   const port=chrome.runtime.connectNative(NATIVE_HOST);nativePort=port;
   port.onMessage.addListener(message=>{
+    if(nativePort!==port) return;
+    if(message?.event) {
+      if(message.event==="disconnected") {if(connectionState!=="disabled") setConnectionState("disconnected");lastContact=-Infinity;resetWire();return;}
+      if(connectionState==="disabled") return;
+      contact();
+      if(message.event==="ready") {bridgeEpoch=message.epoch;resetWire();replayFrames();}
+      if(message.event==="command") queueCommand(message.command);
+      // An idle stream needs an end-to-end acknowledgement: an alive native
+      // host alone must not keep a suspended Chrome worker marked connected.
+      if(message.event==="heartbeat"&&Date.now()-lastPostContact>=5000) void post("/status",{}).catch(()=>{if(connectionState!=="disabled") setConnectionState("disconnected");});
+      return;
+    }
     const pending=nativeRequests.get(message?.id);if(!pending) return;
     nativeRequests.delete(message.id);clearTimeout(pending.timer);
-    if(message.error) pending.reject(new Error(message.error));else pending.resolve(message.body);
+    if(message.error) pending.reject(new Error(message.error));else {lastPostContact=Date.now();pending.resolve(message.body);}
   });
   port.onDisconnect.addListener(()=>{
     void chrome.runtime.lastError;
     if(nativePort!==port) return;
     nativePort=undefined;
+    streamStarted=false;lastContact=-Infinity;resetWire();
     if(connectionState!=="disabled") setConnectionState("disconnected");
     for(const pending of nativeRequests.values()) {clearTimeout(pending.timer);pending.reject(new Error("Native host disconnected"));}
     nativeRequests.clear();
@@ -29,13 +81,25 @@ function connectNative() {
   return port;
 }
 const cachedArtwork=new Map();
+const sharedArtwork=new Map();
+function trimSharedArtwork() {
+  let bytes=[...sharedArtwork.values()].reduce((n,asset)=>n+(asset.data?.length??0),0);
+  for(const [key,asset] of sharedArtwork) {
+    if(bytes<=16_000_000&&sharedArtwork.size<=64) break;
+    if(asset.pending) continue;
+    bytes-=asset.data?.length??0;sharedArtwork.delete(key);
+  }
+}
 const queuedArtwork=[];
 let activeArtworkJobs=0;
 function discardArtwork(key) {
   const entry=cachedArtwork.get(key);
   if(!entry) return;
   cachedArtwork.delete(key);
-  entry.controller?.abort();
+  if(entry.asset) {
+    entry.asset.users.delete(entry);
+    if(!entry.asset.users.size&&entry.asset.pending) {entry.asset.controller?.abort();sharedArtwork.delete(entry.asset.key);}
+  } else entry.controller?.abort();
   const queued=queuedArtwork.indexOf(entry);
   if(queued>=0) queuedArtwork.splice(queued,1);
 }
@@ -46,8 +110,13 @@ function drainArtwork() {
     activeArtworkJobs++;
     void loadArtwork(entry).then(data=>{
       if(cachedArtwork.get(entry.key)!==entry) return;
+      const changed=data&&data!==entry.data;
       entry.data=data??entry.data;
       entry.expires=Date.now()+(data?300000:5000);
+      if(protocol===2&&changed) {
+        const state=frames.get(entry.key.replace(/^favicon:/,""));
+        if(state?.sample) {state.latest??=state.sample;queueFrame(state);drainFrames();}
+      }
     }).finally(()=>{entry.pending=false;activeArtworkJobs--;drainArtwork();});
   }
 }
@@ -56,6 +125,7 @@ let settingsGeneration=0;
 const storageReady=chrome.storage.local.setAccessLevel({accessLevel:"TRUSTED_CONTEXTS"});
 function checkConnection() {
   if(checkingConnection) return checkingConnection;
+  if(protocol===2&&Date.now()-lastContact<10000) return Promise.resolve();
   const generation=settingsGeneration;
   checkingConnection=(async()=>{
     try {
@@ -64,6 +134,15 @@ function checkConnection() {
       if(generation!==settingsGeneration) return;
       if(!enabled) {setConnectionState("disabled");return;}
       const response=await post("/status",{});
+      if(generation===settingsGeneration&&response?.protocol===2) {
+        protocol=2;
+        if(bridgeEpoch!==response.epoch) {bridgeEpoch=response.epoch;resetWire();replayFrames();}
+        contact();
+        if(!streamStarted) {
+          try {await post("/events",{});streamStarted=true;}
+          catch {protocol=1;resetWire();}
+        }
+      }
       if(generation===settingsGeneration) setConnectionState(response?.ok===true?"connected":"disconnected");
     } catch {if(generation===settingsGeneration) setConnectionState("disconnected");}
   })().finally(()=>{checkingConnection=undefined;});
@@ -115,15 +194,31 @@ function artworkFor(tab,media,icon=false,fallback) {
   return entry.data;
 }
 async function loadArtwork(entry) {
+  if(protocol!==2) return downloadArtwork(entry);
+  // A new track can reuse a mutable artwork URL. Revalidate on track changes;
+  // only the resulting content hash, rather than the URL, suppresses transfer.
+  const key=JSON.stringify([entry.icon,entry.signature]);
+  let asset=sharedArtwork.get(key);
+  if(asset&&(asset.pending||asset.expires>Date.now())) {
+    asset.users.add(entry);entry.asset=asset;return asset.promise;
+  }
+  asset={key,users:new Set([entry]),top:entry.top,icon:entry.icon,allowed:entry.allowed,pending:true};
+  entry.asset=asset;sharedArtwork.set(key,asset);
+  asset.promise=downloadArtwork(asset).then(data=>{asset.data=data;asset.expires=Date.now()+(data?300000:5000);return data;}).finally(()=>{asset.pending=false;trimSharedArtwork();});
+  trimSharedArtwork();
+  return asset.promise;
+}
+function validArtwork(entry) {return entry.users?sharedArtwork.get(entry.key)===entry&&entry.users.size>0:cachedArtwork.get(entry.key)===entry;}
+async function downloadArtwork(entry) {
   const {top,icon,allowed}=entry;
   let data;
   for(const art of top) {
-    if(cachedArtwork.get(entry.key)!==entry) break;
+    if(!validArtwork(entry)) break;
     const controller=new AbortController();entry.controller=controller;
     const timeout=setTimeout(()=>controller.abort(),2500);
     try {
       const response=await fetch(art.src,{credentials:"omit",referrerPolicy:"no-referrer",redirect:"error",signal:controller.signal});
-      if(cachedArtwork.get(entry.key)!==entry) break;
+      if(!validArtwork(entry)) break;
       const mime=(response.headers.get("content-type")??"").split(";")[0].toLowerCase();
       const bytes=Number(response.headers.get("content-length")??0);
       if(!response.ok || !allowed.includes(mime) || bytes>350000) continue;
@@ -196,7 +291,7 @@ function drainFrames() {
       activeJobs--;
       if(currentFrame(state)) {
         if(state.latest) queueFrame(state);
-        else frames.delete(state.key);
+        else if(protocol!==2) frames.delete(state.key);
       } else {
         discardArtwork(state.key);
         discardArtwork(`favicon:${state.key}`);
@@ -214,12 +309,14 @@ async function processFrame(state) {
   if(!currentFrame(state) || generation!==settingsGeneration || !enabled) return;
   const media=update.media;
   if(!media || typeof media!=="object" || Array.isArray(media) || JSON.stringify(media).length>64000) return;
+  if(protocol===2) state.sample=update;
   let fallbackFavicon;
   // The sender address provides the conventional fallback, never an unrelated tab/frame.
   try {const url=new URL(update.sender.url);fallbackFavicon={src:new URL("/favicon.ico",url.origin).href};} catch {}
-  const artwork=artworkFor(key,media);
+  const hasMedia=!!media.title||!!media.artist||!!media.browser_media?.element_type;
+  const artwork=hasMedia?artworkFor(key,media):undefined;
   if(!currentFrame(state) || generation!==settingsGeneration) return;
-  const favicon=artworkFor(`favicon:${key}`,{favicon_candidates:media.favicon_candidates},true,fallbackFavicon);
+  const favicon=hasMedia?artworkFor(`favicon:${key}`,{favicon_candidates:media.favicon_candidates},true,fallbackFavicon):undefined;
   const payload={
     ...media,
     page_url:pageAddress(update.sender.url),
@@ -231,8 +328,9 @@ async function processFrame(state) {
   try {
     const current=await chrome.storage.local.get(["enabled"]);
     if(!currentFrame(state) || generation!==settingsGeneration || !current.enabled) return;
-    const response=await post("",{tab_id:state.tab,frame_id:frame,document_id:update.sender.documentId,sequence:Date.now(),media:payload});
-    if(generation===settingsGeneration) setConnectionState("connected");
+    const response=protocol===2?await sendDelta(state,update,payload):await post("",{tab_id:state.tab,frame_id:frame,document_id:update.sender.documentId,sequence:Date.now(),media:payload});
+    if(generation!==settingsGeneration||!currentFrame(state)) return;
+    if(response.skipped!==true) contact();
     for(const command of response.commands??[]) {
       const current=await chrome.storage.local.get(["enabled"]);
       if(!currentFrame(state) || generation!==settingsGeneration || !current.enabled) return;
@@ -250,14 +348,74 @@ chrome.runtime.onMessage.addListener((message,sender,_reply)=>{
     return true;
   }
   if(message?.type!=="MEDIA_UPDATE" || !Number.isSafeInteger(sender.tab?.id)) return;
+  _reply?.({protocol:protocol===2&&streamStarted?2:1});
   const frame=sender.frameId??0, key=`${sender.tab.id}:${frame}`;
   let state=frames.get(key);
-  if(!state && frames.size>=256) return;
+  if(!state && frames.size>=256) {
+    const idle=[...frames.values()].find(s=>!s.running&&!s.queued);
+    if(!idle) return;
+    idle.closed=true;frames.delete(idle.key);discardArtwork(idle.key);discardArtwork(`favicon:${idle.key}`);
+  }
   if(!state) {state={key,tab:sender.tab.id,frame,running:false,queued:false,closed:false,latest:null};frames.set(key,state);}
-  state.latest={media:message.media,sender};
+  state.latest={media:message.media,sender,receivedAt:Date.now()};
   queueFrame(state);
   drainFrames();
 });
+
+async function imageId(data) {
+  if(imageIds.has(data)) return imageIds.get(data);
+  const bytes=new TextEncoder().encode(data),digest=await crypto.subtle.digest("SHA-256",bytes);
+  const id=Array.from(new Uint8Array(digest),b=>b.toString(16).padStart(2,"0")).join("");
+  imageIds.set(data,id);
+  // This is a hashing memo, not the image lifetime or transfer acknowledgement.
+  let memoBytes=[...imageIds.keys()].reduce((n,s)=>n+s.length,0);
+  while(imageIds.size>64||memoBytes>16_000_000) {const key=imageIds.keys().next().value;memoBytes-=key.length;imageIds.delete(key);}
+  return id;
+}
+async function sendDelta(state,update,payload) {
+  const generation=settingsGeneration,epoch=bridgeEpoch,wireVersion=wireGeneration;
+  const normalized=JSON.parse(JSON.stringify(payload)),images={};
+  for(const field of ["artwork_data_url","favicon_data_url"]) {
+    const data=normalized[field];
+    if(typeof data==="string") {const id=await imageId(data);images[id]=data;normalized[field]={image:id};}
+    else normalized[field]=null;
+  }
+  for(let attempt=0;attempt<2;attempt++) {
+    if(!currentFrame(state)||generation!==settingsGeneration||epoch!==bridgeEpoch||wireVersion!==wireGeneration) return {skipped:true};
+    const previous=state.documentId===update.sender.documentId?state.sent:undefined;
+    const patch={};
+    for(const field of new Set([...Object.keys(previous??{}),...Object.keys(normalized)])) {
+      if(!previous||JSON.stringify(previous[field])!==JSON.stringify(normalized[field])) patch[field]=normalized[field]??null;
+    }
+    if(previous&&!Object.keys(patch).length&&Date.now()-(state.lastSent??0)<5000) return {skipped:true};
+    const sequence=wireSequence=Math.max(wireSequence+1,Date.now());
+    const transfer=Object.fromEntries(Object.entries(images).filter(([id])=>!sentImages.has(id)&&!transferringImages.has(id)));
+    // A different frame may already be transferring these bytes. Publish its
+    // metadata now and attach the image after that transfer completes.
+    const deferredImages=[];
+    for(const field of ["artwork_data_url","favicon_data_url"]) {
+      const id=normalized[field]?.image;
+      if(id&&transferringImages.has(id)&&!sentImages.has(id)) {normalized[field]=previous?.[field]??null;patch[field]=normalized[field];deferredImages.push(id);}
+    }
+    for(const id of Object.keys(transfer)) transferringImages.add(id);
+    let response;
+    try {response=await post("",{protocol:2,tab_id:state.tab,frame_id:state.frame,document_id:update.sender.documentId,sequence,base:previous?state.sequence:null,media:patch,images:transfer});}
+    finally {
+      if(wireVersion===wireGeneration) for(const id of Object.keys(transfer)) transferringImages.delete(id);
+    }
+    if(generation!==settingsGeneration||epoch!==bridgeEpoch||wireVersion!==wireGeneration) return {skipped:true};
+    if(response.resync||response.epoch&&response.epoch!==epoch) {state.sent=undefined;state.sequence=undefined;sentImages.clear();if(response.epoch&&response.epoch!==epoch) {bridgeEpoch=response.epoch;resetWire();replayFrames();return {};}continue;}
+    if(response.missing) {for(const id of response.missing) sentImages.delete(id);continue;}
+    if(response.ok===false) throw Error("Delta rejected");
+    state.sent=normalized;state.sequence=sequence;state.documentId=update.sender.documentId;state.lastSent=Date.now();
+    for(const id of Object.keys(transfer)) sentImages.add(id);
+    if(Object.keys(transfer).length) replayFrames();
+    if(deferredImages.length) state.waitingImages=true;
+    if(sentImages.size>256) sentImages.clear();
+    return response;
+  }
+  throw Error("Delta resynchronization failed");
+}
 chrome.tabs.onRemoved.addListener(id=>{
   for(const [key,state] of frames) if(state.tab===id) {
     state.closed=true;state.latest=null;frames.delete(key);
@@ -271,6 +429,13 @@ chrome.storage.onChanged.addListener((changes,area)=>{
   // An interrupted opt-in session stays invalid even if the same settings return.
   if(area==="local" && changes.enabled) {
     settingsGeneration++;
+    lastContact=-Infinity;resetWire();
+    if(!changes.enabled.newValue) {
+      if(streamStarted) void post("/unsubscribe",{}).catch(()=>{});
+      streamStarted=false;
+      for(const state of frames.values()) {state.closed=true;state.latest=null;}
+      frames.clear();queuedFrames.length=0;sharedArtwork.clear();imageIds.clear();
+    }
     setConnectionState(changes.enabled.newValue?"checking":"disabled");
     // Finish any old probe before checking the new opt-in generation.
     void Promise.resolve(checkingConnection).then(()=>checkConnection());

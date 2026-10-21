@@ -2,6 +2,14 @@ import {test} from "node:test";
 import assert from "node:assert/strict";
 import {load} from "./load.mjs";
 const state=await load("media-state"), model=await load("media-model"), validation=await load("media-validation");
+
+test('display interpolation ticks do not trigger inspector collection work; state changes and expiry do',()=>{
+  let frames=0,changes=0;const stopFrame=state.subscribe(()=>frames++),stopChanges=state.subscribeChanges(()=>changes++);
+  state.publish(false);assert.equal(frames,1);assert.equal(changes,0);
+  state.ingestChrome(33,0,{title:'Track'},1,'doc');assert.equal(changes,1);
+  state.chromeSessions(Date.now()+state.CHROME_TTL);assert.equal(changes,2);
+  stopFrame();stopChanges();
+});
 test("frame isolation, out-of-order rejection, explicit clear and expiry",()=>{
   assert.equal(state.ingestChrome(1,0,{title:"Music",artist:"A",playback_state:"playing"},20),true);
   state.ingestChrome(1,1,{title:""},21);

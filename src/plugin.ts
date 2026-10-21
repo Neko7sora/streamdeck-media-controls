@@ -2,7 +2,7 @@ import streamDeck,{action,SingletonAction,type KeyDownEvent,type DialDownEvent,t
 import {sendMediaKey,type MediaCommand} from "./windows-media.js";
 import {startChromeServer,chromeCommand,chromeConnectionStatus} from "./chrome-server.js";
 import {registerChromeHost,stopChromeRegistration} from "./chrome-registration.js";
-import {startMediaPolling,subscribe,currentMedia,audioTarget,availableSessions,audioTargets} from "./media-state.js";
+import {startMediaPolling,subscribe,subscribeChanges,currentMedia,audioTarget,availableSessions,audioTargets} from "./media-state.js";
 import {nativeCommand} from "./native-client.js";
 import {artwork,applicationIcon} from "./artwork.js";
 import {progress,displayTitle} from "./media-model.js";
@@ -11,6 +11,7 @@ import {ScrollingText,ANIMATION_INTERVAL_MS} from "./scrolling-text.js";
 import {nowPlayingImage} from "./now-playing-image.js";
 import {controlImage} from "./control-image.js";
 import {mediaTargetName,audioTargetName} from "./control-display.js";
+import {InspectorUpdates} from "./inspector-updates.js";
 
 const UUID="dev.local.media-controls";
 const EMPTY_ICON="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAAC0lEQVR42mNgAAIAAAUAAen63NgAAAAASUVORK5CYII=";
@@ -54,7 +55,7 @@ abstract class ConfiguredAction extends SingletonAction<Settings> {
   protected async render(_instance:Instance,_settings:Settings,_isCurrent:()=>boolean=()=>true):Promise<unknown> {return null;}
   protected displaySession(instance:Instance,session:string|undefined):void {this.displayedSessions.set(instance.id,session??"unavailable");}
   protected displayedSettings(instance:Instance,settings:Settings):Settings {return {...settings,mediaTarget:this.displayedSessions.get(instance.id)??"unavailable"};}
-  protected async saveSettings(instance:Instance,settings:Settings):Promise<void> {await instance.setSettings(settings);this.settings.set(instance.id,settings);this.hashes.delete(instance.id);this.refresh();}
+  protected async saveSettings(instance:Instance,settings:Settings):Promise<void> {await instance.setSettings(settings);this.settings.set(instance.id,settings);this.hashes.delete(instance.id);this.refresh();if(inspectorId===instance.id&&streamDeck.ui.action?.id===instance.id) await streamDeck.ui.sendToPropertyInspector({response:"settingsChanged",settings,settingsRevision:inspectorRevision});}
   protected changed(instance:Instance,payload:unknown,part="default"):boolean {
     let hashes=this.hashes.get(instance.id);
     if(!hashes) {hashes=new Map();this.hashes.set(instance.id,hashes);}
@@ -238,10 +239,42 @@ class NowPlayingDial extends ConfiguredAction {
   }
 }
 for(const instance of [new PlayPause(),new Previous(),new Next(),new Stop(),new Mute(),new VolumeUp(),new VolumeDown(),new VolumeDial(),new NowPlaying(),new NowPlayingDial()]) streamDeck.actions.registerAction(instance);
-subscribe(()=>{for(const a of visualActions) a.refresh();});
+const inspectorUpdates=new InspectorUpdates();
+let inspectorId:string|undefined,inspectorRevision=0,inspectorSending=false,inspectorDirty=false;
+function inspectorPayload() {
+  return {
+    chromeConnection:chromeConnectionStatus(),
+    sessions:availableSessions().map(s=>({id:s.session_id??"",label:`${s.source}: ${displayTitle(s)} (${s.app_id||s.tab_id||""})`,details:JSON.stringify({...s,artwork_data_url:s.artwork_data_url?"[image available]":null,fallback_artwork_data_url:s.fallback_artwork_data_url?"[Windows fallback available]":null,app_icon_data_url:s.app_icon_data_url?"[app icon available]":null,favicon_data_url:s.favicon_data_url?"[favicon available]":null},null,2)})),
+    audio:audioTargets().map(v=>({id:v.id,label:`${v.name||"Unknown app"}${v.pid!==undefined?` (PID ${v.pid})`:""}`,volume:v.volume,muted:v.muted}))
+  };
+}
+function notifyInspector():void {
+  if(!inspectorId||streamDeck.ui.action?.id!==inspectorId) {inspectorId=undefined;inspectorUpdates.reset();return;}
+  inspectorDirty=true;if(inspectorSending) return;inspectorSending=true;
+  void (async()=>{try {while(inspectorDirty) {
+    inspectorDirty=false;const id=inspectorId;
+    if(!id||streamDeck.ui.action?.id!==id) break;
+    const changes=inspectorUpdates.changes(inspectorPayload());
+    if(Object.keys(changes).length) await streamDeck.ui.sendToPropertyInspector({response:"optionsChanged",protocol:2,...changes});
+  }} catch(e){inspectorUpdates.reset();streamDeck.logger.warn(String(e));} finally{inspectorSending=false;}})();
+}
+let inspectorConnection="";
+subscribe(()=>{
+  for(const a of visualActions) a.refresh();
+  if(inspectorId) {
+    const connection=chromeConnectionStatus(),key=JSON.stringify([connection.state,connection.sessions]);
+    if(key!==inspectorConnection) {inspectorConnection=key;notifyInspector();}
+  }
+});
+subscribeChanges(notifyInspector);
 streamDeck.ui.onSendToPlugin(ev=>{
   const request=ev.payload;
   if(!request||typeof request!=="object"||Array.isArray(request)) return;
+  if(request.request==="alive"||request.request==="watch") {
+    if(streamDeck.ui.action?.id!==ev.action.id) return;
+    if(request.request==="watch"&&Number.isSafeInteger(request.settingsRevision)&&Number(request.settingsRevision)>=0) inspectorRevision=Number(request.settingsRevision);
+    void streamDeck.ui.sendToPropertyInspector({response:"alive",protocol:2,chromeConnection:chromeConnectionStatus()}).catch(e=>streamDeck.logger.warn(String(e)));return;
+  }
   if(request.request==="registerChromeHost") {
     const requestId=request.requestId;
     if(streamDeck.ui.action?.id!==ev.action.id||typeof requestId!=="string"||!/^[a-f0-9-]{36}$/i.test(requestId)) return;
@@ -256,11 +289,9 @@ streamDeck.ui.onSendToPlugin(ev=>{
   if(typeof settingsRevision!=="number"||!Number.isSafeInteger(settingsRevision)||settingsRevision<0) return;
   void (async()=>{const settings=await ev.action.getSettings();
     if(streamDeck.ui.action?.id!==ev.action.id) return;
-    await streamDeck.ui.sendToPropertyInspector({
-    settings,settingsRevision,chromeConnection:chromeConnectionStatus(),
-    sessions:availableSessions().map(s=>({id:s.session_id??"",label:`${s.source}: ${displayTitle(s)} (${s.app_id||s.tab_id||""})`,details:JSON.stringify({...s,artwork_data_url:s.artwork_data_url?"[image available]":null,fallback_artwork_data_url:s.fallback_artwork_data_url?"[Windows fallback available]":null,app_icon_data_url:s.app_icon_data_url?"[app icon available]":null,favicon_data_url:s.favicon_data_url?"[favicon available]":null},null,2)})),
-    audio:audioTargets().map(v=>({id:v.id,label:`${v.name||"Unknown app"}${v.pid!==undefined?` (PID ${v.pid})`:""}`,volume:v.volume,muted:v.muted}))
-  });})().catch(e=>streamDeck.logger.warn(String(e)));
+    const payload=inspectorPayload();inspectorId=ev.action.id;inspectorRevision=settingsRevision;inspectorUpdates.reset();inspectorUpdates.changes(payload);
+    await streamDeck.ui.sendToPropertyInspector({protocol:2,settings,settingsRevision,...payload});
+  })().catch(e=>streamDeck.logger.warn(String(e)));
 });
 const stop=startMediaPolling(msg=>streamDeck.logger.warn(msg));
 const animation=setInterval(()=>{for(const a of visualActions) a.animate();},ANIMATION_INTERVAL_MS);

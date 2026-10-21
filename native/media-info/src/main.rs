@@ -5,6 +5,7 @@
 mod app_icon;
 #[cfg(windows)]
 mod audio;
+mod wire;
 
 #[cfg(windows)]
 mod system {
@@ -268,6 +269,9 @@ mod system {
         let _apartment = Apartment;
         let manager = GlobalSystemMediaTransportControlsSessionManager::RequestAsync()?.join()?;
         let watch = std::env::args().any(|x| x == "--watch");
+        let delta = watch && std::env::args().any(|x| x == "--delta");
+        let mut encoder = crate::wire::Encoder::default();
+        let mut last_wire_send = std::time::Instant::now();
         let (tx, rx) = mpsc::sync_channel::<Option<Value>>(128);
         if watch {
             let tx = tx.clone();
@@ -403,8 +407,20 @@ mod system {
                 cache_bytes <= 12_000_000
             });
             let snapshot = json!({"current":current_snapshot,"sessions":data,"audio":audio});
-            writeln!(output, "{snapshot}").ok();
-            output.flush().ok();
+            if delta {
+                let packet = encoder.encode(snapshot);
+                if packet["reset"] == true
+                    || packet["changes"].as_object().is_some_and(|v| !v.is_empty())
+                    || last_wire_send.elapsed() >= Duration::from_secs(5)
+                {
+                    writeln!(output, "{packet}").ok();
+                    output.flush().ok();
+                    last_wire_send = std::time::Instant::now();
+                }
+            } else {
+                writeln!(output, "{snapshot}").ok();
+                output.flush().ok();
+            }
             if !watch {
                 break;
             }
@@ -513,7 +529,13 @@ mod system {
                 check_command_expiry(&json!({"expires_at":999}), 1000),
                 Err("Command expired before execution")
             );
-            for invalid in [json!(null), json!(-1), json!(1.5), json!("1001"), json!(true)] {
+            for invalid in [
+                json!(null),
+                json!(-1),
+                json!(1.5),
+                json!("1001"),
+                json!(true),
+            ] {
                 assert_eq!(
                     check_command_expiry(&json!({"expires_at":invalid}), 1000),
                     Err("Invalid command expiry")
