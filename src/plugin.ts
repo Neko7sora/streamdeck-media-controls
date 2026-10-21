@@ -273,7 +273,10 @@ streamDeck.ui.onSendToPlugin(ev=>{
   if(request.request==="alive"||request.request==="watch") {
     if(streamDeck.ui.action?.id!==ev.action.id) return;
     if(request.request==="watch"&&Number.isSafeInteger(request.settingsRevision)&&Number(request.settingsRevision)>=0) inspectorRevision=Number(request.settingsRevision);
-    void streamDeck.ui.sendToPropertyInspector({response:"alive",protocol:2,chromeConnection:chromeConnectionStatus()}).catch(e=>streamDeck.logger.warn(String(e)));return;
+    // An open inspector can outlive this plugin process and retain push mode.
+    // Restore its full handshake before relying on collection change notices.
+    void streamDeck.ui.sendToPropertyInspector({response:"alive",protocol:2,chromeConnection:chromeConnectionStatus(),
+      ...(inspectorId!==ev.action.id?{optionsRequired:true}:{})}).catch(e=>streamDeck.logger.warn(String(e)));return;
   }
   if(request.request==="registerChromeHost") {
     const requestId=request.requestId;

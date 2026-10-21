@@ -102,14 +102,17 @@ window.connectElgatoStreamDeckSocket=(port,uuid,registerEvent,_info,actionInfo)=
         return;
       }
       if(msg.payload.protocol===2) pushOptions=true;
-      if(msg.payload.settingsRevision===settingsRevision&&msg.payload.settings!=null){
-        settings=msg.payload.settings;settingsRevision++;
+      if(msg.payload.settings!=null){
+        if(msg.payload.settingsRevision===settingsRevision){settings=msg.payload.settings;settingsRevision++;}
+        // A recovery response may predate local edits made before push resumed.
+        // Keep the plugin's revision current even when those settings are stale.
         if(pushOptions) send("sendToPlugin",{request:"watch",settingsRevision});
       }
       if(msg.payload.sessions!==undefined) sessions=msg.payload.sessions;
       if(msg.payload.audio!==undefined) audioTargets=msg.payload.audio;
       lastOptionsAt=Date.now();if(msg.payload.chromeConnection!==undefined) showChromeConnection(msg.payload.chromeConnection);
       show();
+      if(msg.payload.optionsRequired===true){pushOptions=false;requestOptions();}
     }
   };
   socket.onclose=()=>{

@@ -6,24 +6,25 @@ const sentImages=new Set(),imageIds=new Map();
 const transferringImages=new Set();
 let wireSequence=0;
 const commandQueues=new Map();
-let pushedCommands=0;
-function queueCommand(command) {
+let queuedCommands=0;
+function queueCommand(command,frameState) {
   if(!command||typeof command.id!=="string") return;
-  if(pushedCommands>=32) {void post("/result",{id:command.id,ok:false}).catch(logUnavailable);return;}
+  if(queuedCommands>=32) {void post("/result",{id:command.id,ok:false}).catch(logUnavailable);return;}
   const key=`${command.tab_id}:${command.frame_id}:${command.document_id}`,generation=settingsGeneration;
-  const previous=commandQueues.get(key)??Promise.resolve();pushedCommands++;
-  const next=previous.then(()=>receiveCommand(command,generation)).finally(()=>{pushedCommands--;if(commandQueues.get(key)===next) commandQueues.delete(key);});
+  const previous=commandQueues.get(key)??Promise.resolve();queuedCommands++;
+  const next=previous.then(()=>receiveCommand(command,generation,frameState)).finally(()=>{queuedCommands--;if(commandQueues.get(key)===next) commandQueues.delete(key);});
   commandQueues.set(key,next);
+  return next;
 }
 function contact(){lastContact=Date.now();if(connectionState!=="disabled") setConnectionState("connected");}
 function resetWire(){wireGeneration++;sentImages.clear();transferringImages.clear();for(const state of frames.values()) {state.sent=undefined;state.sequence=undefined;}}
 function replayFrames(){for(const state of frames.values()) if(state.sample&&Date.now()-state.sample.receivedAt<15000) {state.latest??=state.sample;queueFrame(state);}drainFrames();}
-async function receiveCommand(command,generation) {
+async function receiveCommand(command,generation,frameState) {
   if(!command||typeof command.id!=="string"||!Number.isSafeInteger(command.tab_id)||!Number.isSafeInteger(command.frame_id)||typeof command.document_id!=="string") return;
   if(generation!==settingsGeneration) return;
   try {
     const {enabled=false}=await chrome.storage.local.get(["enabled"]);
-    if(!enabled||generation!==settingsGeneration) return;
+    if(!enabled||generation!==settingsGeneration||frameState&&!currentFrame(frameState)) return;
     // The content bridge and page independently revalidate document and target ID.
     let result={ok:false};
     try {result=await chrome.tabs.sendMessage(command.tab_id,{type:"MEDIA_COMMAND",command},{documentId:command.document_id,frameId:command.frame_id});} catch {}
@@ -331,13 +332,11 @@ async function processFrame(state) {
     const response=protocol===2?await sendDelta(state,update,payload):await post("",{tab_id:state.tab,frame_id:frame,document_id:update.sender.documentId,sequence:Date.now(),media:payload});
     if(generation!==settingsGeneration||!currentFrame(state)) return;
     if(response.skipped!==true) contact();
-    for(const command of response.commands??[]) {
-      const current=await chrome.storage.local.get(["enabled"]);
-      if(!currentFrame(state) || generation!==settingsGeneration || !current.enabled) return;
-      let result={ok:false};
-      try {result=await chrome.tabs.sendMessage(state.tab,{type:"MEDIA_COMMAND",command},{documentId:update.sender.documentId,frameId:frame});} catch {}
-      await post("/result",{id:command.id,ok:result?.ok===true});
-    }
+    // Polling can overlap a reconnecting command stream. Enqueue the whole
+    // response before waiting so neither transport can overtake earlier work.
+    const commands=[];
+    for(const command of response.commands??[]) commands.push(queueCommand({...command,tab_id:state.tab,frame_id:frame,document_id:update.sender.documentId},state));
+    await Promise.all(commands);
   } catch {if(generation===settingsGeneration) setConnectionState("disconnected");logUnavailable();}
 }
 chrome.runtime.onMessage.addListener((message,sender,_reply)=>{

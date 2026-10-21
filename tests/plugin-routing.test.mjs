@@ -8,7 +8,7 @@ test("Now Playing operates the session last sent to the display, and never falls
   const driver={instances:[],commands:[],audioRequests:[],inspectorReplies:[],current:a,sessions:[a,b]};globalThis.__mediaTest=driver;
   const mocks={
     sdk:`const d=globalThis.__mediaTest;export class SingletonAction{actions=[];} export function action(){return c=>c;} export default {actions:{registerAction(a){d.instances.push(a);}},ui:{get action(){return d.inspectorAction;},onSendToPlugin(fn){d.onSendToPlugin=fn;},async sendToPropertyInspector(payload){d.inspectorReplies.push(payload);}},logger:{warn(){},error(){},info(){}},async connect(){}};`,
-    state:`const d=globalThis.__mediaTest;export function currentMedia(id="auto"){return id==="auto"?d.current:d.sessions.find(x=>x.session_id===id)??null;}export function availableSessions(){return d.sessions;}export function audioTarget(id){d.audioRequests.push(id);return "audio" in d?d.audio:{name:id,volume:0.5,muted:false};}export function audioTargets(){return [];}export function subscribe(){}export function subscribeChanges(){}export function startMediaPolling(){return ()=>{};}`,
+    state:`const d=globalThis.__mediaTest;export function currentMedia(id="auto"){return id==="auto"?d.current:d.sessions.find(x=>x.session_id===id)??null;}export function availableSessions(){return d.sessions;}export function audioTarget(id){d.audioRequests.push(id);return "audio" in d?d.audio:{name:id,volume:0.5,muted:false};}export function audioTargets(){return [];}export function subscribe(){}export function subscribeChanges(fn){d.onStateChanged=fn;}export function startMediaPolling(){return ()=>{};}`,
     native:`export async function nativeCommand(c){const d=globalThis.__mediaTest;d.commands.push(c);await d.command?.(c);}`,
     chrome:`export function chromeConnectionStatus(){return {state:"connected",lastSeen:123,sessions:0};}export function startChromeServer(){return {close(){},closeAllConnections(){}};}export async function chromeCommand(...args){const d=globalThis.__mediaTest;if(!d.chromeCommands) throw Error("Unexpected Chrome command");d.chromeCommands.push(args);await d.chromeCommand?.(...args);}`,
     registration:`export function registerChromeHost(){const d=globalThis.__mediaTest;d.registrations=(d.registrations??0)+1;return d.registration??Promise.resolve({status:"registered",message:"Registered"});}export function stopChromeRegistration(){}`,
@@ -22,6 +22,26 @@ test("Now Playing operates the session last sent to the display, and never falls
   await load("plugin",[plugin]);
   assert.equal(driver.registrations??0,0,"startup must not register a Chrome host");
   const nextTurn=()=>new Promise(resolve=>setImmediate(resolve));
+  // The Stream Deck socket survives a plugin restart, so an already-open PI
+  // continues sending alive/watch rather than the initial options request.
+  const recoveringInspector={id:'recovering-inspector',async getSettings(){return {mediaTarget:'A'};}};
+  driver.inspectorAction=recoveringInspector;
+  for(const request of ['alive','watch']) {
+    driver.onSendToPlugin({action:recoveringInspector,payload:{request,settingsRevision:4}});
+    await nextTurn();
+    assert.equal(driver.inspectorReplies.at(-1).optionsRequired,true,'an unregistered inspector must be told to resubscribe');
+  }
+  driver.onSendToPlugin({action:recoveringInspector,payload:{request:'options',settingsRevision:4}});
+  await nextTurn();
+  assert.equal(driver.inspectorReplies.at(-1).sessions.length,2);
+  driver.onSendToPlugin({action:recoveringInspector,payload:{request:'alive'}});
+  await nextTurn();
+  assert.equal(driver.inspectorReplies.at(-1).optionsRequired,undefined,'registered inspectors keep lightweight probes');
+  driver.sessions=[b];driver.onStateChanged();await nextTurn();
+  assert.equal(driver.inspectorReplies.at(-1).response,'optionsChanged');
+  assert.deepEqual(driver.inspectorReplies.at(-1).sessions.map(item=>item.id),['B']);
+  driver.sessions=[a,b];driver.inspectorAction=undefined;driver.onStateChanged();
+  driver.inspectorReplies.length=0;
   let releaseSettings;
   const settingsRead=new Promise(resolve=>{releaseSettings=resolve;});
   const inspectorAction={id:"inspector-A",getSettings:()=>settingsRead};

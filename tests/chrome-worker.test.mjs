@@ -360,6 +360,57 @@ test('pushed commands remain serial per document and an interrupted opt-in canno
   w.changeSettings({enabled:false});w.changeSettings({enabled:true});gate.resolve();await flush();assert.equal(w.commands.length,1);
 });
 
+test('polling fallback and later pushed commands preserve order behind an in-flight pushed command',async()=>{
+  let ui;const gate=deferred();
+  const command=id=>({id,tab_id:4,frame_id:0,document_id:'doc-0',title:'Track',target_id:'media-1',command:'play-pause'});
+  const w=worker(true,undefined,{
+    protocol2:true,inspect(value){ui=value;},
+    async sendMessage(_tab,{command:c}){if(c.id==='first') await gate.promise;return {ok:true};},
+    async bridgeResponse(url){return {json:async()=>({ok:true,commands:url.endsWith('/result')?[]:[command('second'),command('third')]})};}
+  });await flush();
+  ui.event({event:'command',command:command('first')});await flush();
+  ui.event({event:'disconnected'});w.send({title:'Track'});await flush();
+  ui.event({event:'command',command:command('fourth')});await flush();
+  assert.deepEqual(w.commands.map(x=>x.message.command.id),['first'],'fallback must wait for the already running command');
+  gate.resolve();await flush();
+  assert.deepEqual(w.commands.map(x=>x.message.command.id),['first','second','third','fourth'],'an entire polling batch precedes later pushes');
+  assert.deepEqual(w.requests.filter(x=>x.url.endsWith('/result')).map(x=>JSON.parse(x.options.body).id),['first','second','third','fourth']);
+});
+
+test('a pushed command waits for an in-flight polling command in the same document',async()=>{
+  let ui;const gate=deferred();
+  const command=id=>({id,tab_id:4,frame_id:0,document_id:'doc-0',title:'Track',target_id:'media-1',command:'play-pause'});
+  const w=worker(true,undefined,{
+    protocol2:true,inspect(value){ui=value;},
+    async sendMessage(_tab,{command:c}){if(c.id==='polled') await gate.promise;return {ok:true};},
+    async bridgeResponse(url){return {json:async()=>({ok:true,commands:url.endsWith('/result')?[]:[command('polled')]})};}
+  });await flush();
+  w.send({title:'Track'});await flush();
+  ui.event({event:'command',command:command('pushed')});await flush();
+  assert.deepEqual(w.commands.map(x=>x.message.command.id),['polled']);
+  gate.resolve();await flush();
+  assert.deepEqual(w.commands.map(x=>x.message.command.id),['polled','pushed']);
+});
+
+test('queued polling fallback is discarded when its tab closes or its opt-in generation changes',async()=>{
+  for(const change of ['close','disable-enable']) {
+    let ui;const gate=deferred();
+    const command=id=>({id,tab_id:4,frame_id:0,document_id:'doc-0',title:'Track',target_id:'media-1',command:'play-pause'});
+    const w=worker(true,undefined,{
+      protocol2:true,inspect(value){ui=value;},
+      async sendMessage(_tab,{command:c}){if(c.id==='first') await gate.promise;return {ok:true};},
+      async bridgeResponse(url){return {json:async()=>({ok:true,commands:url.endsWith('/result')?[]:[command('queued')]})};}
+    });await flush();
+    ui.event({event:'command',command:command('first')});await flush();
+    w.send({title:'Track'});await flush();
+    assert.deepEqual(w.commands.map(x=>x.message.command.id),['first']);
+    if(change==='close') w.remove(4);
+    else {w.changeSettings({enabled:false});w.changeSettings({enabled:true});}
+    gate.resolve();await flush();
+    assert.deepEqual(w.commands.map(x=>x.message.command.id),['first'],change);
+  }
+});
+
 test('new plugin with an old installed host falls back to full updates without advertising slow polling',async()=>{
   let ui;const w=worker(true,undefined,{protocol2:true,failStream:true,inspect(value){ui=value;}});await flush();
   let capability;ui.message({type:'MEDIA_UPDATE',media:{title:'Track'}},{tab:{id:4,title:'Tab'},frameId:0,documentId:'doc',url:'https://site.test/'},value=>{capability=value;});

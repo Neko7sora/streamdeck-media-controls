@@ -326,3 +326,33 @@ test('push inspector preserves partial collections, sends only lightweight liven
  assert.equal(pi.elements.get('details').textContent,'Details');
  pi.advance(6001);assert.equal(pi.elements.get('chrome-connection').dataset.state,'unavailable');
 });
+
+test('a restarted plugin restores the inspector subscription without losing local edits or retrying registration',()=>{
+  const pi=inspector({mediaTarget:'A',audioTarget:'app'});
+  pi.receive('sendToPropertyInspector',{protocol:2,sessions:[{id:'A',label:'Track A'}],audio:[{id:'app',label:'Player'}]});
+  pi.advance(6001);
+  const beforeRecovery=pi.messages.length;
+  pi.receive('sendToPropertyInspector',{protocol:2,response:'alive',optionsRequired:true,chromeConnection:{state:'connected',sessions:1}});
+  assert.equal(pi.messages.length,beforeRecovery+1);
+  const request=pi.messages.at(-1).payload;
+  assert.equal(request.request,'options','a new plugin needs a full subscription handshake');
+  pi.change('scroll-text',false);
+  pi.receive('sendToPropertyInspector',{protocol:2,settingsRevision:request.settingsRevision,
+    settings:{mediaTarget:'A',audioTarget:'app'},sessions:[{id:'B',label:'Track B'}],audio:[]});
+  assert.equal(pi.elements.get('scroll-text').checked,false,'a delayed recovery reply must preserve local edits');
+  assert.equal(pi.elements.get('media').value,'A','a missing saved target must stay selected');
+  assert.equal(pi.elements.get('media').children.some(option=>option.value==='B'),true);
+  assert.equal(pi.elements.get('audio').value,'app');
+  const watch=pi.messages.at(-1).payload;
+  assert.deepEqual(watch,{request:'watch',settingsRevision:request.settingsRevision+1},'recovery must resynchronize the revision after local edits');
+  pi.receive('sendToPropertyInspector',{response:'settingsChanged',settingsRevision:watch.settingsRevision,
+    settings:{mediaTarget:'B',audioTarget:'app',scrollText:false}});
+  assert.equal(pi.elements.get('media').value,'B','a subsequent dial selection must reach the recovered inspector');
+  assert.equal(pi.elements.get('scroll-text').checked,false);
+  pi.receive('sendToPropertyInspector',{protocol:2,response:'optionsChanged',sessions:[{id:'C',label:'Track C'}]});
+  assert.equal(pi.elements.get('media').children.some(option=>option.value==='C'),true);
+  const afterRecovery=pi.messages.length;
+  pi.advance(3000);
+  assert.deepEqual(pi.messages.slice(afterRecovery).map(message=>message.payload.request),['alive']);
+  assert.equal(pi.messages.some(message=>message.payload?.request==='registerChromeHost'),false);
+});
