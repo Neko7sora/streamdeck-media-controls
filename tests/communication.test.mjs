@@ -33,6 +33,19 @@ test('Windows wire shares current/session images, applies partial updates, heart
   assert.throws(()=>wire.decode({changes:{sessions:[{artwork_data_url:{image:'1'}}]},images:{}}),/Missing/);
 });
 
+test('Chrome delta bases remain independent across profiles and navigation',()=>{
+  const wire=new ChromeWire(),a='aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',b='bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb';
+  wire.decode({...packet,client_id:a});
+  wire.decode({...packet,client_id:b,media:{title:'Profile B'},images:{}});
+  wire.decode({...packet,client_id:b,document_id:'next-doc',media:{title:'Navigated B'},images:{}});
+  const delta={...packet,client_id:a,base:1,sequence:2,media:{playback_state:'paused'},images:{}};
+  assert.deepEqual(wire.decode(delta).media,{title:'Track',artist:'Artist',artwork_data_url:image,playback_state:'paused'});
+  wire.remove(1,b);
+  assert.equal(wire.decode({...delta,base:2,sequence:3}).media.title,'Track');
+  assert.deepEqual(wire.decode({...delta,client_id:b,document_id:'next-doc'}),{resync:true});
+  assert.throws(()=>wire.decode({...packet,client_id:'invalid'}),/client ID/);
+});
+
 test('Chrome image eviction requests only missing content and navigation invalidates old delta bases',()=>{
   const wire=new ChromeWire();wire.decode(packet);
   for(let index=0;index<128;index++) {

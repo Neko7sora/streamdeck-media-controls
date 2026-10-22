@@ -31,6 +31,8 @@
 
 HTTPは引き続き `127.0.0.1` だけで待ち受け、Bearer tokenとWindows DACLを変更しません。トークンはホストだけが読み、Chrome拡張には渡しません。ストリームにも同じトークンが必要です。ホストごとの一時client IDで、状態を送信したホストに操作を配信します。ストリームは最大8本、書き込みが詰まった接続は閉じます。
 
+拡張機能は `storage.local` の `bridgeClientId` に接続元ごとの UUID を保存し、各要求の `client_id` として送ります。再生状態・差分の基準・操作・結果の照合にはこの安定した ID を含め、同じタブ／frame／document ID が別の接続元に存在しても混在させません。Native Messaging ホストの `x-sdmc-client` は一時的な配送先として使い、再接続で変わっても保存済みの再生対象は維持します。`client_id` を省略する旧拡張は従来の名前空間を使います。新方式への初回更新時は明示選択していた Chrome 対象の再選択が必要です。
+
 Native Messagingのallowed_origins、TRUSTED_CONTEXTS、送信のオプトイン、画像URL・容量・MIME・リダイレクトの制限、ページURLからの秘密情報除去を維持します。popupのportも拡張IDとoptions.htmlのURLで検証します。
 
 ホストは切断後250msから最大5秒の間隔で再接続し、再接続のたびにトークンを読み直します。ストリームreadyまたはepoch変更時には差分のbaseと転送済み画像を忘れ、15秒以内にページから観測した状態と必要な画像を再送します。古いdocument、無効化前の処理、閉じたタブの画像・操作は復活させません。キャッシュ失効、タブ移動、Chrome worker再起動にも全状態または不足画像の再送で対応します。

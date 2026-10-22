@@ -1,5 +1,6 @@
 import {createHash} from "node:crypto";
 import {safeImage} from "./media-model.js";
+import {chromeClientId,chromeFrameKey} from "./chrome-identity.js";
 
 // Transport state is separate from validated media and is bounded independently.
 export class ChromeWire {
@@ -7,9 +8,10 @@ export class ChromeWire {
   private bytes=0;
   private frames=new Map<string,{sequence:number;media:Record<string,unknown>}>();
   clear():void {this.images.clear();this.frames.clear();this.bytes=0;}
-  remove(tab:number):void {for(const key of this.frames.keys()) if(key.startsWith(`${tab}:`)) this.frames.delete(key);}
+  remove(tab:number,client=""):void {for(const key of this.frames.keys()) if(key.startsWith(`${client?`${client}:`:""}${tab}:`)) this.frames.delete(key);}
   decode(v:Record<string,unknown>):{media?:unknown;resync?:boolean;missing?:string[]} {
-    const key=`${v.tab_id}:${v.frame_id}:${v.document_id}`;
+    const prefix=`${chromeFrameKey(Number(v.tab_id),Number(v.frame_id),chromeClientId(v.client_id))}:`;
+    const key=`${prefix}${v.document_id}`;
     if(v.media===null) {this.frames.delete(key);return {media:null};}
     if(!v.media||typeof v.media!=="object"||Array.isArray(v.media)) throw Error("Invalid delta");
     if(JSON.stringify(v.media).length>64000) throw Error("Oversized delta");
@@ -40,7 +42,6 @@ export class ChromeWire {
     }
     if(missing.length) return {missing};
     // Navigation replaces the old document's base, rather than accumulating documents.
-    const prefix=`${v.tab_id}:${v.frame_id}:`;
     for(const old of this.frames.keys()) if(old.startsWith(prefix)&&old!==key) this.frames.delete(old);
     this.frames.delete(key);this.frames.set(key,{sequence:Number(v.sequence),media:raw});
     if(this.frames.size>256) this.frames.delete(this.frames.keys().next().value!);

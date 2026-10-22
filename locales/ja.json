@@ -38,7 +38,7 @@
   "display.and.playback.target": "表示・再生操作の対象",
   "display.help": "このキー／ダイヤルだけに適用され、変更するとすぐに反映されます。初期設定はすべて表示です。",
   "display.hidden.help": "表示を非表示にしても、選択した操作対象とキー／ダイヤルの操作は変わりません。",
-  "display.progress.hiddenHelp": "進捗バーを非表示にすると、画面下部のタップも再生／一時停止になります。ダイヤル回転でのシークは引き続き利用できます。",
+  "display.progress.hiddenHelp": "進捗バーを非表示にすると、画面下部のタップも再生／一時停止になります。ダイヤル回転は、選択したモード（シーク／音量）のまま利用できます。",
   "duration": "総時間",
   "enable.sending.and.save.to.check.the.connection": "送信を有効にして保存すると、接続を確認します。",
   "enable.sending.from.the.browser": "ブラウザからの送信を有効化",

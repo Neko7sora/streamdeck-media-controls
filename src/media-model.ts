@@ -12,6 +12,7 @@ export interface MediaItem {
   session_id?: string;
   frame_id?: number;
   document_id?: string;
+  client_id?: string;
   observed_at?: number;
   enriched_at?: number;
   field_sources?: Record<string,"windows"|"chrome">;

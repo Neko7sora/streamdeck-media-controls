@@ -42,7 +42,7 @@
   "display.and.playback.target": "Display and playback target",
   "display.help": "Applies immediately to this key / dial only. All items are visible by default.",
   "display.hidden.help": "Hiding items does not change the selected target or key / dial controls.",
-  "display.progress.hiddenHelp": "When the progress bar is hidden, tapping the bottom of the screen also toggles playback. You can still rotate the dial to seek.",
+  "display.progress.hiddenHelp": "When the progress bar is hidden, tapping the bottom of the screen also toggles playback. Dial rotation still follows the selected mode (seek or volume).",
   "duration": "Duration",
   "enable.sending.and.save.to.check.the.connection": "Enable sending and save to check the connection.",
   "enable.sending.from.the.browser": "Enable sending from the browser",

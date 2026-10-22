@@ -52,3 +52,61 @@ test("Windows pairing token has a restricted DACL and survives bridge restart",{
     if(i===0) t.token=token;else assert.equal(token,t.token);
   }
 });
+
+test('profile namespaces isolate polling, acknowledgements and reconnected command streams',{timeout:10000},async t=>{
+  const token='c'.repeat(64),server=bridge.startChromeServer(()=>{},{token,port:0});
+  await once(server,'listening');
+  const base=`http://127.0.0.1:${server.address().port}`;
+  const a='aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',b='bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb';
+  const oldHost='11111111-1111-4111-8111-111111111111',newHost='22222222-2222-4222-8222-222222222222';
+  const controllers=[];
+  t.after(()=>{for(const controller of controllers) controller.abort();server.closeAllConnections();server.close();});
+  const post=async(path,body,host)=>fetch(base+path,{method:'POST',headers:{'content-type':'application/json',authorization:`Bearer ${token}`,...(host?{'x-sdmc-client':host}:{})},body:JSON.stringify(body)});
+  const update=(client,sequence=1)=>({protocol:2,client_id:client,tab_id:90,frame_id:0,document_id:'same-doc',sequence,base:null,media:{title:client===a?'Profile A':'Profile B'},images:{}});
+  await post('/chrome/status',{});
+  const initial=bridge.chromeConnectionStatus().sessions;
+  for(const invalid of [null,17,'','bad:id','a'.repeat(1000)]) assert.equal((await post('/chrome',{...update(a),client_id:invalid})).status,400);
+  assert.equal((await post('/chrome',update(a))).status,200);
+  assert.equal((await post('/chrome',update(b))).status,200);
+  assert.equal(bridge.chromeConnectionStatus().sessions,initial+2,'matching tab and document IDs coexist');
+  const pending=bridge.chromeCommand(90,0,'same-doc','Profile A','play-pause',undefined,'media-1',a);
+  let completed=false;pending.then(()=>{completed=true;});
+  assert.deepEqual((await (await post('/chrome',update(b,2))).json()).commands,[]);
+  const reply=await (await post('/chrome',update(a,2))).json();
+  assert.equal(reply.commands.length,1);assert.equal(reply.commands[0].client_id,a);
+  const result={id:reply.commands[0].id,ok:true};
+  await post('/chrome/result',{...result,client_id:b});
+  assert.equal(completed,false,'another profile cannot acknowledge the operation');
+  await post('/chrome/result',result);
+  assert.equal(completed,false,'legacy results cannot acknowledge namespaced operations');
+  await post('/chrome/result',{...result,client_id:a});await pending;
+
+  const subscribe=async host=>{
+    const controller=new AbortController();controllers.push(controller);
+    const response=await fetch(base+'/chrome/events',{headers:{authorization:`Bearer ${token}`,'x-sdmc-client':host},signal:controller.signal});
+    const reader=response.body.getReader(),decoder=new TextDecoder();let buffer='';
+    return async()=>{
+      while(!buffer.includes('\n')) {const value=await reader.read();assert.equal(value.done,false);buffer+=decoder.decode(value.value,{stream:true});}
+      const end=buffer.indexOf('\n'),event=JSON.parse(buffer.slice(0,end));buffer=buffer.slice(end+1);return event;
+    };
+  };
+  // A native-host restart replaces only the transport owner, not the profile identity.
+  const oldEvents=await subscribe(oldHost);assert.equal((await oldEvents()).event,'ready');
+  await post('/chrome',update(a,3),oldHost);
+  const newEvents=await subscribe(newHost);assert.equal((await newEvents()).event,'ready');
+  await post('/chrome',{...update(a,4),base:3,media:{playback_state:'paused'}},newHost);
+  await post('/chrome',update(a,3),oldHost);
+  assert.equal(bridge.chromeConnectionStatus().sessions,initial+2,'host reconnects preserve the existing session');
+  // A second profile's navigation must not delete A's stream owner or delta base.
+  await post('/chrome',{...update(b,3),document_id:'next-doc'},oldHost);
+  const pushed=bridge.chromeCommand(90,0,'same-doc','Profile A','stop',undefined,'media-1',a);
+  const event=await newEvents();assert.equal(event.event,'command');assert.equal(event.command.client_id,a);
+  await post('/chrome/result',{id:event.command.id,ok:true,client_id:a},newHost);await pushed;
+  const delta=await (await post('/chrome',{...update(a,5),base:4,media:{title:'Still A'}},newHost)).json();
+  assert.equal(delta.ok,true);assert.equal(delta.resync,undefined);
+  await post('/chrome',{...update(b,4),document_id:'next-doc',media:null},oldHost);
+  assert.equal(bridge.chromeConnectionStatus().sessions,initial+1);
+  await post('/chrome',{...update(a,6),media:null},newHost);
+  await post('/chrome',update(a,5),oldHost);
+  assert.equal(bridge.chromeConnectionStatus().sessions,initial,'delayed data cannot revive cleared media');
+});

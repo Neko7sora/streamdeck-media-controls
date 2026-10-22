@@ -323,12 +323,13 @@ test("Now Playing operates the session last sent to the display, and never falls
   assert.equal(driver.commands.length,changedTrackCommands,'a queued tap cannot seek a different track');
   assert.equal(alerts,changedTrackAlerts+1);
   // Chrome targets can change within one document without any metadata change.
-  const chromeMedia={...seekMedia,source:'chrome',session_id:'chrome:1:0:document',tab_id:1,frame_id:0,document_id:'document',
+  const clientId='aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
+  const chromeMedia={...seekMedia,source:'chrome',session_id:`chrome:${clientId}:1:0:document`,client_id:clientId,tab_id:1,frame_id:0,document_id:'document',
     browser_media:{target_id:'media-1'}};
   driver.sessions=[chromeMedia];driver.current=chromeMedia;driver.chromeCommands=[];
   await seeking.render(dial,{});
   await seeking.onDialDown({action:dial,payload:{settings:{}}});
-  assert.deepEqual(driver.chromeCommands.at(-1),[1,0,'document','Track','play-pause',undefined,'media-1']);
+  assert.deepEqual(driver.chromeCommands.at(-1),[1,0,'document','Track','play-pause',undefined,'media-1',clientId]);
   seeking.seeking.clear(dial.id);
   let releaseChrome;
   driver.chromeCommand=()=>new Promise(resolve=>{releaseChrome=resolve;});
@@ -340,7 +341,7 @@ test("Now Playing operates the session last sent to the display, and never falls
   assert.equal(driver.chromeCommands.length,chromeCommands,'queued seeks cannot adopt a replacement source target ID');
   assert.equal(alerts,chromeAlerts+1);
   await rotate(1);
-  assert.deepEqual(driver.chromeCommands.at(-1),[1,0,'document','Track','seek',55,'media-2']);
+  assert.deepEqual(driver.chromeCommands.at(-1),[1,0,'document','Track','seek',55,'media-2',clientId]);
   delete driver.chromeCommands;
   const long={...a,title:"春夏秋冬東西南北朝昼夕夜一二三四五六七八九十",artist:"あいうえおかきくけこさしすせそ",playback_state:"playing"};
   driver.current=long;driver.sessions=[long];

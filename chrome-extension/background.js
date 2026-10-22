@@ -28,6 +28,8 @@ async function receiveCommand(command,generation,frameState) {
   try {
     const {enabled=false}=await chrome.storage.local.get(["enabled"]);
     if(!enabled||generation!==settingsGeneration||frameState&&!currentFrame(frameState)) return;
+    if(command.client_id!==undefined&&command.client_id!==await getBridgeClientId()) return;
+    if(generation!==settingsGeneration||frameState&&!currentFrame(frameState)) return;
     // The content bridge and page independently revalidate document and target ID.
     let result={ok:false};
     try {result=await chrome.tabs.sendMessage(command.tab_id,{type:"MEDIA_COMMAND",command},{documentId:command.document_id,frameId:command.frame_id});} catch {}
@@ -127,6 +129,22 @@ function drainArtwork() {
 let settingsGeneration=0;
 // Content scripts cannot access extension settings.
 const storageReady=chrome.storage.local.setAccessLevel({accessLevel:"TRUSTED_CONTEXTS"});
+let bridgeClientId,loadingClientId;
+function getBridgeClientId() {
+  if(bridgeClientId) return Promise.resolve(bridgeClientId);
+  if(loadingClientId) return loadingClientId;
+  // Persist one identity per extension profile; native host connections are temporary.
+  // Initialize only when sending is enabled, and retry failed storage operations later.
+  loadingClientId=(async()=>{
+    await storageReady;
+    const stored=(await chrome.storage.local.get(["bridgeClientId"])).bridgeClientId;
+    const valid=typeof stored==="string"&&/^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/.test(stored);
+    const id=valid?stored:crypto.randomUUID();
+    if(!valid) await chrome.storage.local.set({bridgeClientId:id});
+    bridgeClientId=id;return id;
+  })().finally(()=>{loadingClientId=undefined;});
+  return loadingClientId;
+}
 function checkConnection() {
   if(checkingConnection) return checkingConnection;
   if(protocol===2&&Date.now()-lastContact<10000) return Promise.resolve();
@@ -268,11 +286,13 @@ let activeJobs=0;
 let lastErrorLog=0;
 function logUnavailable(){if(Date.now()-lastErrorLog>30000){lastErrorLog=Date.now();console.warn("Local media bridge unavailable; retrying on the next update.");}}
 async function post(path,body) {
+  const generation=settingsGeneration,clientId=await getBridgeClientId();
+  if(generation!==settingsGeneration) throw new Error("Sending settings changed");
   const port=connectNative(),id=++requestId;
   return new Promise((resolve,reject)=>{
     const timer=setTimeout(()=>{nativeRequests.delete(id);reject(new Error("Native request timed out"));},4000);
     nativeRequests.set(id,{resolve,reject,timer});
-    try {port.postMessage({id,path,body});} catch(error) {nativeRequests.delete(id);clearTimeout(timer);reject(error);}
+    try {port.postMessage({id,path,body:{...body,client_id:clientId}});} catch(error) {nativeRequests.delete(id);clearTimeout(timer);reject(error);}
   });
 }
 function pageAddress(value){try{const u=new URL(value);return /^https?:$/.test(u.protocol)?u.origin+u.pathname:"";}catch{return "";}}

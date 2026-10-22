@@ -40,6 +40,24 @@ test("matching is conservative when artist missing, albums differ or tabs ambigu
   assert.equal(model.chooseCurrent({current:w,sessions:[w]},[c],"disconnected"),null);
 });
 
+test('Chrome profiles isolate matching tab IDs, sequences, navigation and removal',()=>{
+  const a='aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',b='bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb';
+  const session=(client,document='doc')=>`chrome:${client}:7:0:${document}`;
+  state.ingestChrome(7,0,{title:'Profile A'},100,'doc',a);
+  state.ingestChrome(7,0,{title:'Profile B'},1,'doc',b);
+  assert.equal(state.currentMedia(session(a)).title,'Profile A');
+  assert.equal(state.currentMedia(session(b)).title,'Profile B');
+  assert.equal(state.currentMedia(session(a)).client_id,a);
+  state.ingestChrome(7,0,{title:'B navigated'},2,'next',b);
+  assert.equal(state.currentMedia(session(b)),null);
+  assert.equal(state.currentMedia(session(b,'next')).title,'B navigated');
+  assert.equal(state.currentMedia(session(a)).title,'Profile A');
+  state.ingestChrome(7,0,null,3,'next',b);
+  assert.equal(state.currentMedia(session(b,'next')),null);
+  assert.equal(state.currentMedia(session(a)).title,'Profile A');
+  state.ingestChrome(7,0,null,101,'doc',a);
+});
+
 test("auto target is shared and stable while Chrome tabs publish alternating heartbeats",()=>{
  const originalNow=Date.now;
  let now=100000;

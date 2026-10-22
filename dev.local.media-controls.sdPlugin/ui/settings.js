@@ -65,11 +65,11 @@ function show(){
   const isVolumeDial=action==="dev.local.media-controls.volume-dial";
   const globalMode=!isNowPlaying&&settings.globalKeys===true;
   document.getElementById("media-settings").hidden=globalMode||isVolume;
-  document.getElementById("audio-settings").hidden=globalMode||(!isVolume&&!isNowPlaying);
+  document.getElementById("audio-settings").hidden=globalMode||(!isVolume&&!isDial);
   document.getElementById("target-note").textContent=globalMode?
     isVolume?t("target.globalVolume.help"):t("target.globalPlayback.help"):
     isVolume?t("target.volume.help"):
-    isNowPlaying?t("target.independent.help"):t("target.playback.help");
+    isDial?t("target.independent.help"):t("target.playback.help");
   document.getElementById("now-playing-help").hidden=!isDial;
   document.getElementById("global-settings").hidden=isNowPlaying;
   document.getElementById("display-settings").hidden=false;

@@ -104,6 +104,18 @@ test('target controls match the operation and global mode without discarding sav
   }
 });
 
+test('Now Playing exposes volume targets only for the dial and preserves hidden settings',()=>{
+  const saved={mediaTarget:'A',audioTarget:'app'};
+  const key=inspector(saved,{action:'dev.local.media-controls.now-playing'});
+  const dial=inspector(saved,{action:'dev.local.media-controls.now-playing-dial'});
+  assert.equal(key.elements.get('media-settings').hidden,false);
+  assert.equal(key.elements.get('audio-settings').hidden,true);
+  assert.equal(dial.elements.get('audio-settings').hidden,false);
+  assert.notEqual(key.elements.get('target-note').textContent,dial.elements.get('target-note').textContent);
+  key.change('scroll-text',false);
+  assert.deepEqual(key.messages.at(-1).payload,{...saved,scrollText:false});
+});
+
 test('display toggles persist independently, survive stale options, and restore saved values on reconnect',()=>{
   const saved={mediaTarget:"A",audioTarget:"app",showArtist:false,showProgress:false,extra:"preserved"};
   const pi=inspector(saved);

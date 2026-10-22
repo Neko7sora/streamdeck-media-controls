@@ -12,7 +12,7 @@ test('connection badges probe without media, recover from failures, and stop pro
   const w=worker(true,undefined,{inspect(value){ui=value;},async statusResponse(){if(fail) throw Error('offline');return {json:async()=>({ok:true})};}});
   await flush();
   assert.equal(ui.badges.at(-1),'ON');assert.equal(w.requests.length,0);assert.equal(w.images.length,0);
-  assert.deepEqual(JSON.parse(ui.probes[0].options.body),{});
+  assert.deepEqual(JSON.parse(ui.probes[0].options.body),{client_id:w.settings.bridgeClientId});
   fail=true;ui.pulse();await flush();assert.equal(ui.badges.at(-1),'!');
   fail=false;assert.equal((await ui.status()).state,'connected');assert.equal(ui.badges.at(-1),'ON');
   w.changeSettings({enabled:false});await flush();
@@ -447,4 +447,61 @@ test('popup subscription authenticates the extension page and pushes state chang
   w.changeSettings({enabled:false});await flush();assert.equal(replies.at(-1).state,'disabled');
   incoming({type:'status'});assert.equal(replies.at(-1).state,'disabled');assert.equal(closed,false);
   ui.connect({...port,sender:{id:'extension-id',url:'https://site.test/'}});assert.equal(closed,true);
+});
+
+test('profile identity is shared across concurrent requests and survives worker and host restarts',async()=>{
+  const w=worker();w.send({title:'Track'},0);w.send({title:'Other track'},1);await flush();
+  const id=w.settings.bridgeClientId;
+  assert.match(id,/^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/);
+  assert.equal(w.storageWrites.length,1,'concurrent first requests persist only one profile identity');
+  assert.ok(w.nativeMessages.length>=3);
+  assert.ok(w.nativeMessages.every(message=>message.body.client_id===id));
+  w.disconnect();w.send({title:'After host restart'});await flush();
+  assert.equal(w.connections(),2);
+  assert.equal(w.nativeMessages.at(-1).body.client_id,id);
+  const restarted=worker(true,undefined,{settings:w.settings});await flush();
+  assert.equal(restarted.storageWrites.length,0);
+  assert.equal(restarted.nativeMessages[0].body.client_id,id);
+  const other=worker();await flush();
+  assert.notEqual(other.settings.bridgeClientId,id,'another profile has a distinct namespace');
+});
+
+test('disabled sending creates no identity and a failed identity save retries without sending',async()=>{
+  const disabled=worker(false);await flush();
+  assert.equal(disabled.storageWrites.length,0);assert.equal(disabled.connections(),0);
+  disabled.changeSettings({enabled:true});await flush();
+  assert.equal(disabled.storageWrites.length,1);assert.equal(disabled.connections(),1);
+  let ui,attempts=0;
+  const w=worker(true,undefined,{inspect(value){ui=value;},async saveSettings(){if(++attempts===1) throw Error('Storage temporarily unavailable');}});
+  await flush();
+  assert.equal(ui.badges.at(-1),'!');assert.equal(w.connections(),0);
+  assert.equal(w.settings.bridgeClientId,undefined);assert.equal(w.nativeMessages.length,0);
+  ui.pulse();await flush();
+  assert.equal(attempts,2);assert.equal(ui.badges.at(-1),'ON');
+  assert.equal(w.nativeMessages[0].body.client_id,w.settings.bridgeClientId);
+  const invalid=worker(true,undefined,{settings:{enabled:true,bridgeClientId:'invalid'}});await flush();
+  assert.equal(invalid.storageWrites.length,1);assert.notEqual(invalid.settings.bridgeClientId,'invalid');
+});
+
+test('disabling during identity initialization prevents the waiting request from sending',async()=>{
+  const gate=deferred();
+  const w=worker(true,undefined,{saveSettings:()=>gate.promise});
+  await flush();assert.equal(w.storageWrites.length,1);
+  w.changeSettings({enabled:false});gate.resolve();await flush();
+  assert.equal(w.nativeMessages.length,0);assert.equal(w.connections(),0);
+  w.changeSettings({enabled:true});await flush();
+  assert.equal(w.connections(),1);assert.equal(w.storageWrites.length,1);
+});
+
+test('commands for a different profile cannot control an identically numbered tab',async()=>{
+  let ui;const w=worker(true,undefined,{protocol2:true,inspect(value){ui=value;}});await flush();
+  const command=(id,client_id)=>({event:'command',command:{id,client_id,tab_id:4,frame_id:0,document_id:'doc',command:'play-pause',target_id:'media-1'}});
+  ui.event(command('other-profile','ffffffff-ffff-ffff-ffff-ffffffffffff'));
+  ui.event(command('own-profile',w.settings.bridgeClientId));
+  ui.event(command('old-server',undefined));
+  await flush();
+  assert.deepEqual(w.commands.map(value=>value.message.command.id),['own-profile','old-server']);
+  const results=w.nativeMessages.filter(message=>message.path==='/result');
+  assert.deepEqual(results.map(message=>message.body.id),['own-profile','old-server']);
+  assert.ok(results.every(message=>message.body.client_id===w.settings.bridgeClientId));
 });
