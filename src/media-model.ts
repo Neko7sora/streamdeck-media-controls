@@ -130,8 +130,14 @@ export function chooseCurrent(windows: MediaSnapshot, chrome: MediaItem[], selec
   };
   const chromeWithIcon = (item: MediaItem): MediaItem => {
     const matches=windowsItems.filter(w=>sameIconPage(w,item));
-    return matches.length===1 && chrome.filter(c=>sameIconPage(matches[0]!,c)).length===1
-      ? {...item,app_icon_data_url:matches[0]!.app_icon_data_url,field_sources:{...item.field_sources,app_icon_data_url:"windows"}} : item;
+    if(matches.length!==1 || chrome.filter(c=>sameIconPage(matches[0]!,c)).length!==1) return item;
+    const windows=matches[0]!;
+    // A reload can select Chrome before its Windows session reappears. Keep
+    // that control target, but restore Windows artwork for an unambiguous track.
+    const fallback=sameTrack(windows,item)?windows.artwork_data_url:undefined;
+    return {...item,app_icon_data_url:windows.app_icon_data_url,
+      ...(fallback?{fallback_artwork_data_url:fallback}:{}),
+      field_sources:{...item.field_sources,app_icon_data_url:"windows",...(fallback?{fallback_artwork_data_url:"windows"}:{})}};
   };
   if (selected !== "auto") {
     const item = [...windows.sessions, ...chrome].find(x => x.session_id === selected);

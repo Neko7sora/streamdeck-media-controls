@@ -55,6 +55,29 @@ test('auto selection retains paused targets and switches to playing media withou
  assert.equal(model.chooseCurrent({current:paused,sessions:[paused]},[{...a,playback_state:'playing'}]).session_id,'a');
 });
 
+test('YouTube reload restores Windows artwork while retaining the Chrome control target',()=>{
+ const chrome={source:'chrome',session_id:'c',title:'Video',artist:'Channel',playback_state:'playing',artwork_data_url:null,document_id:'reloaded'};
+ const win={source:'windows',session_id:'w',app_id:'chrome.exe',title:'Video',artist:'Channel',playback_state:'playing',artwork_data_url:'windows-art'};
+ const during=model.chooseCurrent({current:null,sessions:[]},[chrome]);
+ const snapshot={current:win,sessions:[win]};
+ for(const target of ['auto','c']) {
+  const restored=model.chooseCurrent(snapshot,[chrome],target,during.session_id);
+  assert.equal(restored.session_id,'c');
+  assert.equal(restored.document_id,'reloaded');
+  assert.equal(restored.fallback_artwork_data_url,'windows-art');
+  assert.equal(restored.field_sources.fallback_artwork_data_url,'windows');
+  const own=model.chooseCurrent(snapshot,[{...chrome,artwork_data_url:'chrome-art'}],target,'c');
+  assert.equal(own.artwork_data_url,'chrome-art');
+  assert.equal(own.fallback_artwork_data_url,'windows-art');
+ }
+ for(const other of [{...win,artist:'Other'},{...win,app_id:'Spotify'},{...win,artist:''}]) {
+  assert.equal(model.chooseCurrent({current:other,sessions:[other]},[chrome],'c').fallback_artwork_data_url,undefined);
+ }
+ assert.equal(model.chooseCurrent({current:win,sessions:[win,{...win,session_id:'w2'}]},[chrome],'c').fallback_artwork_data_url,undefined);
+ assert.equal(model.chooseCurrent(snapshot,[chrome,{...chrome,session_id:'c2'}],'c').fallback_artwork_data_url,undefined);
+ assert.equal(model.chooseCurrent(snapshot,[{...chrome,artist:''}],'c').fallback_artwork_data_url,undefined);
+});
+
 test('matches exact music with normalized names',()=>{
  assert.equal(model.sameTrack({source:'windows',title:' Song ',artist:'Artist'},{source:'chrome',title:'song',artist:'artist'}),true);
  assert.equal(model.sameTrack({source:'windows',title:'Song A'},{source:'chrome',title:'Song B'}),false);
