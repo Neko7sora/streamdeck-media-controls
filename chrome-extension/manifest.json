@@ -17,7 +17,7 @@
   },
   "options_page": "options.html",
   "action": {
-    "default_title": "Media Bridge：接続を確認中",
+    "default_title": "Media Bridge: Checking connection",
     "default_popup": "options.html"
   },
   "content_scripts": [

@@ -1,3 +1,4 @@
+import {t,setLanguage} from "./localization.js";
 import streamDeck,{action,SingletonAction,type KeyDownEvent,type DialDownEvent,type DialRotateEvent,type TouchTapEvent,type WillAppearEvent,type WillDisappearEvent,type DidReceiveSettingsEvent,type KeyAction,type DialAction} from "@elgato/streamdeck";
 import {sendMediaKey,type MediaCommand} from "./windows-media.js";
 import {startChromeServer,chromeCommand,chromeConnectionStatus} from "./chrome-server.js";
@@ -13,6 +14,7 @@ import {controlImage} from "./control-image.js";
 import {mediaTargetName,audioTargetName} from "./control-display.js";
 import {InspectorUpdates} from "./inspector-updates.js";
 
+setLanguage(streamDeck.info.application.language);
 const UUID="dev.local.media-controls";
 const EMPTY_ICON="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAAC0lEQVR42mNgAAIAAAUAAen63NgAAAAASUVORK5CYII=";
 type Settings={mediaTarget?:string;audioTarget?:string;globalKeys?:boolean;dialMode?:string;seekStep?:number;scrollText?:boolean;
@@ -21,7 +23,7 @@ type Settings={mediaTarget?:string;audioTarget?:string;globalKeys?:boolean;dialM
   showControlIcon?:boolean;showTarget?:boolean;showScope?:boolean;showVolume?:boolean;showVolumeBar?:boolean};
 type Instance=KeyAction<Settings>|DialAction<Settings>;
 const time=(s:number|null)=>s===null?"--:--":`${Math.floor(Math.max(0,s)/60)}:${String(Math.floor(Math.max(0,s))%60).padStart(2,"0")}`;
-const playbackLabel=(state?:string)=>({playing:"Playing",paused:"Paused",stopped:"Stopped",opened:"Opened",changing:"Loading",closed:"Closed"}[state??""]??"Unavailable");
+const playbackLabel=(state?:string)=>({playing:t("playback.playing"),paused:t("playback.paused"),stopped:t("playback.stopped"),opened:t("playback.opened"),changing:t("playback.loading"),closed:t("playback.closed")}[state??""]??t("playback.unavailable"));
 const seekStep=(s:Settings)=>typeof s.seekStep==="number"&&Number.isFinite(s.seekStep)&&s.seekStep>=1&&s.seekStep<=60?s.seekStep:5;
 async function guarded(instance:Instance,fn:()=>Promise<void>):Promise<void> {
   try {await fn();} catch(e) {streamDeck.logger.warn(String(e));await instance.showAlert();}
@@ -85,12 +87,12 @@ abstract class MediaButton extends ConfiguredAction {
     const m=isVolume||s.globalKeys?null:currentMedia(s.mediaTarget);
     const selected=s.globalKeys?"master":s.audioTarget??"master";
     const v=isVolume?audioTarget(selected):null;
-    const target=s.showTarget===false?"":isVolume?audioTargetName(v,selected):s.globalKeys?"OS自動":mediaTargetName(m);
+    const target=s.showTarget===false?"":isVolume?audioTargetName(v,selected):s.globalKeys?t("os.auto"):mediaTargetName(m);
     const detail=isVolume?[
       s.showVolume===false?"":v?.volume==null?"--%":`${Math.round(v.volume*100)}%`,
-      s.showStatus===false?"":v?.volume==null?"対象なし":v.muted?"ミュート":""
-    ].filter(Boolean).join(" · "):s.showTitle===false?"":s.globalKeys?"対象はOSが選択":
-      m?displayTitle(m):s.mediaTarget&&s.mediaTarget!=="auto"?"切断済み":"再生対象なし";
+      s.showStatus===false?"":v?.volume==null?t("no.target"):v.muted?t("muted"):""
+    ].filter(Boolean).join(" · "):s.showTitle===false?"":s.globalKeys?t("target.selected.by.os"):
+      m?displayTitle(m):s.mediaTarget&&s.mediaTarget!=="auto"?t("disconnected"):t("no.media");
     const identity=isVolume?selected:s.globalKeys?"global":m?.session_id??"unavailable";
     const [name,line,appIcon]=await Promise.all([
       this.scrolling.frame(a.id,"target",target,{width:128,height:28,fontSize:22,scale:2,scroll:s.scrollText},identity),
@@ -132,9 +134,9 @@ class VolumeDial extends ConfiguredAction {
     if(!a.isDial()) return;
     const selected=s.globalKeys?"master":s.audioTarget??"master",v=audioTarget(selected);
     const [scope,targetName,status]=await Promise.all([
-      this.scrolling.frame(a.id,"scope",s.showScope===false?"":selected==="master"?"システム音量":"アプリ別音量",{width:184,height:16,fontSize:11,scroll:s.scrollText}),
+      this.scrolling.frame(a.id,"scope",s.showScope===false?"":selected==="master"?t("system.volume"):t("app.volume"),{width:184,height:16,fontSize:11,scroll:s.scrollText}),
       this.scrolling.frame(a.id,"target",s.showTarget===false?"":audioTargetName(v,selected),{width:184,height:28,fontSize:20,bold:true,scroll:s.scrollText},selected),
-      this.scrolling.frame(a.id,"status",s.showStatus===false?"":v?.volume==null?(selected==="master"?"取得できません":"切断済み"):v.muted?"ミュート中":"押すとミュート",{width:110,height:20,fontSize:12,scroll:s.scrollText},selected)
+      this.scrolling.frame(a.id,"status",s.showStatus===false?"":v?.volume==null?(selected==="master"?t("unavailable"):t("disconnected")):v.muted?t("volume.muted"):t("press.to.mute"),{width:110,height:20,fontSize:12,scroll:s.scrollText},selected)
     ]);
     if(!isCurrent()) return;
     // Replace the old built-in layout for already-configured dial instances, too.
@@ -197,7 +199,7 @@ class NowPlayingDial extends ConfiguredAction {
       appIcon:s.showAppIcon===false?EMPTY_ICON:(await applicationIcon(m,18))??EMPTY_ICON,
       position:[...(s.showPosition===false?[]:[time(p.position)]),...(s.showDuration===false?[]:[time(p.duration)])].join(" / "),
       indicator:{value:p.percent??0,enabled:s.showProgress!==false&&p.percent!==null},
-      volume:s.showDialInfo===false?"":s.dialMode!=="volume"?`±${seekStep(s)}s`:v?.volume==null?"Vol --":`${v.muted?"Mute ":"Vol "}${Math.round(v.volume*100)}%`,
+      volume:s.showDialInfo===false?"":s.dialMode!=="volume"?t("dial.seekStep",{seconds:seekStep(s)}):v?.volume==null?t("dial.volumeUnavailable"):t(v.muted?"dial.muted":"dial.volume",{volume:Math.round(v.volume*100)}),
       artwork:s.showArtwork===false?EMPTY_ICON:(await artwork(m?.artwork_data_url,72))??(await artwork(m?.fallback_artwork_data_url,72))??"imgs/actions/play-pause.png"
     };
     if(!isCurrent()) return;
@@ -245,7 +247,7 @@ function inspectorPayload() {
   return {
     chromeConnection:chromeConnectionStatus(),
     sessions:availableSessions().map(s=>({id:s.session_id??"",label:`${s.source}: ${displayTitle(s)} (${s.app_id||s.tab_id||""})`,details:JSON.stringify({...s,artwork_data_url:s.artwork_data_url?"[image available]":null,fallback_artwork_data_url:s.fallback_artwork_data_url?"[Windows fallback available]":null,app_icon_data_url:s.app_icon_data_url?"[app icon available]":null,favicon_data_url:s.favicon_data_url?"[favicon available]":null},null,2)})),
-    audio:audioTargets().map(v=>({id:v.id,label:`${v.name||"Unknown app"}${v.pid!==undefined?` (PID ${v.pid})`:""}`,volume:v.volume,muted:v.muted}))
+    audio:audioTargets().map(v=>({id:v.id,label:`${v.name||t("metadata.unknownApp")}${v.pid!==undefined?` (PID ${v.pid})`:""}`,volume:v.volume,muted:v.muted}))
   };
 }
 function notifyInspector():void {

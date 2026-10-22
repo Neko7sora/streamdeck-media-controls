@@ -1,8 +1,8 @@
-<!DOCTYPE html><html lang="ja"><head><meta charset="utf-8"><title>Stream Deck Chrome Bridge</title>
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><title>Stream Deck Chrome Bridge</title>
 <style>body{font:14px system-ui;min-width:320px;max-width:40rem;margin:0 auto;padding:24px;line-height:1.7;color:#20252d;background:#f7f9fc}h1{font-size:21px;margin:0 0 16px}button{padding:.6rem 1.5rem;margin-top:1rem;border:1px solid #9aa5b5;border-radius:6px;background:#fff;cursor:pointer}button:disabled{cursor:default;opacity:.6}.connection{border:1px solid #aab2bf;border-radius:10px;padding:14px;background:#fff}.connection strong{display:flex;align-items:center;gap:8px}.connection strong::before{content:"";width:10px;height:10px;flex:none;border-radius:50%;background:#68758a}.connection[data-state=connected]{border-color:#15804b}.connection[data-state=connected] strong::before{background:#15804b}.connection[data-state=disconnected] strong::before{background:#b75b00}.connection p{margin:6px 0 0;font-size:13px}label{display:block}input{accent-color:#157a46}</style></head>
 <body><h1>Stream Deck Media Bridge</h1>
-<section class="connection" id="connection" data-state="checking" role="status" aria-live="polite" aria-atomic="true"><strong id="connection-title">接続を確認中</strong><p id="connection-detail">Stream Deck への接続を確認しています。</p></section>
-<p>この拡張は再生中のページの Media Session 情報と、利用可能なアートワークのみをローカルの Stream Deck プラグインへ送信します。クラウドへアップロードしません。</p>
-<p>初回は Stream Deck の Media Controls 設定で「Chrome 連携を登録」を押してから、下の送信設定を有効にして保存してください。</p>
-<label><input type="checkbox" id="enabled" disabled> ブラウザからの送信を有効化</label>
-<button id="save" disabled>保存</button><p id="status" role="status">設定を読み込んでいます…</p><script src="options.js"></script></body></html>
+<section class="connection" id="connection" data-state="checking" role="status" aria-live="polite" aria-atomic="true"><strong id="connection-title"><span data-i18n="checking.connection">Checking connection</span></strong><p id="connection-detail"><span data-i18n="checking.the.connection.to.stream.deck">Checking the connection to Stream Deck.</span></p></section>
+<p><span data-i18n="extension.privacy">This extension sends Media Session information and available artwork from playing pages to the local Stream Deck plugin. Nothing is uploaded to the cloud.</span></p>
+<p><span data-i18n="extension.setup.help">For first-time setup, click “Register Chrome integration” in the Stream Deck Media Controls settings, then enable sending below and save.</span></p>
+<label><input type="checkbox" id="enabled" disabled><span data-i18n="enable.sending.from.the.browser">Enable sending from the browser</span></label>
+<button id="save" disabled><span data-i18n="save">Save</span></button><p id="status" role="status"><span data-i18n="loading.settings">Loading settings…</span></p><script src="localization.js"></script><script src="options.js"></script></body></html>

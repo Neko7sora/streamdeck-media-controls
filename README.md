@@ -1,5 +1,11 @@
 # Stream Deck Media Controls v0.4.7
 
+表示言語は日本語・英語に対応しています。プラグインの設定画面とキー／ダイヤルの案内は Stream Deck の表示言語、Chrome 拡張の設定・接続表示は Chrome の表示言語に従います。日本語以外の言語では英語を使用します。言語を変更した場合は Stream Deck を再起動し、拡張機能と設定画面を開き直してください。曲名・アーティスト名などの取得情報は翻訳せず、そのまま表示します。
+
+Japanese and English interfaces are supported. Plugin settings and key / dial labels follow the Stream Deck language; extension settings and connection messages follow the Chrome UI language. Languages other than Japanese use English. Restart Stream Deck and reload the extension after changing languages. Media titles and artist names remain unchanged.
+
+翻訳は `locales/*.json` で管理しています。他言語の追加方法は [翻訳ガイド](locales/README.md) を参照してください。
+
 Windows + Chrome 向けの Stream Deck プラグインです。v0.4.7 は操作指示を状態更新と独立した常設経路へ分離し、状態の差分送信、画像の内容キャッシュ、設定画面の変更通知を導入しました。設計・互換性・通信量と操作遅延の測定結果は [COMMUNICATION.md](COMMUNICATION.md) を参照してください。設定画面と Chrome 拡張には実際の接続状態を表示し、再生ページがなくても連携を確認できます。Chrome の拡張ボタンには接続・未接続・送信無効のバッジを表示します。日本語の曲名・アーティスト名の描画、滑らかなスクロール、再生位置のリアルタイム表示、ダイヤルによる巻き戻し・早送りも引き続き利用できます。
 
 **開発・検証候補です。Windows x64 のビルド・API 読み取り・自動テストは確認済みですが、物理 Stream Deck / Stream Deck + と実 Chrome 拡張を通した実サイト操作は未確認です。** 自動テストではセッション選択、Chrome の処理待ち、ヘルパー切断・復旧、シーク、日本語フォント・連続フレームの描画を確認しています。Windows の1セッションの読み取りは v0.4.0 で確認済みです。v0.3.0 時点の監査の詳細は [AUDIT.md](AUDIT.md) を参照してください。

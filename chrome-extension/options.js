@@ -1,3 +1,6 @@
+const {t,setLanguage,localizePage}=MediaI18n;
+setLanguage(chrome.i18n.getUILanguage());
+localizePage(document);
 const enable=document.getElementById("enabled"), status=document.getElementById("status"), save=document.getElementById("save");
 let loaded=false,saving=false;
 let connectionRequest=0,connectionPending=false,connectionTimeout;
@@ -33,8 +36,8 @@ async function refreshConnection(force=false){
 }
 function showConnection(state){
   document.getElementById("connection").dataset.state=state;
-  const title={connected:"Stream Deck に接続済み",disabled:"送信は無効です",checking:"接続を確認中",disconnected:"Stream Deck に未接続"}[state]??"接続を確認できません";
-  const detail={connected:"連携は正常です。メディアページを再生すると情報が送信されます。",disabled:"送信を有効にして保存すると、接続を確認します。",checking:"Stream Deck への接続を確認しています。",disconnected:"Stream Deck を起動し、連携を登録してください。登録済みの場合は再登録して拡張機能を再読み込みしてください。"}[state]??"拡張機能の接続状態を取得できません。拡張機能を再読み込みし、この画面を開き直してください。";
+  const title={connected:t("connected.to.stream.deck"),disabled:t("sending.is.disabled"),checking:t("checking.connection"),disconnected:t("disconnected.from.stream.deck")}[state]??t("connection.unavailable");
+  const detail={connected:t("extension.connection.idle"),disabled:t("enable.sending.and.save.to.check.the.connection"),checking:t("checking.the.connection.to.stream.deck"),disconnected:t("extension.connection.disconnectedHelp")}[state]??t("extension.connection.unavailableHelp");
   for(const [id,value] of [["connection-title",title],["connection-detail",detail]]) {
     const element=document.getElementById(id);if(element.textContent!==value) element.textContent=value;
   }
@@ -51,11 +54,11 @@ function setDisabled(disabled){for(const element of [enable,save]) element.disab
 setDisabled(true);
 chrome.storage.local.get(["enabled"]).then(v=>{
   enable.checked=Boolean(v.enabled);loaded=true;setDisabled(false);status.textContent="";
-}).catch(()=>{status.textContent="設定を読み込めませんでした。拡張機能を再読み込みしてください。";});
+}).catch(()=>{status.textContent=t("extension.settings.loadFailed");});
 save.addEventListener("click",async()=>{
   if(!loaded||saving) return;
-  saving=true;setDisabled(true);status.textContent="設定を保存しています…";
-  try {await chrome.storage.local.set({enabled:enable.checked});status.textContent="設定を保存しました。";void refreshConnection(true);}
-  catch {status.textContent="設定を保存できませんでした。拡張機能を再読み込みしてください。";}
+  saving=true;setDisabled(true);status.textContent=t("saving.settings");
+  try {await chrome.storage.local.set({enabled:enable.checked});status.textContent=t("settings.saved");void refreshConnection(true);}
+  catch {status.textContent=t("extension.settings.saveFailed");}
   finally {saving=false;setDisabled(false);}
 });

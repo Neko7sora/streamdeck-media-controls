@@ -1,3 +1,4 @@
+import {t} from "./localization.js";
 export interface MediaTimeline {
   updated_at?:number|null;
   start_sec?: number | null;
@@ -55,8 +56,8 @@ export interface MediaItem {
 }
 // Display fallbacks must not replace the metadata title used to validate commands.
 export function displayTitle(media: MediaItem | null | undefined): string {
-  if (!media) return "No media";
-  return media.title?.trim() || media.page_title?.trim() || "Title unavailable";
+  if (!media) return t("metadata.noMedia");
+  return media.title?.trim() || media.page_title?.trim() || t("metadata.titleUnavailable");
 }
 
 export interface MediaSnapshot {

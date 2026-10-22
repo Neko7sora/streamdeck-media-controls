@@ -2,6 +2,8 @@ import {build,context} from "esbuild";
 import {cpSync,mkdirSync,readFileSync,existsSync,rmSync} from "node:fs";
 import {resolve,dirname} from "node:path";
 import {createRequire} from "node:module";
+import {buildLocales} from "./build-locales.mjs";
+await buildLocales();
 const require=createRequire(import.meta.url),root=resolve("dev.local.media-controls.sdPlugin");
 const runtime=resolve(root,"node_modules");
 if(dirname(runtime)!==root) throw new Error("Runtime path escaped the plugin folder");

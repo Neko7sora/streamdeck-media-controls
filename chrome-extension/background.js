@@ -1,3 +1,6 @@
+importScripts("localization.js");
+const {t,setLanguage}=MediaI18n;
+setLanguage(chrome.i18n.getUILanguage());
 const NATIVE_HOST="dev.local.media_controls";
 let nativePort,requestId=0;
 let connectionState,checkingConnection;
@@ -31,7 +34,7 @@ async function receiveCommand(command,generation,frameState) {
     if(generation===settingsGeneration) await post("/result",{id:command.id,ok:result?.ok===true});
   } catch {logUnavailable();}
 }
-const connectionLabels={checking:"接続を確認中",connected:"Stream Deck に接続済み",disconnected:"Stream Deck に未接続",disabled:"送信は無効です"};
+const connectionLabels={checking:t("checking.connection"),connected:t("connected.to.stream.deck"),disconnected:t("disconnected.from.stream.deck"),disabled:t("sending.is.disabled")};
 const statusPorts=new Set();
 function setConnectionState(state) {
   if(connectionState===state) return;

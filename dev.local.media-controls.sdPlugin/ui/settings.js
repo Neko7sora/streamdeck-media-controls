@@ -1,3 +1,6 @@
+const {t,setLanguage,localizePage}=MediaI18n;
+setLanguage(globalThis.navigator?.language??"en");
+localizePage(document);
 let socket,context,action,settings={},sessions=[],audioTargets=[],settingsRevision=0;
 const media=document.getElementById("media"),audio=document.getElementById("audio"),global=document.getElementById("global"),details=document.getElementById("details");
 const dialMode=document.getElementById("dial-mode"),seekStep=document.getElementById("seek-step"),scrollText=document.getElementById("scroll-text");
@@ -14,11 +17,11 @@ let lastOptionsAt=0,pushOptions=false,lastProbeAt=0;
 function showChromeConnection(connection){
   const state=connection?.state??"checking";
   const connected=state==="connected";
-  const title=connected?"Chrome：接続済み":state==="unavailable"?"Chrome：接続を確認できません":state==="disconnected"?"Chrome：未接続":"Chrome：接続を確認中";
-  const detail=connected?(connection.sessions>0?`メディアを受信中（${connection.sessions} セッション）` :"連携は正常です。メディアページを再生すると情報が表示されます。")
-    :state==="unavailable"?"プラグインの応答または連携の待ち受けを確認できません。Stream Deck と設定画面を開き直してください。"
-    :state==="disconnected"?"Chrome 拡張の送信を有効にしてください。初回は「Chrome 連携を登録」を実行してください。"
-    :"プラグインからの応答を待っています。";
+  const title=connected?t("chrome.connected"):state==="unavailable"?t("chrome.connection.unavailable"):state==="disconnected"?t("chrome.disconnected"):t("chrome.checking.connection");
+  const detail=connected?(connection.sessions>0?t("receiving.media.sessions",{count:connection.sessions}) :t("chrome.connection.idle"))
+    :state==="unavailable"?t("chrome.connection.unavailableHelp")
+    :state==="disconnected"?t("chrome.connection.disconnectedHelp")
+    :t("waiting.for.the.plugin.to.respond");
   document.getElementById("chrome-connection").dataset.state=state;
   // Do not repeatedly announce an unchanged status during polling.
   for(const [id,value] of [["chrome-connection-title",title],["chrome-connection-detail",detail]]) {
@@ -31,7 +34,7 @@ function send(event,payload){if(socket?.readyState===WebSocket.OPEN) socket.send
 function requestOptions(){send("sendToPlugin",{request:"options",settingsRevision});}
 function populate(select,items,current,defaultValue,defaultLabel){
   const options=[{id:defaultValue,label:defaultLabel},...items.filter(item=>item.id!==defaultValue)];
-  if(current!==defaultValue&&!items.some(x=>x.id===current)) options.push({id:current,label:"切断済み — 対象を再選択してください"});
+  if(current!==defaultValue&&!items.some(x=>x.id===current)) options.push({id:current,label:t("disconnected.please.reselect.the.target")});
   populateOptions(select,options,current);
 }
 function populateOptions(select,options,current){
@@ -46,15 +49,15 @@ function populateOptions(select,options,current){
   if(select.value!==current) select.value=current;
 }
 function show(){
-  populate(media,sessions,settings.mediaTarget??"auto","auto","自動（再生中を優先・現在の対象を維持）");
-  populate(audio,audioTargets,settings.audioTarget??"master","master","PC全体（既定の音声出力）");
+  populate(media,sessions,settings.mediaTarget??"auto","auto",t("target.automatic"));
+  populate(audio,audioTargets,settings.audioTarget??"master","master",t("system.default.audio.output"));
   global.checked=settings.globalKeys===true;
   scrollText.checked=settings.scrollText!==false;
   dialMode.value=settings.dialMode==="volume"?"volume":"seek";
   const step=typeof settings.seekStep==="number"&&Number.isFinite(settings.seekStep)&&settings.seekStep>=1&&settings.seekStep<=60?settings.seekStep:5;
   const steps=[1,5,10,30,60];
   if(!steps.includes(step)) steps.push(step);
-  populateOptions(seekStep,steps.sort((a,b)=>a-b).map(value=>({id:String(value),label:`${value}秒`})),String(step));
+  populateOptions(seekStep,steps.sort((a,b)=>a-b).map(value=>({id:String(value),label:t("time.seconds",{seconds:value})})),String(step));
   document.getElementById("dial-settings").hidden=action!=="dev.local.media-controls.now-playing-dial";
   const isDial=action==="dev.local.media-controls.now-playing-dial";
   const isNowPlaying=isDial||action==="dev.local.media-controls.now-playing";
@@ -64,9 +67,9 @@ function show(){
   document.getElementById("media-settings").hidden=globalMode||isVolume;
   document.getElementById("audio-settings").hidden=globalMode||(!isVolume&&!isNowPlaying);
   document.getElementById("target-note").textContent=globalMode?
-    isVolume?"操作対象：PC全体。グローバルメディアキーで音量・ミュートを操作します。":"操作対象：Windows が選択する再生アプリ。キーには「OS自動」と表示します。":
-    isVolume?"選択した対象の音量・ミュートだけを操作します。「PC全体」は既定の音声出力全体です。対象名と音量をキー／ダイヤルに表示します。":
-    isNowPlaying?"再生対象と音量対象は独立しています。設定はこのキー／ダイヤルだけに適用されます。":"選択したアプリ／サイトの再生を操作します。キーに対象名と曲名を表示します。自動選択でも、表示したセッションに操作を送ります。";
+    isVolume?t("target.globalVolume.help"):t("target.globalPlayback.help"):
+    isVolume?t("target.volume.help"):
+    isNowPlaying?t("target.independent.help"):t("target.playback.help");
   document.getElementById("now-playing-help").hidden=!isDial;
   document.getElementById("global-settings").hidden=isNowPlaying;
   document.getElementById("display-settings").hidden=false;
@@ -78,15 +81,16 @@ function show(){
     ["volume-setting",isVolume],["status-setting",isNowPlaying||isVolume],
     ["volume-bar-setting",isVolumeDial],["control-display-note",!isNowPlaying]
   ]) document.getElementById(id).hidden=!visible;
-  document.getElementById("title-label").textContent=globalMode?"操作対象の説明":"曲名・タイトル";
-  document.getElementById("status-label").textContent=isNowPlaying?"再生状態":isVolumeDial?"ミュート状態・操作ヒント":"ミュート状態";
+  document.getElementById("title-label").textContent=globalMode?t("target.description"):t("track.title");
+  document.getElementById("status-label").textContent=isNowPlaying?t("playback.status"):isVolumeDial?t("mute.status.control.hint"):t("mute.status");
   document.getElementById("dial-display-settings").hidden=!isDial;
   for(const [element,key] of displaySettings) element.checked=settings[key]!==false;
   document.getElementById("progress-display-note").hidden=!isDial||settings.showProgress!==false;
   document.getElementById("seek-settings").hidden=dialMode.value!=="seek";
-  details.textContent=sessions.find(s=>s.id===media.value)?.details??"自動選択、または対象なし。セッションを選択すると全取得項目を確認できます。";
+  details.textContent=sessions.find(s=>s.id===media.value)?.details??t("metadata.selection.help");
 }
 window.connectElgatoStreamDeckSocket=(port,uuid,registerEvent,_info,actionInfo)=>{
+  setLanguage(JSON.parse(_info).application?.language??globalThis.navigator?.language??"en");localizePage(document);
   const info=JSON.parse(actionInfo);context=uuid;action=info.action;settings=info.payload.settings??{};
   show();
   socket=new WebSocket(`ws://127.0.0.1:${port}`);
@@ -118,20 +122,20 @@ window.connectElgatoStreamDeckSocket=(port,uuid,registerEvent,_info,actionInfo)=
   socket.onclose=()=>{
     setSettingsDisabled(true);
     registerChrome.disabled=true;clearTimeout(registrationTimeout);
-    if(registrationRequestId!==null) chromeStatus.textContent="登録結果を確認できませんでした。設定画面を開き直してください。";
+    if(registrationRequestId!==null) chromeStatus.textContent=t("chrome.registration.unconfirmed");
     registrationRequestId=null;
     lastOptionsAt=0;showChromeConnection({state:"unavailable"});
-    document.getElementById("status").textContent="プラグインとの接続が切れました";
+    document.getElementById("status").textContent=t("disconnected.from.the.plugin");
   };
 };
 registerChrome.addEventListener("click",()=>{
   if(socket?.readyState!==WebSocket.OPEN||registrationRequestId!==null) return;
   registrationRequestId=crypto.randomUUID();registerChrome.disabled=true;
-  chromeStatus.textContent="Chrome 連携を登録しています…";
+  chromeStatus.textContent=t("registering.chrome.integration");
   send("sendToPlugin",{request:"registerChromeHost",requestId:registrationRequestId});
   registrationTimeout=setTimeout(()=>{
     registrationRequestId=null;registerChrome.disabled=socket?.readyState!==WebSocket.OPEN;
-    chromeStatus.textContent="応答を確認できませんでした。もう一度お試しください。";
+    chromeStatus.textContent=t("chrome.registration.timeout");
   },25000);
 });
 for(const [element,key,value] of [

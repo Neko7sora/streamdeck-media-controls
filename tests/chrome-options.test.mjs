@@ -3,14 +3,14 @@ import assert from "node:assert/strict";
 import {readFileSync} from "node:fs";
 import vm from "node:vm";
 
-const source=readFileSync(new URL("../chrome-extension/options.js",import.meta.url),"utf8");
+const source=readFileSync(new URL("../chrome-extension/localization.js",import.meta.url),"utf8")+'\n'+readFileSync(new URL("../chrome-extension/options.js",import.meta.url),"utf8");
 const flush=()=>new Promise(setImmediate);
 function deferred(){
   let resolve,reject;
   const promise=new Promise((done,fail)=>{resolve=done;reject=fail;});
   return {promise,resolve,reject};
 }
-function options({load=Promise.resolve({}),write=async()=>{},connect,connection=Promise.resolve({state:'disabled'})}={}){
+function options({language="ja",load=Promise.resolve({}),write=async()=>{},connect,connection=Promise.resolve({state:'disabled'})}={}){
   const elements=new Map(["enabled","token","status","save","connection","connection-title","connection-detail"].map(id=>[id,{
     dataset:{},
     checked:false,value:"",textContent:"",disabled:false,listeners:{},
@@ -18,7 +18,7 @@ function options({load=Promise.resolve({}),write=async()=>{},connect,connection=
   }]));
   const writes=[];
   const timers=new Map();let nextTimer=0,poll;
-  vm.runInNewContext(source,{setInterval(fn){poll=fn;},setTimeout(fn){timers.set(++nextTimer,fn);return nextTimer;},clearTimeout(id){timers.delete(id);},document:{getElementById:id=>elements.get(id)},chrome:{runtime:{connect,async sendMessage(){return typeof connection==="function"?connection():connection;}},storage:{local:{
+  vm.runInNewContext(source,{setInterval(fn){poll=fn;},setTimeout(fn){timers.set(++nextTimer,fn);return nextTimer;},clearTimeout(id){timers.delete(id);},document:{documentElement:{},querySelectorAll:()=>[],getElementById:id=>elements.get(id)},chrome:{i18n:{getUILanguage:()=>language},runtime:{connect,async sendMessage(){return typeof connection==="function"?connection():connection;}},storage:{local:{
     get:()=>load,
     set(value){writes.push({...value});return write(value);}
   }}}});
@@ -27,6 +27,16 @@ function options({load=Promise.resolve({}),write=async()=>{},connect,connection=
 function assertDisabled(page,disabled){
   for(const id of ["enabled","save"]) assert.equal(page.elements.get(id).disabled,disabled,id);
 }
+
+test('English and unsupported Chrome languages use English connection and save messages',async()=>{
+  for(const language of ['en-US','de']) {
+    const page=options({language,connection:Promise.resolve({state:'connected'})});
+    await flush();
+    assert.equal(page.elements.get('connection-title').textContent,'Connected to Stream Deck');
+    await page.save();
+    assert.equal(page.elements.get('status').textContent,'Settings saved.');
+  }
+});
 
 test('popup receives pushed changes and ignores an older status request after a push',async()=>{
   const gate=deferred(),sent=[];let receive,disconnect;

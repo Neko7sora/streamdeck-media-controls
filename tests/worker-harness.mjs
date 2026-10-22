@@ -3,12 +3,13 @@ import {readFileSync} from 'node:fs';
 import vm from 'node:vm';
 import {webcrypto} from 'node:crypto';
 const source=readFileSync(new URL("../chrome-extension/background.js",import.meta.url),"utf8");
+const localization=readFileSync(new URL("../chrome-extension/localization.js",import.meta.url),"utf8");
 export function worker(enabled=true,imageResponse,hooks={}){
   let listener,access,removed,settingsChanged,disconnect,pulse;
   let connections=0,receiveEvent,readState,connectListener;
   const settings={enabled,token:"a".repeat(64)};
   const requests=[],commands=[],images=[],probes=[],badges=[],nativeMessages=[];
-  const chrome={storage:{local:{async setAccessLevel(v){access=v.accessLevel;},async get(){return {...settings};}},onChanged:{addListener(fn){settingsChanged=fn;}}},runtime:{onConnect:{addListener(fn){connectListener=fn;}},onMessage:{addListener(fn){listener=fn;}}},tabs:{onRemoved:{addListener(fn){removed=fn;}},async sendMessage(tab,message,options){commands.push({tab,message,options});if(hooks.sendMessage) return hooks.sendMessage(tab,message,options);return {ok:true};}}};
+  const chrome={i18n:{getUILanguage:()=>hooks.language??"ja"},storage:{local:{async setAccessLevel(v){access=v.accessLevel;},async get(){return {...settings};}},onChanged:{addListener(fn){settingsChanged=fn;}}},runtime:{onConnect:{addListener(fn){connectListener=fn;}},onMessage:{addListener(fn){listener=fn;}}},tabs:{onRemoved:{addListener(fn){removed=fn;}},async sendMessage(tab,message,options){commands.push({tab,message,options});if(hooks.sendMessage) return hooks.sendMessage(tab,message,options);return {ok:true};}}};
   const fetch=async(url,options)=>{
     if(!String(url).startsWith("http://127.0.0.1:39761/chrome")) {
       images.push({url,options});
@@ -39,7 +40,7 @@ export function worker(enabled=true,imageResponse,hooks={}){
   chrome.runtime.id='extension-id';
   chrome.runtime.getURL=path=>`chrome-extension://extension-id/${path}`;
   chrome.action={async setBadgeText(value){badges.push(value.text);},async setBadgeBackgroundColor(){},async setTitle(){}};
-  vm.runInNewContext((hooks.source??source)+"\n;__captureState(()=>activeJobs+activeArtworkJobs+queuedFrames.length+queuedArtwork.length+nativeRequests.size);",{__captureState(fn){readState=fn;},chrome,fetch,setTimeout,clearTimeout,setInterval(fn){pulse=fn;},URL,AbortSignal,AbortController,Map,Date:hooks.now?{now:hooks.now}:Date,Number,JSON,Uint8Array,btoa,console,Headers,Blob,TextEncoder,crypto:webcrypto,OffscreenCanvas,async createImageBitmap(){return {width:32,height:32,close(){}};}});
+  vm.runInNewContext((hooks.source??source).replace('importScripts("localization.js");',()=>localization)+"\n;__captureState(()=>activeJobs+activeArtworkJobs+queuedFrames.length+queuedArtwork.length+nativeRequests.size);",{__captureState(fn){readState=fn;},chrome,fetch,setTimeout,clearTimeout,setInterval(fn){pulse=fn;},URL,AbortSignal,AbortController,Map,Date:hooks.now?{now:hooks.now}:Date,Number,JSON,Uint8Array,btoa,console,Headers,Blob,TextEncoder,crypto:webcrypto,OffscreenCanvas,async createImageBitmap(){return {width:32,height:32,close(){}};}});
   const status=()=>new Promise(resolve=>listener({type:'BRIDGE_STATUS'},{id:chrome.runtime.id,url:chrome.runtime.getURL('options.html')},resolve));
   hooks.inspect?.({probes,badges,status,pulse:()=>pulse(),event:value=>receiveEvent(value),connect:port=>connectListener?.(port),message:(message,sender,reply)=>listener(message,sender,reply)});
   return {busy:()=>readState(),disconnect:()=>disconnect(),connections:()=>connections,send:(media,frame=0,tab=4,documentId=`doc-${frame}`)=>listener({type:"MEDIA_UPDATE",media},{tab:{id:tab,title:"Tab"},frameId:frame,documentId,url:`https://user:password@site.test/frame-${frame}?access_token=private#secret`}),remove:id=>removed(id),changeSettings(values){const changes={};for(const [key,value] of Object.entries(values)) {changes[key]={oldValue:settings[key],newValue:value};settings[key]=value;}settingsChanged(changes,"local");},requests,commands,images,nativeMessages,access:()=>access};

@@ -10,8 +10,8 @@ test("target names identify browser sites, Windows apps and the whole PC",()=>{
   assert.equal(mediaTargetName({source:"windows",app_id:"C:\\Apps\\Spotify.exe"}),"Spotify");
   assert.equal(mediaTargetName({source:"windows",app_id:"SpotifyAB.SpotifyMusic_hash!App"}),"SpotifyAB.SpotifyMusic");
   assert.equal(mediaTargetName({source:"windows",app_id:"chrome.exe",page_url:"https://tver.jp/episodes/1"}),"tver.jp · chrome");
-  assert.equal(mediaTargetName(null),"対象なし");
-  assert.equal(audioTargetName({name:"Speakers"}),"PC全体");
+  assert.equal(mediaTargetName(null),"No target");
+  assert.equal(audioTargetName({name:"Speakers"}),"System");
   assert.equal(audioTargetName({name:"Spotify"},"app"),"Spotify");
-  assert.equal(audioTargetName(null,"missing"),"対象なし");
+  assert.equal(audioTargetName(null,"missing"),"No target");
 });

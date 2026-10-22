@@ -1,12 +1,7 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
-import {readFileSync} from 'node:fs';
-import {createRequire} from 'node:module';
-const require = createRequire(import.meta.url);
-const ts=require('typescript');
-const source = readFileSync(new URL('../src/media-model.ts',import.meta.url),'utf8');
-const js = ts.transpileModule(source,{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.ESNext}}).outputText;
-const model=await import(`data:text/javascript;base64,${Buffer.from(js).toString('base64')}`);
+import {load} from './load.mjs';
+const model=await load('media-model');
 
 test('auto selects Windows sessions when the OS has no current session',()=>{
  const old={source:'windows',session_id:'old',title:'Old',playback_state:'paused',timeline:{updated_at:10},observed_at:999};
