@@ -103,5 +103,6 @@
   "volume.percent": "音量（%）",
   "waiting.for.information": "情報待ち",
   "waiting.for.the.plugin.to.respond": "プラグインからの応答を待っています。",
-  "windows.media": "Windows メディア"
+  "windows.media": "Windows メディア",
+  "artwork.loading": "読込中"
 }

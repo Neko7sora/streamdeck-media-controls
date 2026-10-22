@@ -116,7 +116,8 @@ function drainArtwork() {
     activeArtworkJobs++;
     void loadArtwork(entry).then(data=>{
       if(cachedArtwork.get(entry.key)!==entry) return;
-      const changed=data&&data!==entry.data;
+      const changed=(data&&data!==entry.data)||(!entry.icon&&entry.top.length>0&&entry.pending);
+      entry.pending=false;
       entry.data=data??entry.data;
       entry.expires=Date.now()+(data?300000:5000);
       if(protocol===2&&changed) {
@@ -346,6 +347,7 @@ async function processFrame(state) {
     page_url:pageAddress(update.sender.url),
     page_title:update.sender.tab.title??"",
     artwork_data_url:artwork,
+    artwork_loading:!!(hasMedia && cachedArtwork.get(key)?.pending && cachedArtwork.get(key)?.top.length),
     app_icon_data_url:null,
     favicon_data_url:favicon
   };

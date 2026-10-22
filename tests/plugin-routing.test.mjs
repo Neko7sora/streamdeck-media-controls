@@ -12,7 +12,7 @@ test("Now Playing operates the session last sent to the display, and never falls
     native:`export async function nativeCommand(c){const d=globalThis.__mediaTest;d.commands.push(c);await d.command?.(c);}`,
     chrome:`export function chromeConnectionStatus(){return {state:"connected",lastSeen:123,sessions:0};}export function startChromeServer(){return {close(){},closeAllConnections(){}};}export async function chromeCommand(...args){const d=globalThis.__mediaTest;if(!d.chromeCommands) throw Error("Unexpected Chrome command");d.chromeCommands.push(args);await d.chromeCommand?.(...args);}`,
     registration:`export function registerChromeHost(){const d=globalThis.__mediaTest;d.registrations=(d.registrations??0)+1;return d.registration??Promise.resolve({status:"registered",message:"Registered"});}export function stopChromeRegistration(){}`,
-    art:`export async function artwork(){await globalThis.__mediaTest.artwork?.();return undefined;} export async function applicationIcon(m){return m?.favicon_data_url??m?.app_icon_data_url;}`
+    art:`export async function artworkLoadingImage(){return undefined;} export async function artwork(){await globalThis.__mediaTest.artwork?.();return undefined;} export async function applicationIcon(m){return m?.favicon_data_url??m?.app_icon_data_url;}`
   };
   const plugin={name:"test-ports",setup(build){
     build.onLoad({filter:/control-image\.ts$/},args=>({contents:readFileSync(args.path,"utf8").replaceAll("import.meta.url",JSON.stringify(new URL("../dev.local.media-controls.sdPlugin/bin/plugin.js",import.meta.url).href)),loader:"ts"}));

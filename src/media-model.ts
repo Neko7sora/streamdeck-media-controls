@@ -30,6 +30,7 @@ export interface MediaItem {
   album_track_count?: number | null;
   playback_type?: number | null;
   artwork_data_url?: string | null;
+  artwork_loading?: boolean;
   app_icon_data_url?: string | null;
   favicon_data_url?: string | null;
   fallback_artwork_data_url?: string | null;
@@ -89,6 +90,7 @@ export function mergedCurrent(windows: MediaItem | null, chrome: MediaItem | nul
     artist: windows.artist || chrome.artist,
     artwork_data_url: chrome.artwork_data_url || windows.artwork_data_url,
     fallback_artwork_data_url: windows.artwork_data_url,
+    artwork_loading: chrome.artwork_loading,
     favicon_data_url: chrome.favicon_data_url,
     artwork_candidates: chrome.artwork_candidates,
     page_url: chrome.page_url,

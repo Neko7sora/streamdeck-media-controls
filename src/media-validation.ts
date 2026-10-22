@@ -25,6 +25,7 @@ export function validateMedia(value: unknown, source: "windows" | "chrome", now 
     genres: Array.isArray(v.genres) ? v.genres.slice(0,32).map(x => text(x,100)) : [],
     track_number: num(v.track_number), album_track_count: num(v.album_track_count), playback_type: num(v.playback_type),
     artwork_data_url: safeImage(v.artwork_data_url) ?? null,
+    artwork_loading: source === "chrome" && v.artwork_loading === true,
     app_icon_data_url: source === "windows" ? safeImage(v.app_icon_data_url) ?? null : null,
     favicon_data_url: source === "chrome" ? safeImage(v.favicon_data_url) ?? null : null,
     artwork_candidates: Array.isArray(v.artwork_candidates) ? v.artwork_candidates.slice(0,12).flatMap(x => {

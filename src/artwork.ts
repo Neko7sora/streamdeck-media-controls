@@ -8,6 +8,18 @@ sharp.concurrency(1);
 export async function applicationIcon(media: MediaItem | null, size = 32): Promise<string | undefined> {
   return (await artwork(media?.favicon_data_url,size)) ?? (await artwork(media?.app_icon_data_url,size));
 }
+const loadingImages = new Map<string, Promise<string>>();
+/** Keep the loading marker above the key's title and artist overlays. */
+export function artworkLoadingImage(label: string, size = 144): Promise<string> {
+  const key = JSON.stringify([label,size]);
+  let image = loadingImages.get(key);
+  if (!image) {
+    const escaped = label.replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&apos;"}[c]!));
+    image = sharp(Buffer.from(`<svg width="${size}" height="${size}" viewBox="0 0 144 144"><rect width="144" height="144" fill="#101018"/><circle cx="72" cy="25" r="13" fill="none" stroke="#384355" stroke-width="4"/><path d="M72 12 A13 13 0 0 1 85 25" fill="none" stroke="#75cfff" stroke-width="4" stroke-linecap="round"/><text x="72" y="62" text-anchor="middle" font-family="sans-serif" font-size="20" fill="#e7f5ff">${escaped}</text></svg>`)).png().toBuffer().then(bytes => `data:image/png;base64,${bytes.toString("base64")}`);
+    loadingImages.set(key,image);
+  }
+  return image;
+}
 const cache = new Map<string, Promise<string | undefined>>();
 /** Decode before sending to Stream Deck; disallow SVG, animation and pixel bombs. */
 export async function artwork(data: unknown, size = 144): Promise<string | undefined> {

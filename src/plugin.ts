@@ -5,7 +5,7 @@ import {startChromeServer,chromeCommand,chromeConnectionStatus} from "./chrome-s
 import {registerChromeHost,stopChromeRegistration} from "./chrome-registration.js";
 import {startMediaPolling,subscribe,subscribeChanges,currentMedia,audioTarget,availableSessions,audioTargets} from "./media-state.js";
 import {nativeCommand} from "./native-client.js";
-import {artwork,applicationIcon} from "./artwork.js";
+import {artwork,applicationIcon,artworkLoadingImage} from "./artwork.js";
 import {progress,displayTitle} from "./media-model.js";
 import {DialSeeking,seekPosition,trackIdentity} from "./media-seek.js";
 import {ScrollingText,ANIMATION_INTERVAL_MS} from "./scrolling-text.js";
@@ -153,7 +153,7 @@ class VolumeDial extends ConfiguredAction {
 class NowPlaying extends ConfiguredAction {
   protected override async render(a:Instance,s:Settings,isCurrent:()=>boolean=()=>true):Promise<void> {
     if(!a.isKey()) return;
-    const m=currentMedia(s.mediaTarget),image=s.showArtwork===false?undefined:(await artwork(m?.artwork_data_url))??await artwork(m?.fallback_artwork_data_url);
+    const m=currentMedia(s.mediaTarget),image=s.showArtwork===false?undefined:(await artwork(m?.artwork_data_url))??await artwork(m?.fallback_artwork_data_url)??(m?.artwork_loading?await artworkLoadingImage(t("artwork.loading")):undefined);
     const appIcon=s.showAppIcon===false?undefined:await applicationIcon(m);
     if(!isCurrent()) return;
     const identity=m?trackIdentity(m):"unavailable";
@@ -200,7 +200,7 @@ class NowPlayingDial extends ConfiguredAction {
       position:[...(s.showPosition===false?[]:[time(p.position)]),...(s.showDuration===false?[]:[time(p.duration)])].join(" / "),
       indicator:{value:p.percent??0,enabled:s.showProgress!==false&&p.percent!==null},
       volume:s.showDialInfo===false?"":s.dialMode!=="volume"?t("dial.seekStep",{seconds:seekStep(s)}):v?.volume==null?t("dial.volumeUnavailable"):t(v.muted?"dial.muted":"dial.volume",{volume:Math.round(v.volume*100)}),
-      artwork:s.showArtwork===false?EMPTY_ICON:(await artwork(m?.artwork_data_url,72))??(await artwork(m?.fallback_artwork_data_url,72))??"imgs/actions/play-pause.png"
+      artwork:s.showArtwork===false?EMPTY_ICON:(await artwork(m?.artwork_data_url,72))??(await artwork(m?.fallback_artwork_data_url,72))??(m?.artwork_loading?await artworkLoadingImage(t("artwork.loading"),72):"imgs/actions/play-pause.png")
     };
     if(!isCurrent()) return;
     const changes=Object.fromEntries(Object.entries(payload).filter(([key,value])=>this.changed(a,value,`feedback:${key}`)));

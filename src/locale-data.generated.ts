@@ -119,7 +119,8 @@ export default {
     "volume.percent": "Volume (%)",
     "waiting.for.information": "Waiting for information",
     "waiting.for.the.plugin.to.respond": "Waiting for the plugin to respond.",
-    "windows.media": "Windows media"
+    "windows.media": "Windows media",
+    "artwork.loading": "Loading"
   },
   "ja": {
     "1.s": "1秒",
@@ -226,6 +227,7 @@ export default {
     "volume.percent": "音量（%）",
     "waiting.for.information": "情報待ち",
     "waiting.for.the.plugin.to.respond": "プラグインからの応答を待っています。",
-    "windows.media": "Windows メディア"
+    "windows.media": "Windows メディア",
+    "artwork.loading": "読込中"
   }
 };

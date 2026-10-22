@@ -117,5 +117,6 @@
   "volume.percent": "Volume (%)",
   "waiting.for.information": "Waiting for information",
   "waiting.for.the.plugin.to.respond": "Waiting for the plugin to respond.",
-  "windows.media": "Windows media"
+  "windows.media": "Windows media",
+  "artwork.loading": "Loading"
 }

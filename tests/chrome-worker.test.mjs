@@ -505,3 +505,15 @@ test('commands for a different profile cannot control an identically numbered ta
   assert.deepEqual(results.map(message=>message.body.id),['own-profile','old-server']);
   assert.ok(results.every(message=>message.body.client_id===w.settings.bridgeClientId));
 });
+
+test('artwork loading clears after a failed download without a new page sample',async()=>{
+ const pending=deferred();
+ const w=worker(true,url=>url.includes('cover')?pending.promise:Promise.resolve(new Response(null,{status:404})),{protocol2:true});
+ await flush();
+ w.send({title:'Track',artwork_candidates:[{src:'https://cdn.test/cover.png'}]});await settle();
+ assert.equal(updates(w).at(-1).media.artwork_loading,true);
+ pending.resolve(new Response(null,{status:404}));await settle();
+ assert.equal(updates(w).at(-1).media.artwork_loading,false);
+ w.send({title:'No cover',artwork_loading:true});await settle();
+ assert.notEqual(updates(w).at(-1).media.artwork_loading,true);
+});
