@@ -8,6 +8,8 @@ Japanese and English interfaces are supported. Plugin settings and key / dial la
 
 Elgato のプラグインガイドラインへの対応状況・自動検査・公開前の確認事項は [ガイドライン対応記録](docs/plugin-guidelines.md) を参照してください。
 
+Marketplace の商品ガイドラインに合わせた英語説明、288pxアイコン、1920×960pxのサムネイルとギャラリー3点は [商品ガイドライン対応記録](docs/product-guidelines.md) にまとめています。`npm run marketplace:build` で再生成、`npm run marketplace:check` でローカル検査できます。名称の独自性、権利、AI使用履歴、実機確認、価格・公開リンクと問い合わせ先の確定は提出前に必要です。
+
 Windows + Chrome 向けの Stream Deck プラグインです。v0.4.7 は操作指示を状態更新と独立した常設経路へ分離し、状態の差分送信、画像の内容キャッシュ、設定画面の変更通知を導入しました。設計・互換性・通信量と操作遅延の測定結果は [COMMUNICATION.md](COMMUNICATION.md) を参照してください。設定画面と Chrome 拡張には実際の接続状態を表示し、再生ページがなくても連携を確認できます。Chrome の拡張ボタンには接続・未接続・送信無効のバッジを表示します。日本語の曲名・アーティスト名の描画、滑らかなスクロール、再生位置のリアルタイム表示、ダイヤルによる巻き戻し・早送りも引き続き利用できます。
 
 **開発・検証候補です。Windows x64 のビルド・API 読み取り・自動テストは確認済みですが、物理 Stream Deck / Stream Deck + と実 Chrome 拡張を通した実サイト操作は未確認です。** 自動テストではセッション選択、Chrome の処理待ち、ヘルパー切断・復旧、シーク、日本語フォント・連続フレームの描画を確認しています。Windows の1セッションの読み取りは v0.4.0 で確認済みです。v0.3.0 時点の監査の詳細は [AUDIT.md](AUDIT.md) を参照してください。

@@ -2,7 +2,7 @@
 
 確認日: 2026-10-23（Asia/Tokyo）
 
-対象: [Elgato Plugin Guidelines](https://docs.elgato.com/guidelines/stream-deck/plugins/)。このページの Requirements と Recommendations を区別して確認しています。実装と自動検査の適合は、Marketplace の審査通過を保証するものではありません。
+対象: [Elgato Plugin Guidelines](https://docs.elgato.com/guidelines/stream-deck/plugins/)。このページの Requirements と Recommendations を区別して確認しています。実装と自動検査の適合は、Marketplace の審査通過を保証するものではありません。商品名・英語説明・掲載画像・AI開示・データの取り扱いなど、Product Guidelines への対応は [商品ガイドライン対応記録](product-guidelines.md) を参照してください。
 
 | 項目 | 実装・確認内容 |
 |---|---|
