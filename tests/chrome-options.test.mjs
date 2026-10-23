@@ -11,9 +11,9 @@ function deferred(){
   return {promise,resolve,reject};
 }
 function options({language="ja",load=Promise.resolve({}),write=async()=>{},connect,connection=Promise.resolve({state:'disabled'})}={}){
-  const elements=new Map(["enabled","token","status","save","connection","connection-title","connection-detail"].map(id=>[id,{
+  const elements=new Map(["enabled","token","status","save","connection","connection-title","connection-detail","retry-connection","setup","setup-summary"].map(id=>[id,{
     dataset:{},
-    checked:false,value:"",textContent:"",disabled:false,listeners:{},
+    checked:false,value:"",textContent:"",disabled:false,open:id==="setup",listeners:{},
     addEventListener(event,fn){this.listeners[event]=fn;}
   }]));
   const writes=[];
@@ -22,7 +22,7 @@ function options({language="ja",load=Promise.resolve({}),write=async()=>{},conne
     get:()=>load,
     set(value){writes.push({...value});return write(value);}
   }}}});
-  return {elements,writes,poll:()=>poll(),timeout(){for(const [id,fn] of timers){timers.delete(id);fn();}},change(value){elements.get("enabled").checked=value;elements.get("enabled").listeners.change();},save:()=>elements.get("save").listeners.click()};
+  return {elements,writes,poll:()=>poll(),timeout(){for(const [id,fn] of timers){timers.delete(id);fn();}},change(value){elements.get("enabled").checked=value;elements.get("enabled").listeners.change();},save:()=>elements.get("save").listeners.click(),retry:()=>elements.get("retry-connection").listeners.click(),toggleSetup(){elements.get("setup-summary").listeners.click();elements.get("setup").open=!elements.get("setup").open;}};
 }
 function assertDisabled(page,disabled,saveDisabled=disabled){
   assert.equal(page.elements.get("enabled").disabled,disabled,"enabled");
@@ -85,6 +85,57 @@ test('a stalled connection check expires, ignores late success and recovers on t
   assert.equal(page.elements.get('connection').dataset.state,'unavailable','an expired reply cannot revive a connected indicator');
   page.poll();await flush();
   assert.equal(page.elements.get('connection').dataset.state,'disconnected');
+});
+
+test('manual connection retry gives immediate progress and can recover without changing settings',async()=>{
+  const retried=deferred();let calls=0;
+  const page=options({load:Promise.resolve({enabled:true}),connection:()=>++calls===1?Promise.resolve({state:'disconnected'}):retried.promise});
+  await flush();
+  assert.equal(page.elements.get('retry-connection').disabled,false);
+  page.retry();
+  assert.equal(calls,2);
+  assert.equal(page.elements.get('connection').dataset.state,'checking');
+  assert.equal(page.elements.get('retry-connection').disabled,true);
+  retried.resolve({state:'connected'});await flush();
+  assert.equal(page.elements.get('connection').dataset.state,'connected');
+  assert.equal(page.elements.get('retry-connection').disabled,false);
+  assert.deepEqual(page.writes,[]);
+});
+
+test('manual connection retry times out and offers recovery again',async()=>{
+  const stalled=deferred();let calls=0;
+  const page=options({connection:()=>++calls===1?Promise.resolve({state:'disconnected'}):stalled.promise});
+  await flush();page.retry();page.timeout();
+  assert.equal(page.elements.get('connection').dataset.state,'unavailable');
+  assert.equal(page.elements.get('retry-connection').disabled,false);
+  stalled.resolve({state:'connected'});await flush();
+  assert.equal(page.elements.get('connection').dataset.state,'unavailable');
+});
+
+test('setup collapses when connected and reopens for disconnected users',async()=>{
+  let state='connected';
+  const page=options({connection:async()=>({state})});
+  assert.equal(page.elements.get('setup').open,true);
+  await flush();
+  assert.equal(page.elements.get('setup').open,false);
+  page.retry();
+  assert.equal(page.elements.get('setup').open,false,'checking must not flash open the instructions');
+  await flush();state='disconnected';page.poll();await flush();
+  assert.equal(page.elements.get('setup').open,true);
+});
+
+test('connection updates preserve a setup disclosure manually opened or closed',async()=>{
+  for(const initial of ['connected','disconnected']) {
+    let state=initial;
+    const page=options({connection:async()=>({state})});await flush();
+    page.toggleSetup();
+    const chosen=page.elements.get('setup').open;
+    state=initial==='connected'?'disconnected':'connected';
+    page.poll();await flush();
+    assert.equal(page.elements.get('setup').open,chosen);
+    state=initial;page.poll();await flush();
+    assert.equal(page.elements.get('setup').open,chosen);
+  }
 });
 
 test('saving settings starts a new connection check and an older response cannot undo it',async()=>{

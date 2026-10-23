@@ -1,6 +1,67 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {inspector,displayFields} from './settings-harness.mjs';
+
+test('appearance count follows supported fields even while its disclosure is closed',()=>{
+  for(const [action,count] of [['now-playing',5],['now-playing-dial',9],['play-pause',4],['mute',4],['volume-dial',5]]) {
+    const pi=inspector({},{action:`dev.local.media-controls.${action}`,language:'en'});
+    const appearance=pi.elements.get('appearance-settings');appearance.open=false;
+    assert.equal(pi.elements.get('display-summary').textContent,`${count} / ${count} visible`);
+    assert.equal(pi.elements.get('show-all').disabled,true);
+    pi.receive('sendToPropertyInspector',{sessions:[]});
+    assert.equal(appearance.open,false);
+    assert.equal(pi.elements.get('display-summary').textContent,`${count} / ${count} visible`);
+    appearance.open=true;pi.change('scroll-text',false);
+    assert.equal(appearance.open,true);
+  }
+});
+
+test('show all restores only applicable display settings in one save and preserves newer changes',()=>{
+  const hidden=Object.fromEntries(Object.values(displayFields).map(key=>[key,false]));
+  const saved={...hidden,mediaTarget:'A',audioTarget:'app',scrollText:false,extra:'preserved'};
+  const pi=inspector(saved,{action:'dev.local.media-controls.play-pause',language:'en'});
+  const initial=pi.messages.at(-1).payload;
+  assert.equal(pi.elements.get('display-summary').textContent,'0 / 4 visible');
+  const before=pi.messages.filter(message=>message.event==='setSettings').length;
+  pi.click('show-all');
+  const expected={...saved,showControlIcon:true,showTarget:true,showTitle:true,showAppIcon:true};
+  assert.deepEqual(pi.messages.at(-1).payload,expected);
+  assert.equal(pi.messages.filter(message=>message.event==='setSettings').length,before+1);
+  assert.equal(pi.elements.get('show-all').disabled,true);
+  pi.receive('sendToPropertyInspector',{settingsRevision:initial.settingsRevision,settings:saved});
+  assert.equal(pi.elements.get('display-summary').textContent,'4 / 4 visible');
+  pi.receive('didReceiveSettings',{settings:{...saved,globalKeys:true}});
+  assert.equal(pi.elements.get('display-summary').textContent,'0 / 3 visible');
+  pi.click('show-all');
+  assert.equal(pi.messages.at(-1).payload.showAppIcon,false);
+  assert.equal(pi.elements.get('display-summary').textContent,'3 / 3 visible');
+  pi.change('global',false);
+  assert.equal(pi.elements.get('display-summary').textContent,'3 / 4 visible');
+  pi.close();const messages=pi.messages.length;
+  assert.equal(pi.elements.get('show-all').disabled,true);
+  pi.click('show-all');assert.equal(pi.messages.length,messages);
+  pi.open();assert.equal(pi.elements.get('show-all').disabled,false);
+});
+
+test('Chrome setup link opens and focuses setup without registering or overriding its disclosure',()=>{
+  const pi=inspector();
+  pi.receive('sendToPropertyInspector',{chromeConnection:{state:'disconnected'}});
+  assert.equal(pi.elements.get('chrome-setup-link').hidden,false);
+  const messages=pi.messages.length;
+  pi.click('chrome-setup-link');
+  assert.equal(pi.elements.get('chrome-setup').open,true);
+  assert.equal(pi.elements.get('chrome-setup-summary').focused,true);
+  assert.equal(pi.messages.length,messages);
+  pi.receive('sendToPropertyInspector',{chromeConnection:{state:'connected',sessions:0}});
+  assert.equal(pi.elements.get('chrome-setup-link').hidden,true);
+  assert.equal(pi.elements.get('chrome-setup').open,true);
+  pi.close();assert.equal(pi.elements.get('chrome-setup-link').hidden,true);
+});
+
+test('action heading identifies the edited key and follows the Stream Deck language',()=>{
+  assert.equal(inspector({},{action:'dev.local.media-controls.play-pause'}).elements.get('action-heading').textContent,'再生 / 一時停止');
+  assert.equal(inspector({},{action:'dev.local.media-controls.volume-dial',language:'en'}).elements.get('action-heading').textContent,'Volume dial');
+});
 test("settings are editable only while connected so unsaved changes are never shown as applied",()=>{
   const pi=inspector({globalKeys:true},{connect:false});
   const assertDisabled=disabled=>{

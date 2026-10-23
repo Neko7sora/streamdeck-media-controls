@@ -12,6 +12,16 @@ const displaySettings=[
   ["show-control-icon","showControlIcon"],["show-target","showTarget"],["show-scope","showScope"],
   ["show-volume","showVolume"],["show-volume-bar","showVolumeBar"]
 ].map(([id,key])=>[document.getElementById(id),key]);
+const displayRows={showTitle:"title-setting",showArtist:"artist-setting",showArtwork:"artwork-setting",showAppIcon:"app-icon-setting",showStatus:"status-setting",showControlIcon:"control-icon-setting",showTarget:"target-setting",showScope:"scope-setting",showVolume:"volume-setting",showVolumeBar:"volume-bar-setting",showPosition:"dial-display-settings",showDuration:"dial-display-settings",showProgress:"dial-display-settings",showDialInfo:"dial-display-settings"};
+const showAll=document.getElementById("show-all");
+function applicableDisplaySettings(){return displaySettings.filter(([,key])=>!document.getElementById(displayRows[key]).hidden);}
+function updateDisplaySummary(){
+  if(!action) return;
+  const applicable=applicableDisplaySettings(),visible=applicable.filter(([,key])=>settings[key]!==false).length;
+  document.getElementById("display-summary").textContent=t("settings.display.count",{visible,total:applicable.length});
+  showAll.disabled=socket?.readyState!==WebSocket.OPEN||visible===applicable.length;
+}
+const actionLabels={"play-pause":"settings.action.playPause",previous:"settings.action.previous",next:"settings.action.next",stop:"settings.action.stop",mute:"settings.action.mute","volume-up":"settings.action.volumeUp","volume-down":"settings.action.volumeDown","volume-dial":"settings.action.volumeDial","now-playing":"settings.action.nowPlaying","now-playing-dial":"settings.action.nowPlayingDial"};
 const registerChrome=document.getElementById("register-chrome"),chromeStatus=document.getElementById("chrome-registration-status");
 let registrationRequestId=null,registrationTimeout;
 let lastOptionsAt=0,pushOptions=false,lastProbeAt=0;
@@ -24,12 +34,16 @@ function showChromeConnection(connection){
     :state==="disconnected"?t("chrome.connection.disconnectedHelp")
     :t("waiting.for.the.plugin.to.respond");
   document.getElementById("chrome-connection").dataset.state=state;
+  document.getElementById("chrome-setup-link").hidden=state!=="disconnected";
   // Do not repeatedly announce an unchanged status during polling.
   for(const [id,value] of [["chrome-connection-title",title],["chrome-connection-detail",detail]]) {
     const element=document.getElementById(id);if(element.textContent!==value) element.textContent=value;
   }
 }
-function setSettingsDisabled(disabled){for(const element of [media,audio,global,dialMode,seekStep,scrollText,...displaySettings.map(([element])=>element)]) element.disabled=disabled;}
+function setSettingsDisabled(disabled){
+  for(const element of [media,audio,global,dialMode,seekStep,scrollText,...displaySettings.map(([element])=>element)]) element.disabled=disabled;
+  updateDisplaySummary();
+}
 setSettingsDisabled(true);
 function send(event,payload){if(socket?.readyState===WebSocket.OPEN) socket.send(JSON.stringify({event,context,action,payload}));}
 function requestOptions(){send("sendToPlugin",{request:"options",settingsRevision});}
@@ -50,6 +64,7 @@ function populateOptions(select,options,current){
   if(select.value!==current) select.value=current;
 }
 function show(){
+  document.getElementById("action-heading").textContent=t(actionLabels[action?.split(".").at(-1)]??"settings.subtitle");
   populate(media,sessions,settings.mediaTarget??"auto","auto",t("settings.target.automatic"));
   populate(audio,audioTargets,settings.audioTarget??"master","master",t("settings.target.system"));
   global.checked=settings.globalKeys===true;
@@ -100,6 +115,7 @@ function show(){
   document.getElementById("progress-display-note").hidden=!isDial||settings.showProgress!==false;
   document.getElementById("seek-settings").hidden=dialMode.value!=="seek";
   details.textContent=sessions.find(s=>s.id===media.value)?.details??t("metadata.selection.help");
+  updateDisplaySummary();
 }
 window.connectElgatoStreamDeckSocket=(port,uuid,registerEvent,_info,actionInfo)=>{
   setLanguage(JSON.parse(_info).application?.language??globalThis.navigator?.language??"en");localizePage(document);
@@ -151,6 +167,19 @@ registerChrome.addEventListener("click",()=>{
     chromeStatus.textContent=t("chrome.registration.timeout");
   },25000);
 });
+document.getElementById("chrome-setup-link").addEventListener("click",()=>{
+  document.getElementById("chrome-setup").open=true;
+  document.getElementById("chrome-setup-summary").focus();
+});
+function applySettings(changes){
+  if(socket?.readyState!==WebSocket.OPEN){show();return;}
+  settingsRevision++;settings={...settings,...changes};send("setSettings",settings);show();
+  if(pushOptions) send("sendToPlugin",{request:"watch",settingsRevision});
+}
+showAll.addEventListener("click",()=>{
+  if(showAll.disabled) return;
+  applySettings(Object.fromEntries(applicableDisplaySettings().map(([,key])=>[key,true])));
+});
 for(const [element,key,value] of [
   [media,"mediaTarget",()=>media.value],
   [audio,"audioTarget",()=>audio.value],
@@ -160,9 +189,7 @@ for(const [element,key,value] of [
   [scrollText,"scrollText",()=>scrollText.checked],
   ...displaySettings.map(([element,key])=>[element,key,()=>element.checked])
 ]) element.addEventListener("change",()=>{
-  if(socket?.readyState!==WebSocket.OPEN){show();return;}
-  settingsRevision++;settings={...settings,[key]:value()};send("setSettings",settings);show();
-  if(pushOptions) send("sendToPlugin",{request:"watch",settingsRevision});
+  applySettings({[key]:value()});
 });
 setInterval(()=>{
   if(!pushOptions) requestOptions();

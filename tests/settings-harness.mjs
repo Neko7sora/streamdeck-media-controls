@@ -8,13 +8,14 @@ const displayGroups=["control-icon-setting","scope-setting","target-setting","ti
 export function inspector(settings={},{connect=true,language="ja",sourceText=source,action="dev.local.media-controls.now-playing-dial"}={}) {
   const selects=new Set(["media","audio","dial-mode","seek-step"]);
   const elements=new Map();
-  for(const id of ["media","audio","media-settings","audio-settings","target-note","now-playing-help","scroll-help","scroll-text","global","global-settings","details","dial-mode","seek-step","dial-settings","seek-settings","status","register-chrome","chrome-registration-status","chrome-connection","chrome-connection-title","chrome-connection-detail","display-settings","dial-display-settings","progress-display-note",...displayGroups,...Object.keys(displayFields)]) {
+  for(const id of ["action-heading","appearance-settings","display-summary","show-all","chrome-setup","chrome-setup-link","chrome-setup-summary","media","audio","media-settings","audio-settings","target-note","now-playing-help","scroll-help","scroll-text","global","global-settings","details","dial-mode","seek-step","dial-settings","seek-settings","status","register-chrome","chrome-registration-status","chrome-connection","chrome-connection-title","chrome-connection-detail","display-settings","dial-display-settings","progress-display-note",...displayGroups,...Object.keys(displayFields)]) {
     let value="";
     const element={dataset:{},children:[],listeners:{},checked:false,hidden:false,textContent:"",disabled:id==="register-chrome",
       get value(){return value;},
       set value(next){value=selects.has(id)&&!this.children.some(option=>option.value===next)?"":next;},
       replaceChildren(){this.children=[];value="";},
       append(option){this.children.push(option);if(this.children.length===1) value=option.value;},
+      focus(){this.focused=true;},
       addEventListener(event,fn){this.listeners[event]=fn;}
     };
     elements.set(id,element);

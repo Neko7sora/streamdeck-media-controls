@@ -21,11 +21,14 @@
     </header>
     <p class="intro" data-i18n="extension.subtitle">Browser media, on your Stream Deck.</p>
 
-    <section class="connection" id="connection" data-state="checking" role="status" aria-live="polite" aria-atomic="true">
+    <section class="connection" id="connection" data-state="checking" aria-labelledby="connection-title">
       <span class="connection-indicator" aria-hidden="true"><span></span></span>
-      <div>
-        <strong id="connection-title"><span data-i18n="checking.connection">Checking connection</span></strong>
-        <p id="connection-detail"><span data-i18n="checking.the.connection.to.stream.deck">Checking the connection to Stream Deck.</span></p>
+      <div class="connection-copy">
+        <div role="status" aria-live="polite" aria-atomic="true">
+          <strong id="connection-title"><span data-i18n="checking.connection">Checking connection</span></strong>
+          <p id="connection-detail"><span data-i18n="checking.the.connection.to.stream.deck">Checking the connection to Stream Deck.</span></p>
+        </div>
+        <button class="secondary-button" id="retry-connection" type="button" aria-describedby="connection-detail" disabled><span data-i18n="extension.connection.checkAgain">Check again</span></button>
       </div>
     </section>
 
@@ -44,14 +47,14 @@
       </div>
     </section>
 
-    <section class="setup-card" aria-labelledby="setup-title">
-      <h2 id="setup-title" data-i18n="extension.setup.title">First-time setup</h2>
+    <details class="setup-card" id="setup" open>
+      <summary id="setup-summary"><span data-i18n="extension.setup.title">First-time setup</span><svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="m4 6 4 4 4-4"/></svg></summary>
       <ol>
         <li data-i18n="extension.setup.step1">Open Media Controls settings in Stream Deck.</li>
         <li data-i18n="extension.setup.step2">Click “Register Chrome integration”.</li>
         <li data-i18n="extension.setup.step3">Enable sending above, then save.</li>
       </ol>
-    </section>
+    </details>
 
     <footer class="privacy">
       <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 3 4.5 6v5.3c0 4.4 3.1 7.5 7.5 9.7 4.4-2.2 7.5-5.3 7.5-9.7V6L12 3Z"/><path d="m8.5 12 2.3 2.3 4.7-4.6"/></svg>

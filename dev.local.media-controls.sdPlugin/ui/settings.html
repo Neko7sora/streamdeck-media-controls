@@ -9,12 +9,15 @@
 <body>
   <header class="page-heading">
     <span class="brand-mark" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none"><path d="M5 9v6m5-10v14m5-12v10m5-7v4" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/></svg></span>
-    <div><h1>Media Controls</h1><p data-i18n="settings.subtitle">Customize this key or dial</p></div>
+    <div><p class="eyebrow">Media Controls</p><h1 id="action-heading" data-i18n="settings.subtitle">Customize this key or dial</h1></div>
   </header>
-  <section class="connection" id="chrome-connection" data-state="checking" role="status" aria-live="polite" aria-atomic="true">
+  <aside class="connection" id="chrome-connection" data-state="checking">
+    <div role="status" aria-live="polite" aria-atomic="true">
     <strong id="chrome-connection-title"><span data-i18n="chrome.checking.connection">Chrome: Checking connection</span></strong>
     <p id="chrome-connection-detail"><span data-i18n="waiting.for.the.plugin.to.respond">Waiting for the plugin to respond.</span></p>
-  </section>
+    </div>
+    <a id="chrome-setup-link" href="#chrome-setup" data-i18n="settings.chromeSetup" hidden>Setup Chrome integration</a>
+  </aside>
   <p class="feedback connection-feedback" id="status" role="status" aria-live="polite"><span data-i18n="connecting.to.the.plugin">Connecting to the plugin…</span></p>
   <main>
     <section class="card targets" aria-labelledby="targets-heading">
@@ -47,9 +50,12 @@
       </div>
       <p class="help" id="now-playing-help"></p>
     </section>
-    <fieldset class="card display-card" id="display-settings" hidden>
+    <details class="card appearance-card" id="appearance-settings">
+      <summary class="appearance-summary"><span data-i18n="settings.appearance">Display &amp; text</span><span class="count-badge" id="display-summary"></span></summary>
+    <fieldset class="display-card" id="display-settings" hidden>
       <legend data-i18n="visible.items">Visible items</legend>
       <p class="section-help" data-i18n="display.help">Applies immediately to this key / dial only. All items are visible by default.</p>
+      <button class="subtle-button" id="show-all" type="button" disabled data-i18n="settings.display.showAll">Show all items</button>
       <div class="check-list">
         <label class="check-row" id="control-icon-setting" hidden><input type="checkbox" id="show-control-icon" checked disabled><span data-i18n="control.icon">Control icon</span></label>
         <label class="check-row" id="scope-setting" hidden><input type="checkbox" id="show-scope" checked disabled><span data-i18n="target.type.system.app.volume">Target type (system / app volume)</span></label>
@@ -62,6 +68,7 @@
         <label class="check-row" id="status-setting"><input type="checkbox" id="show-status" checked disabled><span id="status-label"><span data-i18n="playback.status">Playback status</span></span></label>
         <label class="check-row" id="volume-bar-setting" hidden><input type="checkbox" id="show-volume-bar" checked disabled><span data-i18n="volume.bar">Volume bar</span></label>
         <div id="dial-display-settings" hidden>
+          <p class="group-label" data-i18n="settings.display.timeline">Timeline &amp; dial</p>
           <label class="check-row"><input type="checkbox" id="show-position" checked disabled><span data-i18n="playback.position.elapsed.time">Playback position (elapsed time)</span></label>
           <label class="check-row"><input type="checkbox" id="show-duration" checked disabled><span data-i18n="duration">Duration</span></label>
           <label class="check-row"><input type="checkbox" id="show-progress" checked disabled><span data-i18n="progress.bar">Progress bar</span></label>
@@ -71,13 +78,14 @@
       <p class="help" id="control-display-note" hidden data-i18n="display.hidden.help">Hiding items does not change the selected target or key / dial controls.</p>
       <p class="notice" id="progress-display-note" hidden data-i18n="display.progress.hiddenHelp">When the progress bar is hidden, tapping the bottom of the screen also toggles playback. Dial rotation still follows the selected mode (seek or volume).</p>
     </fieldset>
-    <fieldset class="card">
+    <fieldset class="scrolling-card">
       <legend data-i18n="text.scrolling">Text scrolling</legend>
       <label class="check-row"><input type="checkbox" id="scroll-text" aria-describedby="scroll-help" checked disabled><span data-i18n="enable.text.scrolling">Enable text scrolling</span></label>
       <p class="help" id="scroll-help" data-i18n="scrolling.help">Smoothly scrolls long titles, artist names and target names. When disabled, text stays at the beginning and is clipped to fit. Applies immediately to this key / dial only. Enabled by default.</p>
     </fieldset>
-    <details class="card setup-card">
-      <summary data-i18n="settings.chromeSetup">Setup Chrome integration</summary>
+    </details>
+    <details class="card setup-card" id="chrome-setup">
+      <summary id="chrome-setup-summary" data-i18n="settings.chromeSetup">Setup Chrome integration</summary>
       <p class="section-help" data-i18n="settings.chromeSetup.help">Optional: adds media information from browser tabs.</p>
       <p class="help" data-i18n="chrome.registration.help">After loading the extension in Chrome, register the integration using the button below.</p>
       <button id="register-chrome" type="button" aria-describedby="chrome-registration-status" disabled data-i18n="register.chrome.integration">Register Chrome integration</button>
