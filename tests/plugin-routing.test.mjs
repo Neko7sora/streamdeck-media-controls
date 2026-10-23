@@ -99,6 +99,12 @@ test("Now Playing operates the session last sent to the display, and never falls
   const basicKey={...key,id:"basic",async setImage(image){basicImage=image;}};
   await basic.render(basicKey,{});
   assert.match(basicImage,/^data:image\/png;base64,/);
+  const pausedImage=basicImage;
+  driver.current={...a,playback_state:'playing'};
+  await basic.render(basicKey,{});
+  assert.notEqual(basicImage,pausedImage,'playback changes must update the operation icon');
+  driver.current=a;await basic.render(basicKey,{});
+  assert.equal(basicImage,pausedImage);
   driver.current=b;
   await basic.onKeyDown({action:basicKey,payload:{settings:{}}});
   assert.equal(driver.commands.at(-1).session_id,"A");
@@ -280,13 +286,15 @@ test("Now Playing operates the session last sent to the display, and never falls
   // Taps use the displayed timeline, even if only a narrower interval is seekable.
   const windowedMedia={...seekMedia,timeline:{position_sec:120,start_sec:60,end_sec:180,min_seek_sec:90,max_seek_sec:170}};
   driver.sessions=[windowedMedia];driver.current=windowedMedia;
-  const tap=async x=>{
+  const tap=async (x,y=90)=>{
     seeking.seeking.clear(dial.id);
-    await seeking.onTouchTap({action:dial,payload:{settings:{},tapPos:[x,90],hold:false}});
+    await seeking.onTouchTap({action:dial,payload:{settings:{},tapPos:[x,y],hold:false}});
   };
   await tap(100);assert.equal(driver.commands.at(-1).position,120,'the midpoint must match the displayed timeline');
   await tap(6);assert.equal(driver.commands.at(-1).position,90,'the start clamps to the seekable window');
   await tap(194);assert.equal(driver.commands.at(-1).position,170,'the end clamps to the seekable window');
+  await tap(100,65);assert.equal(driver.commands.at(-1).position,120,'the top edge of the 35 px timeline area seeks');
+  await tap(100,64);assert.equal(driver.commands.at(-1).command,'play-pause','the region above the timeline toggles playback');
   driver.sessions=[{...windowedMedia,timeline:{...windowedMedia.timeline,end_sec:null}}];
   const unavailableTimelineCommands=driver.commands.length,unavailableTimelineAlerts=alerts;
   await tap(100);
@@ -467,5 +475,25 @@ test("Now Playing operates the session last sent to the display, and never falls
     visual.onWillDisappear({action:hidden});
     visual.actions=originalActions;
   }
+  // Burst notifications must coalesce and retain the latest settings. Exercise
+  // the real refresh loop without the cost of font/artwork rendering.
+  const originalRender=volume.render,originalActions=volume.actions;
+  const rendered=[];
+  const throttled={...volumeDial,id:'throttled-volume'};
+  volume.actions=[throttled];
+  volume.render=async (_action,settings)=>{rendered.push({at:performance.now(),settings});};
+  await volume.onWillAppear({action:throttled,payload:{settings:{audioTarget:'first'}}});
+  while(volume.refreshing) await nextTurn();
+  volume.refresh();
+  for(let i=0;i<30;i++) volume.onDidReceiveSettings({action:throttled,payload:{settings:{audioTarget:`latest-${i}`}}});
+  while(volume.refreshing) await new Promise(resolve=>setTimeout(resolve,1));
+  assert.ok(rendered.length>=2&&rendered.length<=3,'a burst is collected while rendering and does not produce a frame per notification');
+  assert.equal(rendered.at(-1).settings.audioTarget,'latest-29');
+  for(let i=1;i<rendered.length;i++) assert.ok(rendered[i].at-rendered[i-1].at>=100,'all render triggers share the 10 Hz limit');
+  const beforeDisappear=rendered.length;
+  volume.refresh();volume.onWillDisappear({action:throttled});
+  while(volume.refreshing) await new Promise(resolve=>setTimeout(resolve,1));
+  assert.equal(rendered.length,beforeDisappear,'a hidden action must not render after waiting');
+  volume.render=originalRender;volume.actions=originalActions;
   delete globalThis.__mediaTest;
 });

@@ -13,6 +13,7 @@ import {nowPlayingImage} from "./now-playing-image.js";
 import {controlImage} from "./control-image.js";
 import {mediaTargetName,audioTargetName} from "./control-display.js";
 import {InspectorUpdates} from "./inspector-updates.js";
+import {DISPLAY_UPDATE_INTERVAL_MS,isSeekTouch} from "./display-guidelines.js";
 
 setLanguage(streamDeck.info.application.language);
 const UUID="dev.n7s.media-controls";
@@ -46,13 +47,14 @@ abstract class ConfiguredAction extends SingletonAction<Settings> {
   // A reused action ID must not accept asynchronous work from its previous appearance.
   private readonly appearances=new Map<string,symbol>();
   private readonly hashes=new Map<string,Map<string,string>>();
+  private readonly renderedAt=new Map<string,number>();
   protected readonly scrolling=new ScrollingText();
   private readonly displayedSessions=new Map<string,string>();
   private refreshing=false;
   private dirty=false;
   constructor(){super();visualActions.push(this);}
   override async onWillAppear(ev:WillAppearEvent<Settings>):Promise<void> {this.appearances.set(ev.action.id,Symbol());this.settings.set(ev.action.id,ev.payload.settings);this.hashes.delete(ev.action.id);this.displayedSessions.delete(ev.action.id);this.scrolling.clear(ev.action.id);this.refresh();}
-  override onWillDisappear(ev:WillDisappearEvent<Settings>):void {this.appearances.delete(ev.action.id);this.settings.delete(ev.action.id);this.hashes.delete(ev.action.id);this.displayedSessions.delete(ev.action.id);this.scrolling.clear(ev.action.id);}
+  override onWillDisappear(ev:WillDisappearEvent<Settings>):void {this.appearances.delete(ev.action.id);this.settings.delete(ev.action.id);this.hashes.delete(ev.action.id);this.renderedAt.delete(ev.action.id);this.displayedSessions.delete(ev.action.id);this.scrolling.clear(ev.action.id);}
   override onDidReceiveSettings(ev:DidReceiveSettingsEvent<Settings>):void {this.settings.set(ev.action.id,ev.payload.settings);this.hashes.delete(ev.action.id);this.refresh();}
   protected async render(_instance:Instance,_settings:Settings,_isCurrent:()=>boolean=()=>true):Promise<unknown> {return null;}
   protected displaySession(instance:Instance,session:string|undefined):void {this.displayedSessions.set(instance.id,session??"unavailable");}
@@ -64,7 +66,7 @@ abstract class ConfiguredAction extends SingletonAction<Settings> {
     const hash=JSON.stringify(payload)??"undefined";if(hashes.get(part)===hash) return false;
     hashes.set(part,hash);return true;
   }
-  animate():void {if(this.scrolling.active) this.refresh();}
+  animate():void {if(this.scrolling.active&&!this.refreshing) this.refresh();}
   refresh():void {
     this.dirty=true;if(this.refreshing) return;this.refreshing=true;
     void (async()=>{try {while(this.dirty) {
@@ -73,8 +75,20 @@ abstract class ConfiguredAction extends SingletonAction<Settings> {
         if(!instance.isKey()&&!instance.isDial()) continue;
         const appearance=this.appearances.get(instance.id);
         if(!appearance) continue;
+        // State events and settings changes share the animation budget. Keep the
+        // latest settings while waiting, and recheck visibility before rendering.
+        const previous=this.renderedAt.get(instance.id);
+        if(previous!==undefined) {
+          let delay=previous+DISPLAY_UPDATE_INTERVAL_MS-performance.now();
+          while(delay>0) {
+            await new Promise(resolve=>setTimeout(resolve,Math.ceil(delay)));
+            delay=previous+DISPLAY_UPDATE_INTERVAL_MS-performance.now();
+          }
+        }
+        if(this.appearances.get(instance.id)!==appearance) continue;
         const settings=this.settings.get(instance.id);
         try {await this.render(instance,settings??{},()=>this.appearances.get(instance.id)===appearance&&this.settings.get(instance.id)===settings);} catch(e) {this.hashes.delete(instance.id);streamDeck.logger.warn(`Display update: ${String(e)}`);}
+        if(this.appearances.get(instance.id)===appearance) this.renderedAt.set(instance.id,performance.now());
       }
     }} finally {this.refreshing=false;}})();
   }
@@ -100,8 +114,9 @@ abstract class MediaButton extends ConfiguredAction {
       s.showAppIcon===false?undefined:applicationIcon(m,28)
     ]);
     if(!isCurrent()) return;
-    if(this.changed(a,{target:name.image,detail:line.image,appIcon,showControlIcon:s.showControlIcon!==false},"image")) {
-      const image=await controlImage(this.command,name.image,line.image,appIcon,s.showControlIcon!==false);
+    const playing=this.command==="play-pause"&&m?.playback_state==="playing";
+    if(this.changed(a,{target:name.image,detail:line.image,appIcon,showControlIcon:s.showControlIcon!==false,playing},"image")) {
+      const image=await controlImage(this.command,name.image,line.image,appIcon,s.showControlIcon!==false,playing);
       if(!isCurrent()) return;
       await a.setImage(image);
     }
@@ -229,7 +244,7 @@ class NowPlayingDial extends ConfiguredAction {
         await this.saveSettings(ev.action,{...ev.payload.settings,mediaTarget:sessions[(index+1)%sessions.length]!.session_id});
         return;
       }
-      if(y>=86&&settings.showProgress!==false) {
+      if(isSeekTouch(x,y)&&settings.showProgress!==false) {
         if(!m?.controls?.seek) throw new Error("Seek unavailable");
         const p=progress(m);
         if(p.duration===null) throw new Error("Seek unavailable");

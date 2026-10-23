@@ -7,6 +7,8 @@
     "node": ">=24.0.0"
   },
   "scripts": {
+    "icons:build": "node scripts/build-icons.mjs",
+    "guidelines:check": "node scripts/check-guidelines.mjs",
     "locales:build": "node scripts/build-locales.mjs",
     "locales:check": "node scripts/build-locales.mjs --check",
     "native:build": "node scripts/build-native.mjs",

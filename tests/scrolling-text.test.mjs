@@ -51,17 +51,18 @@ test('turning scrolling off fixes long text at the start and on restarts its hol
  assert.ok((await frame('two',true,50000+HOLD+500)).offset>0);
 });
 
-test('successive 30fps frames advance one pixel, keeping the same shaped glyphs',async()=>{
+test('successive 10fps frames preserve scroll speed and the same shaped glyphs',async()=>{
  const scrolling=new ScrollingText();
  const frame=now=>scrolling.frame('dial','title',text,style,'A',now);
  const first=await frame(0),next=await frame(HOLD+INTERVAL);
- assert.equal(next.offset,1);assert.notEqual(first.image,next.image);
+ const step=SPEED*INTERVAL/1000;
+ assert.equal(INTERVAL,100);assert.equal(next.offset,step);assert.notEqual(first.image,next.image);
  const a=await pixels(first.image),b=await pixels(next.image);
  for(let y=0;y<style.height;y++) {
   const row=y*style.width*4;
-  assert.deepEqual(b.data.subarray(row,row+(style.width-1)*4),a.data.subarray(row+4,row+style.width*4));
+  assert.deepEqual(b.data.subarray(row,row+(style.width-step)*4),a.data.subarray(row+step*4,row+style.width*4));
  }
- for(let i=2;i<=20;i++) assert.equal((await frame(HOLD+i*INTERVAL)).offset,i);
+ for(let i=2;i<=20;i++) assert.equal((await frame(HOLD+i*INTERVAL)).offset,i*step);
 });
 
 test('fields and actions have independent clocks; changes and disappearance reset and release animation',async()=>{

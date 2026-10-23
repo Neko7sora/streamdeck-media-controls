@@ -116,6 +116,7 @@ function show(){
   document.getElementById("seek-settings").hidden=dialMode.value!=="seek";
   details.textContent=sessions.find(s=>s.id===media.value)?.details??t("metadata.selection.help");
   updateDisplaySummary();
+  document.getElementById("action-settings").hidden=false;
 }
 window.connectElgatoStreamDeckSocket=(port,uuid,registerEvent,_info,actionInfo)=>{
   setLanguage(JSON.parse(_info).application?.language??globalThis.navigator?.language??"en");localizePage(document);
@@ -170,6 +171,10 @@ registerChrome.addEventListener("click",()=>{
 document.getElementById("chrome-setup-link").addEventListener("click",()=>{
   document.getElementById("chrome-setup").open=true;
   document.getElementById("chrome-setup-summary").focus();
+});
+document.getElementById("setup-guide").addEventListener("click",event=>{
+  event.preventDefault();
+  send("openUrl",{url:document.getElementById("setup-guide").href});
 });
 function applySettings(changes){
   if(socket?.readyState!==WebSocket.OPEN){show();return;}

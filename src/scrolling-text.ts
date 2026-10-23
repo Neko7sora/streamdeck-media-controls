@@ -1,9 +1,10 @@
 import sharp from "sharp";
 import {displayFont} from "./display-font.js";
+import {DISPLAY_UPDATE_INTERVAL_MS} from "./display-guidelines.js";
 
 export const SCROLL_HOLD_MS = 1500;
 export const SCROLL_PIXELS_PER_SECOND = 30;
-export const ANIMATION_INTERVAL_MS = 1000 / 30;
+export const ANIMATION_INTERVAL_MS = DISPLAY_UPDATE_INTERVAL_MS;
 export type TextStyle = {width:number; height:number; fontSize:number; bold?:boolean; scale?:number; scroll?:boolean};
 export type TextFrame = {image:string; offset:number; distance:number};
 type Strip = {data:Buffer; width:number; height:number};

@@ -10,6 +10,7 @@
 }
 * { box-sizing: border-box; }
 [hidden] { display: none !important; }
+a { color: var(--accent); text-underline-offset: 3px; }
 body { margin: 0 auto; padding: 20px 14px 16px; min-width: 0; max-width: 560px; }
 .page-heading { display: flex; gap: 12px; align-items: center; margin: 0 2px 18px; }
 .page-heading > div { min-width: 0; }

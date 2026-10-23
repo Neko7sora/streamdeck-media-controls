@@ -193,7 +193,7 @@
         "TriggerDescription": {
           "Rotate": "Seek backward / forward (or volume in settings)",
           "Push": "Play / Pause",
-          "Touch": "Tap progress to seek; hold to change session"
+          "Touch": "Tap timeline to seek; hold to change session"
         }
       },
       "PropertyInspectorPath": "ui/settings.html"

@@ -2,6 +2,17 @@ import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {inspector,displayFields} from './settings-harness.mjs';
 
+test('action settings are revealed after configuration and setup help opens through Stream Deck',()=>{
+  const pi=inspector({},{language:'en',action:'dev.n7s.media-controls.mute'});
+  assert.equal(pi.elements.get('action-settings').hidden,false);
+  assert.equal(pi.elements.get('media-settings').hidden,true);
+  const guide=pi.elements.get('setup-guide');guide.href='https://github.com/Neko7sora/streamdeck-media-controls#chrome-拡張任意オプトイン';
+  pi.click('setup-guide');
+  assert.equal(pi.messages.at(-1).event,'openUrl');
+  assert.equal(pi.messages.at(-1).payload.url,guide.href);
+  assert.equal(pi.messages.some(message=>message.event==='setSettings'),false);
+});
+
 test('appearance count follows supported fields even while its disclosure is closed',()=>{
   for(const [action,count] of [['now-playing',5],['now-playing-dial',9],['play-pause',4],['mute',4],['volume-dial',5]]) {
     const pi=inspector({},{action:`dev.n7s.media-controls.${action}`,language:'en'});
@@ -487,7 +498,7 @@ test('dial guidance follows custom seek steps, volume mode and the visible progr
   const pi=inspector({seekStep:12},{language:'en'});
   const help=pi.elements.get('now-playing-help');
   assert.match(help.textContent,/12 s per tick/);
-  assert.match(help.textContent,/Tap the progress bar/);
+  assert.match(help.textContent,/Tap the bottom timeline area/);
   pi.change('seek-step','30');
   assert.match(help.textContent,/30 s per tick/);
   assert.doesNotMatch(help.textContent,/12 s per tick/);
@@ -496,14 +507,14 @@ test('dial guidance follows custom seek steps, volume mode and the visible progr
   assert.doesNotMatch(help.textContent,/s per tick/);
   assert.equal(pi.elements.get('seek-settings').hidden,true);
   pi.change('show-progress',false);
-  assert.doesNotMatch(help.textContent,/Tap the progress bar/,'hidden progress must not advertise seek taps');
+  assert.doesNotMatch(help.textContent,/Tap the bottom timeline area/,'hidden progress must not advertise seek taps');
   assert.match(help.textContent,/Press to play \/ pause/);
   assert.equal(pi.elements.get('progress-display-note').hidden,false);
   pi.change('dial-mode','seek');
   assert.match(help.textContent,/30 s per tick/,'switching modes retains the selected step');
-  assert.doesNotMatch(help.textContent,/Tap the progress bar/);
+  assert.doesNotMatch(help.textContent,/Tap the bottom timeline area/);
   pi.change('show-progress',true);
-  assert.match(help.textContent,/Tap the progress bar/);
+  assert.match(help.textContent,/Tap the bottom timeline area/);
   assert.equal(pi.elements.get('progress-display-note').hidden,true);
 });
 
