@@ -3,7 +3,7 @@
   "UUID": "dev.n7s.media-controls",
   "Name": "Media Controls",
   "Category": "Media Controls",
-  "Author": "Local Developer",
+  "Author": "Neko7sora",
   "Description": "Windows and Chrome metadata, album artwork, playback timeline, media and volume control.",
   "Version": "0.4.7.0",
   "SDKVersion": 3,
