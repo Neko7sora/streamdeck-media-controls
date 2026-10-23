@@ -22,10 +22,11 @@ function options({language="ja",load=Promise.resolve({}),write=async()=>{},conne
     get:()=>load,
     set(value){writes.push({...value});return write(value);}
   }}}});
-  return {elements,writes,poll:()=>poll(),timeout(){for(const [id,fn] of timers){timers.delete(id);fn();}},save:()=>elements.get("save").listeners.click()};
+  return {elements,writes,poll:()=>poll(),timeout(){for(const [id,fn] of timers){timers.delete(id);fn();}},change(value){elements.get("enabled").checked=value;elements.get("enabled").listeners.change();},save:()=>elements.get("save").listeners.click()};
 }
-function assertDisabled(page,disabled){
-  for(const id of ["enabled","save"]) assert.equal(page.elements.get(id).disabled,disabled,id);
+function assertDisabled(page,disabled,saveDisabled=disabled){
+  assert.equal(page.elements.get("enabled").disabled,disabled,"enabled");
+  assert.equal(page.elements.get("save").disabled,saveDisabled,"save");
 }
 
 test('English and unsupported Chrome languages use English connection and save messages',async()=>{
@@ -33,6 +34,7 @@ test('English and unsupported Chrome languages use English connection and save m
     const page=options({language,connection:Promise.resolve({state:'connected'})});
     await flush();
     assert.equal(page.elements.get('connection-title').textContent,'Connected to Stream Deck');
+    page.change(true);
     await page.save();
     assert.equal(page.elements.get('status').textContent,'Settings saved.');
   }
@@ -106,7 +108,7 @@ test("options cannot overwrite saved settings before their initial read finishes
   assert.equal(page.writes.length,0);
   load.resolve({enabled:true});
   await flush();
-  assertDisabled(page,false);
+  assertDisabled(page,false,true);
   assert.equal(page.elements.get("enabled").checked,true);
   page.elements.get("enabled").checked=false;
   await page.save();
@@ -133,7 +135,7 @@ test("options serialize saves without a pairing token",async()=>{
   assert.deepEqual(page.writes,[{enabled:true}]);
   write.resolve();
   await saved;
-  assertDisabled(page,false);
+  assertDisabled(page,false,true);
   assert.match(page.elements.get("status").textContent,/保存しました/);
 });
 
@@ -150,4 +152,33 @@ test("failed saves preserve edits and release the form for retry",async()=>{
   await page.save();
   assert.equal(page.writes.length,2);
   assert.match(page.elements.get("status").textContent,/保存しました/);
+});
+
+test("Save is available only for changes and returning to the saved value clears the pending message",async()=>{
+  const page=options();
+  await flush();
+  assertDisabled(page,false,true);
+  await page.save();
+  assert.equal(page.writes.length,0,'unchanged settings must not write storage');
+
+  page.change(true);
+  assertDisabled(page,false,false);
+  assert.equal(page.elements.get('status').dataset.state,'dirty');
+  assert.ok(page.elements.get('status').textContent);
+  page.change(false);
+  assertDisabled(page,false,true);
+  assert.equal(page.elements.get('status').textContent,'');
+
+  page.change(true);
+  await page.save();
+  assertDisabled(page,false,true);
+  assert.equal(page.elements.get('status').dataset.state,'saved');
+  await page.save();
+  assert.equal(page.writes.length,1,'saved settings must not be written again');
+  page.change(false);
+  assertDisabled(page,false,false);
+  assert.equal(page.elements.get('status').dataset.state,'dirty');
+  page.change(true);
+  assertDisabled(page,false,true);
+  assert.equal(page.elements.get('status').textContent,'');
 });

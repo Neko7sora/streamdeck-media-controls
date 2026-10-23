@@ -4,7 +4,7 @@ import {randomUUID} from 'node:crypto';
 const source=readFileSync(new URL("../dev.local.media-controls.sdPlugin/ui/settings.js",import.meta.url),"utf8");
 const localization=readFileSync(new URL("../dev.local.media-controls.sdPlugin/ui/localization.js",import.meta.url),"utf8");
 export const displayFields={"show-title":"showTitle","show-artist":"showArtist","show-artwork":"showArtwork","show-app-icon":"showAppIcon","show-status":"showStatus","show-position":"showPosition","show-duration":"showDuration","show-progress":"showProgress","show-dial-info":"showDialInfo","show-control-icon":"showControlIcon","show-target":"showTarget","show-scope":"showScope","show-volume":"showVolume","show-volume-bar":"showVolumeBar"};
-const displayGroups=["control-icon-setting","scope-setting","target-setting","title-setting","artist-setting","artwork-setting","app-icon-setting","volume-setting","status-setting","volume-bar-setting","control-display-note","title-label","status-label"];
+const displayGroups=["control-icon-setting","scope-setting","target-setting","title-setting","artist-setting","artwork-setting","app-icon-setting","volume-setting","status-setting","volume-bar-setting","control-display-note","title-label","status-label","target-warning"];
 export function inspector(settings={},{connect=true,language="ja",sourceText=source,action="dev.local.media-controls.now-playing-dial"}={}) {
   const selects=new Set(["media","audio","dial-mode","seek-step"]);
   const elements=new Map();

@@ -1,8 +1,67 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><title>Stream Deck Chrome Bridge</title>
-<style>body{font:14px system-ui;min-width:320px;max-width:40rem;margin:0 auto;padding:24px;line-height:1.7;color:#20252d;background:#f7f9fc}h1{font-size:21px;margin:0 0 16px}button{padding:.6rem 1.5rem;margin-top:1rem;border:1px solid #9aa5b5;border-radius:6px;background:#fff;cursor:pointer}button:disabled{cursor:default;opacity:.6}.connection{border:1px solid #aab2bf;border-radius:10px;padding:14px;background:#fff}.connection strong{display:flex;align-items:center;gap:8px}.connection strong::before{content:"";width:10px;height:10px;flex:none;border-radius:50%;background:#68758a}.connection[data-state=connected]{border-color:#15804b}.connection[data-state=connected] strong::before{background:#15804b}.connection[data-state=disconnected] strong::before{background:#b75b00}.connection p{margin:6px 0 0;font-size:13px}label{display:block}input{accent-color:#157a46}</style></head>
-<body><h1>Stream Deck Media Bridge</h1>
-<section class="connection" id="connection" data-state="checking" role="status" aria-live="polite" aria-atomic="true"><strong id="connection-title"><span data-i18n="checking.connection">Checking connection</span></strong><p id="connection-detail"><span data-i18n="checking.the.connection.to.stream.deck">Checking the connection to Stream Deck.</span></p></section>
-<p><span data-i18n="extension.privacy">This extension sends Media Session information and available artwork from playing pages to the local Stream Deck plugin. Nothing is uploaded to the cloud.</span></p>
-<p><span data-i18n="extension.setup.help">For first-time setup, click “Register Chrome integration” in the Stream Deck Media Controls settings, then enable sending below and save.</span></p>
-<label><input type="checkbox" id="enabled" disabled><span data-i18n="enable.sending.from.the.browser">Enable sending from the browser</span></label>
-<button id="save" disabled><span data-i18n="save">Save</span></button><p id="status" role="status"><span data-i18n="loading.settings">Loading settings…</span></p><script src="localization.js"></script><script src="options.js"></script></body></html>
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <title>Stream Deck Media Bridge</title>
+  <link rel="stylesheet" href="options.css">
+</head>
+<body>
+  <main>
+    <header class="brand">
+      <span class="brand-mark" aria-hidden="true">
+        <svg viewBox="0 0 28 28" fill="none"><rect x="5" y="5" width="7" height="7" rx="2"/><rect x="16" y="5" width="7" height="7" rx="2"/><rect x="5" y="16" width="7" height="7" rx="2"/><path d="m17 16 7 4-7 4z"/></svg>
+      </span>
+      <div>
+        <p class="eyebrow">Stream Deck</p>
+        <h1>Media Bridge</h1>
+      </div>
+      <span class="browser-tag" data-i18n="chrome.integration">Chrome integration</span>
+    </header>
+    <p class="intro" data-i18n="extension.subtitle">Browser media, on your Stream Deck.</p>
+
+    <section class="connection" id="connection" data-state="checking" role="status" aria-live="polite" aria-atomic="true">
+      <span class="connection-indicator" aria-hidden="true"><span></span></span>
+      <div>
+        <strong id="connection-title"><span data-i18n="checking.connection">Checking connection</span></strong>
+        <p id="connection-detail"><span data-i18n="checking.the.connection.to.stream.deck">Checking the connection to Stream Deck.</span></p>
+      </div>
+    </section>
+
+    <section class="settings-card" aria-labelledby="sharing-title">
+      <h2 id="sharing-title" data-i18n="extension.sharing.title">Browser sharing</h2>
+      <label class="setting-row" for="enabled">
+        <span class="setting-copy">
+          <span class="setting-title" data-i18n="enable.sending.from.the.browser">Enable sending from the browser</span>
+          <span class="setting-help" id="sharing-help" data-i18n="extension.sharing.help">Changes apply after saving.</span>
+        </span>
+        <input type="checkbox" id="enabled" role="switch" aria-describedby="sharing-help" disabled>
+      </label>
+      <div class="save-row">
+        <p id="status" role="status" aria-live="polite" aria-atomic="true"><span data-i18n="loading.settings">Loading settings…</span></p>
+        <button id="save" type="button" disabled><span data-i18n="save">Save</span></button>
+      </div>
+    </section>
+
+    <section class="setup-card" aria-labelledby="setup-title">
+      <h2 id="setup-title" data-i18n="extension.setup.title">First-time setup</h2>
+      <ol>
+        <li data-i18n="extension.setup.step1">Open Media Controls settings in Stream Deck.</li>
+        <li data-i18n="extension.setup.step2">Click “Register Chrome integration”.</li>
+        <li data-i18n="extension.setup.step3">Enable sending above, then save.</li>
+      </ol>
+    </section>
+
+    <footer class="privacy">
+      <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 3 4.5 6v5.3c0 4.4 3.1 7.5 7.5 9.7 4.4-2.2 7.5-5.3 7.5-9.7V6L12 3Z"/><path d="m8.5 12 2.3 2.3 4.7-4.6"/></svg>
+      <div>
+        <h2 data-i18n="extension.privacy.title">Stays on this device</h2>
+        <p data-i18n="extension.privacy">This extension sends Media Session information and available artwork from playing pages to the local Stream Deck plugin. Nothing is uploaded to the cloud.</p>
+      </div>
+    </footer>
+  </main>
+  <script src="localization.js"></script>
+  <script src="options.js"></script>
+</body>
+</html>

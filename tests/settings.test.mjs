@@ -368,3 +368,95 @@ test('a restarted plugin restores the inspector subscription without losing loca
   assert.deepEqual(pi.messages.slice(afterRecovery).map(message=>message.payload.request),['alive']);
   assert.equal(pi.messages.some(message=>message.payload?.request==='registerChromeHost'),false);
 });
+
+test('target warnings wait for each collection and survive unrelated partial updates',()=>{
+  const pi=inspector({mediaTarget:'A',audioTarget:'app'});
+  const warning=pi.elements.get('target-warning');
+  assert.equal(warning.hidden,true,'saved targets are not disconnected before their lists arrive');
+  pi.receive('sendToPropertyInspector',{protocol:2,audio:[{id:'app',label:'Player'}]});
+  assert.equal(warning.hidden,true,'receiving audio does not mark pending media as missing');
+  pi.receive('sendToPropertyInspector',{protocol:2,sessions:[]});
+  assert.equal(warning.hidden,false);
+  assert.equal(pi.elements.get('media').dataset.state,'missing');
+  assert.equal(pi.elements.get('audio').dataset.state,'available');
+  assert.equal(pi.elements.get('media').value,'A','the warning must preserve the saved target');
+  pi.receive('sendToPropertyInspector',{protocol:2,response:'alive',chromeConnection:{state:'connected',sessions:0}});
+  assert.equal(warning.hidden,false,'a liveness response must not erase a missing-target warning');
+  pi.receive('sendToPropertyInspector',{protocol:2,sessions:[{id:'A',label:'Track A'}]});
+  assert.equal(warning.hidden,true,'returning media resolves its warning');
+  pi.receive('sendToPropertyInspector',{protocol:2,audio:[]});
+  assert.equal(warning.hidden,false);
+  assert.equal(pi.elements.get('media').dataset.state,'available');
+  assert.equal(pi.elements.get('audio').dataset.state,'missing');
+  pi.receive('sendToPropertyInspector',{protocol:2,sessions:[{id:'A',label:'Updated track'}]});
+  assert.equal(warning.hidden,false,'a media-only update must retain the audio collection state');
+  pi.change('audio','master');
+  assert.equal(warning.hidden,true,'choosing the system target resolves missing audio');
+  assert.equal(pi.messages.findLast(message=>message.event==='setSettings').payload.audioTarget,'master');
+  pi.change('media','auto');
+  pi.receive('sendToPropertyInspector',{protocol:2,sessions:[],audio:[]});
+  assert.equal(warning.hidden,true,'automatic and system defaults remain valid with empty collections');
+});
+
+test('disconnected targets warn only when used by the current action',()=>{
+  for(const [name,visibleTarget,hiddenTarget,available] of [
+    ['play-pause','media','audio',{sessions:[{id:'A',label:'Track A'}],audio:[]}],
+    ['volume-up','audio','media',{sessions:[],audio:[{id:'app',label:'Player'}]}]
+  ]) {
+    const pi=inspector({mediaTarget:'A',audioTarget:'app'},{action:`dev.local.media-controls.${name}`});
+    const warning=pi.elements.get('target-warning');
+    pi.receive('sendToPropertyInspector',available);
+    assert.equal(pi.elements.get(hiddenTarget).dataset.state,'missing');
+    assert.equal(warning.hidden,true,`${name}: a hidden target must not cause a warning`);
+    pi.receive('sendToPropertyInspector',{sessions:[],audio:[]});
+    assert.equal(pi.elements.get(visibleTarget).dataset.state,'missing');
+    assert.equal(warning.hidden,false,`${name}: the active target is now missing`);
+    pi.change('global',true);
+    assert.equal(warning.hidden,true,`${name}: Windows now chooses the target`);
+    pi.change('global',false);
+    assert.equal(warning.hidden,false,`${name}: returning to the saved target restores the warning`);
+    pi.receive('sendToPropertyInspector',available);
+    assert.equal(warning.hidden,true,`${name}: reconnecting clears the warning without reselection`);
+    assert.equal(pi.elements.get('media').value,'A');
+    assert.equal(pi.elements.get('audio').value,'app');
+  }
+});
+
+test('dial guidance follows custom seek steps, volume mode and the visible progress control',()=>{
+  const pi=inspector({seekStep:12},{language:'en'});
+  const help=pi.elements.get('now-playing-help');
+  assert.match(help.textContent,/12 s per tick/);
+  assert.match(help.textContent,/Tap the progress bar/);
+  pi.change('seek-step','30');
+  assert.match(help.textContent,/30 s per tick/);
+  assert.doesNotMatch(help.textContent,/12 s per tick/);
+  pi.change('dial-mode','volume');
+  assert.match(help.textContent,/adjust the selected volume target/);
+  assert.doesNotMatch(help.textContent,/s per tick/);
+  assert.equal(pi.elements.get('seek-settings').hidden,true);
+  pi.change('show-progress',false);
+  assert.doesNotMatch(help.textContent,/Tap the progress bar/,'hidden progress must not advertise seek taps');
+  assert.match(help.textContent,/Press to play \/ pause/);
+  assert.equal(pi.elements.get('progress-display-note').hidden,false);
+  pi.change('dial-mode','seek');
+  assert.match(help.textContent,/30 s per tick/,'switching modes retains the selected step');
+  assert.doesNotMatch(help.textContent,/Tap the progress bar/);
+  pi.change('show-progress',true);
+  assert.match(help.textContent,/Tap the progress bar/);
+  assert.equal(pi.elements.get('progress-display-note').hidden,true);
+});
+
+test('saved legacy mode is discoverable without reopening advanced controls on every update',()=>{
+  const options={action:'dev.local.media-controls.play-pause'};
+  assert.equal(inspector({},options).elements.get('global-settings').open,false);
+  const pi=inspector({globalKeys:true,mediaTarget:'A'},options);
+  const advanced=pi.elements.get('global-settings');
+  assert.equal(advanced.hidden,false);
+  assert.equal(advanced.open,true,'a saved legacy setting must remain visible on first open');
+  advanced.open=false;
+  pi.receive('sendToPropertyInspector',{sessions:[{id:'A',label:'Track A'}]});
+  assert.equal(advanced.open,false,'live options must respect the user collapsing the section');
+  pi.change('scroll-text',false);
+  assert.equal(advanced.open,false,'saving an unrelated preference must preserve disclosure state');
+  assert.equal(pi.messages.at(-1).payload.globalKeys,true);
+});

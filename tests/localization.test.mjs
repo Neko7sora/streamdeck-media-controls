@@ -67,7 +67,7 @@ test('display language supports Japanese variants and falls back to English',asy
 test('inspector uses Stream Deck language for dynamic states and controls',()=>{
   for(const language of ['en','en-GB','fr']) {
     const pi=inspector({},{language});
-    assert.equal(pi.elements.get('media').children[0].textContent,'Automatic (prefer playing media; keep current target)');
+    assert.equal(pi.elements.get('media').children[0].textContent,'Automatic (prefer playing)');
     assert.equal(pi.elements.get('seek-step').children[1].textContent,'5 s');
     pi.receive('sendToPropertyInspector',{chromeConnection:{state:'connected',sessions:2}});
     assert.equal(pi.elements.get('chrome-connection-detail').textContent,'Receiving media (2 sessions)');

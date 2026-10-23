@@ -2,6 +2,7 @@ const {t,setLanguage,localizePage}=MediaI18n;
 setLanguage(globalThis.navigator?.language??"en");
 localizePage(document);
 let socket,context,action,settings={},sessions=[],audioTargets=[],settingsRevision=0;
+let mediaOptionsLoaded=false,audioOptionsLoaded=false;
 const media=document.getElementById("media"),audio=document.getElementById("audio"),global=document.getElementById("global"),details=document.getElementById("details");
 const dialMode=document.getElementById("dial-mode"),seekStep=document.getElementById("seek-step"),scrollText=document.getElementById("scroll-text");
 const displaySettings=[
@@ -49,8 +50,8 @@ function populateOptions(select,options,current){
   if(select.value!==current) select.value=current;
 }
 function show(){
-  populate(media,sessions,settings.mediaTarget??"auto","auto",t("target.automatic"));
-  populate(audio,audioTargets,settings.audioTarget??"master","master",t("system.default.audio.output"));
+  populate(media,sessions,settings.mediaTarget??"auto","auto",t("settings.target.automatic"));
+  populate(audio,audioTargets,settings.audioTarget??"master","master",t("settings.target.system"));
   global.checked=settings.globalKeys===true;
   scrollText.checked=settings.scrollText!==false;
   dialMode.value=settings.dialMode==="volume"?"volume":"seek";
@@ -70,7 +71,18 @@ function show(){
     isVolume?t("target.globalVolume.help"):t("target.globalPlayback.help"):
     isVolume?t("target.volume.help"):
     isDial?t("target.independent.help"):t("target.playback.help");
+  const mediaMissing=mediaOptionsLoaded&&media.value!=="auto"&&!sessions.some(item=>item.id===media.value);
+  const audioMissing=audioOptionsLoaded&&audio.value!=="master"&&!audioTargets.some(item=>item.id===audio.value);
+  media.dataset.state=mediaMissing?"missing":"available";
+  audio.dataset.state=audioMissing?"missing":"available";
+  const targetMissing=(!document.getElementById("media-settings").hidden&&mediaMissing)||(!document.getElementById("audio-settings").hidden&&audioMissing);
+  const targetWarning=document.getElementById("target-warning");
+  targetWarning.hidden=!targetMissing;
+  const warning=targetMissing?t("settings.target.missing"):"";
+  if(targetWarning.textContent!==warning) targetWarning.textContent=warning;
   document.getElementById("now-playing-help").hidden=!isDial;
+  document.getElementById("now-playing-help").textContent=(dialMode.value==="volume"?t("settings.dial.volumeHelp"):t("settings.dial.seekHelp",{seconds:step}))
+    +(settings.showProgress!==false?" "+t("settings.dial.tapHelp"):"");
   document.getElementById("global-settings").hidden=isNowPlaying;
   document.getElementById("display-settings").hidden=false;
   for(const [id,visible] of [
@@ -92,6 +104,7 @@ function show(){
 window.connectElgatoStreamDeckSocket=(port,uuid,registerEvent,_info,actionInfo)=>{
   setLanguage(JSON.parse(_info).application?.language??globalThis.navigator?.language??"en");localizePage(document);
   const info=JSON.parse(actionInfo);context=uuid;action=info.action;settings=info.payload.settings??{};
+  document.getElementById("global-settings").open=settings.globalKeys===true;
   show();
   socket=new WebSocket(`ws://127.0.0.1:${port}`);
   socket.onopen=()=>{pushOptions=false;lastProbeAt=0;socket.send(JSON.stringify({event:registerEvent,uuid}));setSettingsDisabled(false);registerChrome.disabled=false;lastOptionsAt=Date.now();document.getElementById("status").textContent="";requestOptions();};
@@ -112,8 +125,8 @@ window.connectElgatoStreamDeckSocket=(port,uuid,registerEvent,_info,actionInfo)=
         // Keep the plugin's revision current even when those settings are stale.
         if(pushOptions) send("sendToPlugin",{request:"watch",settingsRevision});
       }
-      if(msg.payload.sessions!==undefined) sessions=msg.payload.sessions;
-      if(msg.payload.audio!==undefined) audioTargets=msg.payload.audio;
+      if(msg.payload.sessions!==undefined) {sessions=msg.payload.sessions;mediaOptionsLoaded=true;}
+      if(msg.payload.audio!==undefined) {audioTargets=msg.payload.audio;audioOptionsLoaded=true;}
       lastOptionsAt=Date.now();if(msg.payload.chromeConnection!==undefined) showChromeConnection(msg.payload.chromeConnection);
       show();
       if(msg.payload.optionsRequired===true){pushOptions=false;requestOptions();}

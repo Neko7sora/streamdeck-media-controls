@@ -1,51 +1,95 @@
-<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-<title data-i18n="media.controls.settings">Media Controls Settings</title><style>
-[hidden]{display:none!important}body{font:13px system-ui;color:#eee;background:#282828;margin:12px}label{display:block;margin:12px 0 5px}select,button{width:100%;padding:6px;color:inherit;background:#444;border:1px solid #666}pre{white-space:pre-wrap;overflow-wrap:anywhere;font-size:11px}p{line-height:1.6;color:#ccc}
-fieldset{border:1px solid #666;border-radius:8px;padding:8px 12px 12px;margin:16px 0}legend{padding:0 5px}fieldset label{display:flex;align-items:center;gap:6px;margin:8px 0}input[type=checkbox]{accent-color:#55ce91}fieldset p{margin:8px 0 0}
-.connection{border:1px solid #666;border-radius:8px;padding:12px;margin-bottom:16px;background:#333}.connection strong{display:flex;align-items:center;gap:8px}.connection strong::before{content:"";width:9px;height:9px;flex:none;border-radius:50%;background:#aaa}.connection[data-state=connected]{border-color:#55ce91}.connection[data-state=connected] strong::before{background:#55ce91}.connection[data-state=disconnected] strong::before,.connection[data-state=unavailable] strong::before{background:#ffc46b}.connection p{margin:6px 0 0}
-</style>
-<section class="connection" id="chrome-connection" data-state="checking" role="status" aria-live="polite" aria-atomic="true"><strong id="chrome-connection-title"><span data-i18n="chrome.checking.connection">Chrome: Checking connection</span></strong><p id="chrome-connection-detail"><span data-i18n="waiting.for.the.plugin.to.respond">Waiting for the plugin to respond.</span></p></section>
-<div id="media-settings"><label for="media"><span data-i18n="display.and.playback.target">Display and playback target</span></label><select id="media" disabled><option value="auto" data-i18n="target.automatic">Automatic (prefer playing media; keep current target)</option></select></div>
-<div id="audio-settings"><label for="audio"><span data-i18n="volume.and.mute.target">Volume and mute target</span></label><select id="audio" disabled><option value="master" data-i18n="system.default.audio.output">System (default audio output)</option></select></div>
-<p id="target-note"></p>
-<div id="global-settings" hidden>
-<label><input type="checkbox" id="global" disabled><span data-i18n="use.legacy.global.media.keys">Use legacy global media keys</span></label>
-<p><span data-i18n="globalKeys.help">Sends the same signal as keyboard media keys. Windows chooses the target.</span></p>
-</div>
-<p><span data-i18n="reselect.targets.that.have.disconnected">Reselect targets that have disconnected.</span></p>
-<div id="dial-settings" hidden>
-<label for="dial-mode"><span data-i18n="now.playing.dial.rotation">Now Playing + dial rotation</span></label><select id="dial-mode" disabled><option value="seek" data-i18n="seek.backward.forward">Seek backward / forward</option><option value="volume" data-i18n="volume">Volume</option></select>
-<div id="seek-settings"><label for="seek-step"><span data-i18n="seconds.per.dial.tick">Seconds per dial tick</span></label><select id="seek-step" disabled><option value="1" data-i18n="1.s">1 s</option><option value="5" data-i18n="5.s">5 s</option><option value="10" data-i18n="10.s">10 s</option><option value="30" data-i18n="30.s">30 s</option><option value="60" data-i18n="60.s">60 s</option></select></div>
-</div>
-<fieldset id="display-settings" hidden><legend><span data-i18n="visible.items">Visible items</span></legend>
-<label id="control-icon-setting" hidden><input type="checkbox" id="show-control-icon" checked disabled><span data-i18n="control.icon">Control icon</span></label>
-<label id="scope-setting" hidden><input type="checkbox" id="show-scope" checked disabled><span data-i18n="target.type.system.app.volume">Target type (system / app volume)</span></label>
-<label id="target-setting" hidden><input type="checkbox" id="show-target" checked disabled><span data-i18n="target.name.system.app.website">Target name (system / app / website)</span></label>
-<label id="title-setting"><input type="checkbox" id="show-title" checked disabled><span id="title-label"><span data-i18n="track.title">Track / title</span></span></label>
-<label id="artist-setting"><input type="checkbox" id="show-artist" checked disabled><span data-i18n="artist">Artist</span></label>
-<label id="artwork-setting"><input type="checkbox" id="show-artwork" checked disabled><span data-i18n="artwork">Artwork</span></label>
-<label id="app-icon-setting"><input type="checkbox" id="show-app-icon" checked disabled><span data-i18n="app.website.icon">App / website icon</span></label>
-<label id="volume-setting" hidden><input type="checkbox" id="show-volume" checked disabled><span data-i18n="volume.percent">Volume (%)</span></label>
-<label id="status-setting"><input type="checkbox" id="show-status" checked disabled><span id="status-label"><span data-i18n="playback.status">Playback status</span></span></label>
-<label id="volume-bar-setting" hidden><input type="checkbox" id="show-volume-bar" checked disabled><span data-i18n="volume.bar">Volume bar</span></label>
-<div id="dial-display-settings" hidden>
-<label><input type="checkbox" id="show-position" checked disabled><span data-i18n="playback.position.elapsed.time">Playback position (elapsed time)</span></label>
-<label><input type="checkbox" id="show-duration" checked disabled><span data-i18n="duration">Duration</span></label>
-<label><input type="checkbox" id="show-progress" checked disabled><span data-i18n="progress.bar">Progress bar</span></label>
-<label><input type="checkbox" id="show-dial-info" checked disabled><span data-i18n="dial.information.seek.step.volume">Dial information (seek step / volume)</span></label>
-</div>
-<p><span data-i18n="display.help">Applies immediately to this key / dial only. All items are visible by default.</span></p>
-<p id="control-display-note" hidden><span data-i18n="display.hidden.help">Hiding items does not change the selected target or key / dial controls.</span></p>
-<p id="progress-display-note" hidden><span data-i18n="display.progress.hiddenHelp">When the progress bar is hidden, tapping the bottom of the screen also toggles playback. Dial rotation still follows the selected mode (seek or volume).</span></p>
-</fieldset>
-<fieldset><legend><span data-i18n="text.scrolling">Text scrolling</span></legend>
-<label><input type="checkbox" id="scroll-text" checked disabled><span data-i18n="enable.text.scrolling">Enable text scrolling</span></label>
-<p id="scroll-help"><span data-i18n="scrolling.help">Smoothly scrolls long titles, artist names and target names. When disabled, text stays at the beginning and is clipped to fit. Applies immediately to this key / dial only. Enabled by default.</span></p>
-</fieldset>
-<p id="now-playing-help"><span data-i18n="dial.help">Now Playing +: rotate right to seek forward, left to seek backward (default: 5 seconds per tick; volume mode available). Press to play / pause, tap the progress bar to seek when supported, or hold to switch sessions.</span></p>
-<label for="register-chrome"><span data-i18n="chrome.integration">Chrome integration</span></label>
-<p><span data-i18n="chrome.registration.help">After loading the extension in Chrome, register the integration using the button below.</span></p>
-<button id="register-chrome" type="button" disabled><span data-i18n="register.chrome.integration">Register Chrome integration</span></button>
-<p id="chrome-registration-status" role="status"></p>
-<details><summary><span data-i18n="metadata.sources.and.timestamps">Metadata, sources and timestamps</span></summary><pre id="details"><span data-i18n="waiting.for.information">Waiting for information</span></pre></details>
-<p id="status" role="status"><span data-i18n="connecting.to.the.plugin">Connecting to the plugin…</span></p><script src="localization.js"></script><script src="settings.js"></script></html>
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title data-i18n="media.controls.settings">Media Controls Settings</title>
+  <link rel="stylesheet" href="settings.css">
+</head>
+<body>
+  <header class="page-heading">
+    <span class="brand-mark" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none"><path d="M5 9v6m5-10v14m5-12v10m5-7v4" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/></svg></span>
+    <div><h1>Media Controls</h1><p data-i18n="settings.subtitle">Customize this key or dial</p></div>
+  </header>
+  <section class="connection" id="chrome-connection" data-state="checking" role="status" aria-live="polite" aria-atomic="true">
+    <strong id="chrome-connection-title"><span data-i18n="chrome.checking.connection">Chrome: Checking connection</span></strong>
+    <p id="chrome-connection-detail"><span data-i18n="waiting.for.the.plugin.to.respond">Waiting for the plugin to respond.</span></p>
+  </section>
+  <p class="feedback connection-feedback" id="status" role="status" aria-live="polite"><span data-i18n="connecting.to.the.plugin">Connecting to the plugin…</span></p>
+  <main>
+    <section class="card targets" aria-labelledby="targets-heading">
+      <h2 id="targets-heading" data-i18n="settings.targets">Control targets</h2>
+      <div class="field" id="media-settings">
+        <label for="media" data-i18n="display.and.playback.target">Display and playback target</label>
+        <select id="media" aria-describedby="target-note target-warning" disabled><option value="auto" data-i18n="settings.target.automatic">Automatic (prefer playing)</option></select>
+      </div>
+      <div class="field" id="audio-settings">
+        <label for="audio" data-i18n="volume.and.mute.target">Volume and mute target</label>
+        <select id="audio" aria-describedby="target-note target-warning" disabled><option value="master" data-i18n="settings.target.system">System audio output</option></select>
+      </div>
+      <p class="help" id="target-note"></p>
+      <p class="notice" id="target-warning" role="status" hidden></p>
+      <details class="advanced" id="global-settings" hidden>
+        <summary data-i18n="settings.advanced">Advanced controls</summary>
+        <label class="check-row"><input type="checkbox" id="global" aria-describedby="global-help" disabled><span data-i18n="use.legacy.global.media.keys">Use legacy global media keys</span></label>
+        <p class="help" id="global-help" data-i18n="globalKeys.help">Sends the same signal as keyboard media keys. Windows chooses the target.</p>
+      </details>
+    </section>
+    <section class="card" id="dial-settings" aria-labelledby="dial-heading" hidden>
+      <h2 id="dial-heading" data-i18n="settings.dial">Dial controls</h2>
+      <div class="field">
+        <label for="dial-mode" data-i18n="now.playing.dial.rotation">Now Playing + dial rotation</label>
+        <select id="dial-mode" aria-describedby="now-playing-help" disabled><option value="seek" data-i18n="seek.backward.forward">Seek backward / forward</option><option value="volume" data-i18n="volume">Volume</option></select>
+      </div>
+      <div class="field" id="seek-settings">
+        <label for="seek-step" data-i18n="seconds.per.dial.tick">Seconds per dial tick</label>
+        <select id="seek-step" aria-describedby="now-playing-help" disabled><option value="1" data-i18n="1.s">1 s</option><option value="5" data-i18n="5.s">5 s</option><option value="10" data-i18n="10.s">10 s</option><option value="30" data-i18n="30.s">30 s</option><option value="60" data-i18n="60.s">60 s</option></select>
+      </div>
+      <p class="help" id="now-playing-help"></p>
+    </section>
+    <fieldset class="card display-card" id="display-settings" hidden>
+      <legend data-i18n="visible.items">Visible items</legend>
+      <p class="section-help" data-i18n="display.help">Applies immediately to this key / dial only. All items are visible by default.</p>
+      <div class="check-list">
+        <label class="check-row" id="control-icon-setting" hidden><input type="checkbox" id="show-control-icon" checked disabled><span data-i18n="control.icon">Control icon</span></label>
+        <label class="check-row" id="scope-setting" hidden><input type="checkbox" id="show-scope" checked disabled><span data-i18n="target.type.system.app.volume">Target type (system / app volume)</span></label>
+        <label class="check-row" id="target-setting" hidden><input type="checkbox" id="show-target" checked disabled><span data-i18n="target.name.system.app.website">Target name (system / app / website)</span></label>
+        <label class="check-row" id="title-setting"><input type="checkbox" id="show-title" checked disabled><span id="title-label"><span data-i18n="track.title">Track / title</span></span></label>
+        <label class="check-row" id="artist-setting"><input type="checkbox" id="show-artist" checked disabled><span data-i18n="artist">Artist</span></label>
+        <label class="check-row" id="artwork-setting"><input type="checkbox" id="show-artwork" checked disabled><span data-i18n="artwork">Artwork</span></label>
+        <label class="check-row" id="app-icon-setting"><input type="checkbox" id="show-app-icon" checked disabled><span data-i18n="app.website.icon">App / website icon</span></label>
+        <label class="check-row" id="volume-setting" hidden><input type="checkbox" id="show-volume" checked disabled><span data-i18n="volume.percent">Volume (%)</span></label>
+        <label class="check-row" id="status-setting"><input type="checkbox" id="show-status" checked disabled><span id="status-label"><span data-i18n="playback.status">Playback status</span></span></label>
+        <label class="check-row" id="volume-bar-setting" hidden><input type="checkbox" id="show-volume-bar" checked disabled><span data-i18n="volume.bar">Volume bar</span></label>
+        <div id="dial-display-settings" hidden>
+          <label class="check-row"><input type="checkbox" id="show-position" checked disabled><span data-i18n="playback.position.elapsed.time">Playback position (elapsed time)</span></label>
+          <label class="check-row"><input type="checkbox" id="show-duration" checked disabled><span data-i18n="duration">Duration</span></label>
+          <label class="check-row"><input type="checkbox" id="show-progress" checked disabled><span data-i18n="progress.bar">Progress bar</span></label>
+          <label class="check-row"><input type="checkbox" id="show-dial-info" checked disabled><span data-i18n="dial.information.seek.step.volume">Dial information (seek step / volume)</span></label>
+        </div>
+      </div>
+      <p class="help" id="control-display-note" hidden data-i18n="display.hidden.help">Hiding items does not change the selected target or key / dial controls.</p>
+      <p class="notice" id="progress-display-note" hidden data-i18n="display.progress.hiddenHelp">When the progress bar is hidden, tapping the bottom of the screen also toggles playback. Dial rotation still follows the selected mode (seek or volume).</p>
+    </fieldset>
+    <fieldset class="card">
+      <legend data-i18n="text.scrolling">Text scrolling</legend>
+      <label class="check-row"><input type="checkbox" id="scroll-text" aria-describedby="scroll-help" checked disabled><span data-i18n="enable.text.scrolling">Enable text scrolling</span></label>
+      <p class="help" id="scroll-help" data-i18n="scrolling.help">Smoothly scrolls long titles, artist names and target names. When disabled, text stays at the beginning and is clipped to fit. Applies immediately to this key / dial only. Enabled by default.</p>
+    </fieldset>
+    <details class="card setup-card">
+      <summary data-i18n="settings.chromeSetup">Setup Chrome integration</summary>
+      <p class="section-help" data-i18n="settings.chromeSetup.help">Optional: adds media information from browser tabs.</p>
+      <p class="help" data-i18n="chrome.registration.help">After loading the extension in Chrome, register the integration using the button below.</p>
+      <button id="register-chrome" type="button" aria-describedby="chrome-registration-status" disabled data-i18n="register.chrome.integration">Register Chrome integration</button>
+      <p class="feedback" id="chrome-registration-status" role="status" aria-live="polite"></p>
+    </details>
+    <details class="card metadata-card">
+      <summary data-i18n="metadata.sources.and.timestamps">Metadata, sources and timestamps</summary>
+      <pre id="details"><span data-i18n="waiting.for.information">Waiting for information</span></pre>
+    </details>
+  </main>
+  <footer><p class="save-note" data-i18n="settings.autoApply">Changes apply immediately to this key or dial.</p></footer>
+  <script src="localization.js"></script>
+  <script src="settings.js"></script>
+</body>
+</html>

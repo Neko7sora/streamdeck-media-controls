@@ -2,7 +2,7 @@ const {t,setLanguage,localizePage}=MediaI18n;
 setLanguage(chrome.i18n.getUILanguage());
 localizePage(document);
 const enable=document.getElementById("enabled"), status=document.getElementById("status"), save=document.getElementById("save");
-let loaded=false,saving=false;
+let loaded=false,saving=false,savedEnabled=false;
 let connectionRequest=0,connectionPending=false,connectionTimeout;
 let statusPort,lastStatusAt=0;
 function connectStatus(){
@@ -50,15 +50,28 @@ setInterval(()=>{
     try {statusPort.postMessage({type:"status"});} catch {statusPort=undefined;}
   } else {connectStatus();void refreshConnection();}
 },5000);
-function setDisabled(disabled){for(const element of [enable,save]) element.disabled=disabled;}
-setDisabled(true);
+function isDirty(){return loaded&&enable.checked!==savedEnabled;}
+function updateControls(){
+  enable.disabled=!loaded||saving;
+  save.disabled=!loaded||saving||!isDirty();
+}
+function showSettingsStatus(message,state){status.textContent=message;status.dataset.state=state;}
+updateControls();
 chrome.storage.local.get(["enabled"]).then(v=>{
-  enable.checked=Boolean(v.enabled);loaded=true;setDisabled(false);status.textContent="";
-}).catch(()=>{status.textContent=t("extension.settings.loadFailed");});
-save.addEventListener("click",async()=>{
+  savedEnabled=Boolean(v.enabled);enable.checked=savedEnabled;loaded=true;updateControls();showSettingsStatus("","idle");
+}).catch(()=>{showSettingsStatus(t("extension.settings.loadFailed"),"error");});
+enable.addEventListener("change",()=>{
   if(!loaded||saving) return;
-  saving=true;setDisabled(true);status.textContent=t("saving.settings");
-  try {await chrome.storage.local.set({enabled:enable.checked});status.textContent=t("settings.saved");void refreshConnection(true);}
-  catch {status.textContent=t("extension.settings.saveFailed");}
-  finally {saving=false;setDisabled(false);}
+  updateControls();showSettingsStatus(isDirty()?t("extension.settings.unsaved"):"",isDirty()?"dirty":"idle");
+});
+save.addEventListener("click",async()=>{
+  if(!loaded||saving||!isDirty()) return;
+  const enabled=enable.checked;
+  saving=true;updateControls();showSettingsStatus(t("saving.settings"),"saving");
+  try {
+    await chrome.storage.local.set({enabled});savedEnabled=enabled;
+    showSettingsStatus(t("settings.saved"),"saved");void refreshConnection(true);
+  }
+  catch {showSettingsStatus(t("extension.settings.saveFailed"),"error");}
+  finally {saving=false;updateControls();}
 });
