@@ -27,7 +27,7 @@ export function worker(enabled=true,imageResponse,hooks={}){
     return {ok:true,json:async()=>({ok:true,commands:hooks.protocol2||String(url).endsWith("/result")?[]:[{id:"cmd",tab_id:body.tab_id,frame_id:body.frame_id,document_id:body.document_id,title:"Track",command:"play-pause"}]})};
   };
   chrome.runtime.connectNative=name=>{
-    assert.equal(name,'dev.local.media_controls');connections++;
+    assert.equal(name,'dev.n7s.media_controls');connections++;
     let receive;
     return {onMessage:{addListener(fn){receive=fn;receiveEvent=fn;}},onDisconnect:{addListener(fn){disconnect=fn;}},postMessage(message){nativeMessages.push(message);
       if(hooks.failStream&&message.path==='/events') {receive({id:message.id,error:'unsupported'});return;}

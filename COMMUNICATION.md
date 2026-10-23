@@ -123,6 +123,6 @@ node --test tests/*.test.mjs
 | ページ・拡張・popup | `chrome-extension/page-main.js`, `bridge-isolated.js`, `background.js`, `options.js` |
 | HTTP・Native Messaging | `src/chrome-server.ts`, `src/chrome-wire.ts`, `scripts/chrome-native-host.mjs` |
 | Windows IPC | `native/media-info/src/main.rs`, `wire.rs`, `src/native-client.ts`, `src/native-wire.ts` |
-| 設定の通知 | `src/plugin.ts`, `src/media-state.ts`, `src/inspector-updates.ts`, `dev.local.media-controls.sdPlugin/ui/settings.js` |
+| 設定の通知 | `src/plugin.ts`, `src/media-state.ts`, `src/inspector-updates.ts`, `dev.n7s.media-controls.sdPlugin/ui/settings.js` |
 | 回帰検証・測定 | `tests/communication.test.mjs`, `chrome-transport.test.mjs`, ページ・worker・settingsの既存テスト、共有harness、`scripts/measure-*.mjs` |
 | バージョン・説明 | `package.json`, `package-lock.json`, 両manifest、`README.md`, 本文書、測定JSON |

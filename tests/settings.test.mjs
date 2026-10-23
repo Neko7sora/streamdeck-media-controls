@@ -4,7 +4,7 @@ import {inspector,displayFields} from './settings-harness.mjs';
 
 test('appearance count follows supported fields even while its disclosure is closed',()=>{
   for(const [action,count] of [['now-playing',5],['now-playing-dial',9],['play-pause',4],['mute',4],['volume-dial',5]]) {
-    const pi=inspector({},{action:`dev.local.media-controls.${action}`,language:'en'});
+    const pi=inspector({},{action:`dev.n7s.media-controls.${action}`,language:'en'});
     const appearance=pi.elements.get('appearance-settings');appearance.open=false;
     assert.equal(pi.elements.get('display-summary').textContent,`${count} / ${count} visible`);
     assert.equal(pi.elements.get('show-all').disabled,true);
@@ -19,7 +19,7 @@ test('appearance count follows supported fields even while its disclosure is clo
 test('show all restores only applicable display settings in one save and preserves newer changes',()=>{
   const hidden=Object.fromEntries(Object.values(displayFields).map(key=>[key,false]));
   const saved={...hidden,mediaTarget:'A',audioTarget:'app',scrollText:false,extra:'preserved'};
-  const pi=inspector(saved,{action:'dev.local.media-controls.play-pause',language:'en'});
+  const pi=inspector(saved,{action:'dev.n7s.media-controls.play-pause',language:'en'});
   const initial=pi.messages.at(-1).payload;
   assert.equal(pi.elements.get('display-summary').textContent,'0 / 4 visible');
   const before=pi.messages.filter(message=>message.event==='setSettings').length;
@@ -59,8 +59,8 @@ test('Chrome setup link opens and focuses setup without registering or overridin
 });
 
 test('action heading identifies the edited key and follows the Stream Deck language',()=>{
-  assert.equal(inspector({},{action:'dev.local.media-controls.play-pause'}).elements.get('action-heading').textContent,'再生 / 一時停止');
-  assert.equal(inspector({},{action:'dev.local.media-controls.volume-dial',language:'en'}).elements.get('action-heading').textContent,'Volume dial');
+  assert.equal(inspector({},{action:'dev.n7s.media-controls.play-pause'}).elements.get('action-heading').textContent,'再生 / 一時停止');
+  assert.equal(inspector({},{action:'dev.n7s.media-controls.volume-dial',language:'en'}).elements.get('action-heading').textContent,'Volume dial');
 });
 test("settings are editable only while connected so unsaved changes are never shown as applied",()=>{
   const pi=inspector({globalKeys:true},{connect:false});
@@ -86,7 +86,7 @@ test("settings are editable only while connected so unsaved changes are never sh
 
 test('scrolling defaults on for every action and saved toggles survive stale replies and reconnects',()=>{
   for(const action of ['now-playing','now-playing-dial','play-pause','previous','next','stop','mute','volume-up','volume-down','volume-dial']) {
-    const options={action:`dev.local.media-controls.${action}`},saved={mediaTarget:'A',showTitle:false,extra:'preserved'};
+    const options={action:`dev.n7s.media-controls.${action}`},saved={mediaTarget:'A',showTitle:false,extra:'preserved'};
     const pi=inspector(saved,options),initial=pi.messages.at(-1).payload;
     assert.equal(pi.elements.get('scroll-text').checked,true);
     assert.equal(pi.elements.get('scroll-help').hidden,false);
@@ -110,7 +110,7 @@ test('scrolling defaults on for every action and saved toggles survive stale rep
 
 test('display settings default to visible and show only items supported by each action',()=>{
   for(const action of ["now-playing","now-playing-dial","play-pause","previous","next","stop","mute","volume-up","volume-down","volume-dial"]) {
-    const pi=inspector({},{action:`dev.local.media-controls.${action}`});
+    const pi=inspector({},{action:`dev.n7s.media-controls.${action}`});
     const nowPlaying=action.startsWith('now-playing'),volume=['mute','volume-up','volume-down','volume-dial'].includes(action),volumeDial=action==='volume-dial';
     assert.equal(pi.elements.get("display-settings").hidden,false);
     assert.equal(pi.elements.get("dial-display-settings").hidden,action!=='now-playing-dial');
@@ -126,7 +126,7 @@ test('display settings default to visible and show only items supported by each 
 test('control display toggles save per action, survive stale replies and restore after reconnect',()=>{
   for(const action of ['play-pause','previous','next','stop','mute','volume-up','volume-down','volume-dial']) {
     const saved={mediaTarget:'A',audioTarget:'app',extra:'preserved'};
-    const pi=inspector(saved,{action:`dev.local.media-controls.${action}`});
+    const pi=inspector(saved,{action:`dev.n7s.media-controls.${action}`});
     const request=pi.messages.at(-1).payload;
     const expected={...saved};
     for(const [id,key] of Object.entries(displayFields)) {
@@ -134,7 +134,7 @@ test('control display toggles save per action, survive stale replies and restore
       assert.deepEqual(pi.messages.at(-1).payload,expected);
     }
     pi.receive('sendToPropertyInspector',{settingsRevision:request.settingsRevision,settings:saved});
-    const reopened=inspector(expected,{action:`dev.local.media-controls.${action}`});
+    const reopened=inspector(expected,{action:`dev.n7s.media-controls.${action}`});
     for(const id of Object.keys(displayFields)) {
       assert.equal(pi.elements.get(id).checked,false);
       assert.equal(reopened.elements.get(id).checked,false);
@@ -151,7 +151,7 @@ test('control display toggles save per action, survive stale replies and restore
 test('target controls match the operation and global mode without discarding saved targets',()=>{
   for(const name of ['play-pause','previous','next','stop','mute','volume-up','volume-down','volume-dial']) {
     const isVolume=['mute','volume-up','volume-down','volume-dial'].includes(name);
-    const pi=inspector({mediaTarget:'A',audioTarget:'app'},{action:`dev.local.media-controls.${name}`});
+    const pi=inspector({mediaTarget:'A',audioTarget:'app'},{action:`dev.n7s.media-controls.${name}`});
     assert.equal(pi.elements.get('media-settings').hidden,isVolume,name);
     assert.equal(pi.elements.get('audio-settings').hidden,!isVolume,name);
     assert.equal(pi.elements.get('now-playing-help').hidden,true);
@@ -167,8 +167,8 @@ test('target controls match the operation and global mode without discarding sav
 
 test('Now Playing exposes volume targets only for the dial and preserves hidden settings',()=>{
   const saved={mediaTarget:'A',audioTarget:'app'};
-  const key=inspector(saved,{action:'dev.local.media-controls.now-playing'});
-  const dial=inspector(saved,{action:'dev.local.media-controls.now-playing-dial'});
+  const key=inspector(saved,{action:'dev.n7s.media-controls.now-playing'});
+  const dial=inspector(saved,{action:'dev.n7s.media-controls.now-playing-dial'});
   assert.equal(key.elements.get('media-settings').hidden,false);
   assert.equal(key.elements.get('audio-settings').hidden,true);
   assert.equal(dial.elements.get('audio-settings').hidden,false);
@@ -464,7 +464,7 @@ test('disconnected targets warn only when used by the current action',()=>{
     ['play-pause','media','audio',{sessions:[{id:'A',label:'Track A'}],audio:[]}],
     ['volume-up','audio','media',{sessions:[],audio:[{id:'app',label:'Player'}]}]
   ]) {
-    const pi=inspector({mediaTarget:'A',audioTarget:'app'},{action:`dev.local.media-controls.${name}`});
+    const pi=inspector({mediaTarget:'A',audioTarget:'app'},{action:`dev.n7s.media-controls.${name}`});
     const warning=pi.elements.get('target-warning');
     pi.receive('sendToPropertyInspector',available);
     assert.equal(pi.elements.get(hiddenTarget).dataset.state,'missing');
@@ -508,7 +508,7 @@ test('dial guidance follows custom seek steps, volume mode and the visible progr
 });
 
 test('saved legacy mode is discoverable without reopening advanced controls on every update',()=>{
-  const options={action:'dev.local.media-controls.play-pause'};
+  const options={action:'dev.n7s.media-controls.play-pause'};
   assert.equal(inspector({},options).elements.get('global-settings').open,false);
   const pi=inspector({globalKeys:true,mediaTarget:'A'},options);
   const advanced=pi.elements.get('global-settings');

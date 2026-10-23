@@ -2,7 +2,7 @@ import { readFileSync, existsSync } from "node:fs";
 import { join, resolve } from "node:path";
 import {createRequire} from "node:module";
 import {displayFont} from "../src/display-font.ts";
-const plugin = resolve("dev.local.media-controls.sdPlugin");
+const plugin = resolve("dev.n7s.media-controls.sdPlugin");
 const m = JSON.parse(readFileSync(join(plugin, "manifest.json"), "utf8"));
 const actions = new Set();
 function checkImage(base) {

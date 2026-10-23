@@ -3,7 +3,7 @@ import {spawn} from "node:child_process";
 import {createInterface} from "node:readline";
 import {fileURLToPath} from "node:url";
 import assert from "node:assert/strict";
-const helper=fileURLToPath(new URL("../dev.local.media-controls.sdPlugin/native/media-info.exe",import.meta.url));
+const helper=fileURLToPath(new URL("../dev.n7s.media-controls.sdPlugin/native/media-info.exe",import.meta.url));
 const child=spawn(helper,["--watch"],{windowsHide:true});
 const timer=setTimeout(()=>{child.kill();console.error("Native smoke timed out");process.exitCode=1;},15000);
 let snapshot=false,replied=false;

@@ -74,11 +74,11 @@ function show(){
   const steps=[1,5,10,30,60];
   if(!steps.includes(step)) steps.push(step);
   populateOptions(seekStep,steps.sort((a,b)=>a-b).map(value=>({id:String(value),label:t("time.seconds",{seconds:value})})),String(step));
-  document.getElementById("dial-settings").hidden=action!=="dev.local.media-controls.now-playing-dial";
-  const isDial=action==="dev.local.media-controls.now-playing-dial";
-  const isNowPlaying=isDial||action==="dev.local.media-controls.now-playing";
-  const isVolume=["mute","volume-up","volume-down","volume-dial"].some(name=>action===`dev.local.media-controls.${name}`);
-  const isVolumeDial=action==="dev.local.media-controls.volume-dial";
+  document.getElementById("dial-settings").hidden=action!=="dev.n7s.media-controls.now-playing-dial";
+  const isDial=action==="dev.n7s.media-controls.now-playing-dial";
+  const isNowPlaying=isDial||action==="dev.n7s.media-controls.now-playing";
+  const isVolume=["mute","volume-up","volume-down","volume-dial"].some(name=>action===`dev.n7s.media-controls.${name}`);
+  const isVolumeDial=action==="dev.n7s.media-controls.volume-dial";
   const globalMode=!isNowPlaying&&settings.globalKeys===true;
   document.getElementById("media-settings").hidden=globalMode||isVolume;
   document.getElementById("audio-settings").hidden=globalMode||(!isVolume&&!isDial);

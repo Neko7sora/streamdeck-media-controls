@@ -14,7 +14,7 @@ execFileSync("cargo", ["build", "--locked", "--release", "--manifest-path", reso
 });
 const source = resolve(project, "target/release/media-keys.exe");
 if (!existsSync(source)) throw new Error(`Native binary missing: ${source}`);
-const target = resolve("dev.local.media-controls.sdPlugin/native");
+const target = resolve("dev.n7s.media-controls.sdPlugin/native");
 mkdirSync(target, { recursive: true });
 copyFileSync(source, resolve(target, "media-keys.exe"));
 

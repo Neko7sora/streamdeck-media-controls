@@ -79,7 +79,7 @@
 | `npm run test:smoke` | 成功。継続スナップショット、存在しない対象の拒否、stdin 終了後の正常終了 |
 | 実 API 読み取り | GSMTC current=null / sessions=[]、Core Audio の4セッションと master の音量/ミュートが取得できた |
 | `npm run validate` | Elgato 公式スキーマ取得を許可した状態で成功。10アクションと custom layout |
-| `streamdeck pack ./dev.local.media-controls.sdPlugin --no-file-list` | 成功。v0.3.0.0、165ファイル、展開時約21.2 MiB |
+| `streamdeck pack ./dev.n7s.media-controls.sdPlugin --no-file-list` | 成功。v0.3.0.0、165ファイル、展開時約21.2 MiB |
 | `npm audit --json` | 成功。検出0件 |
 | `cargo fmt` / `git diff --check` | フォーマット・空白検査を実施 |
 
@@ -95,7 +95,7 @@
 
 ## 8. Windows での導入・確認
 
-1. [README のビルド手順](README.md#windows-x64-ビルド)を実行するか、生成済み `dev.local.media-controls.streamDeckPlugin` を開いて導入します。
+1. [README のビルド手順](README.md#windows-x64-ビルド)を実行するか、生成済み `dev.n7s.media-controls.streamDeckPlugin` を開いて導入します。
 2. Stream Deck に Now Playing / + を配置し、アクション設定から再生対象と音量対象を独立して選びます。初期値は自動選択と master です。
 3. Chrome を利用する場合は拡張を読み込み、専用トークンをオプションに登録して有効化し、ページを再読み込みします。
 4. [README の実機受け入れ確認](README.md#実機の受け入れ確認)を実施してください。取得可能な情報・表示/操作の対応は README 冒頭の一覧表に整理しています。

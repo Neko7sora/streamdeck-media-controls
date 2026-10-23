@@ -1,7 +1,7 @@
 importScripts("localization.js");
 const {t,setLanguage}=MediaI18n;
 setLanguage(chrome.i18n.getUILanguage());
-const NATIVE_HOST="dev.local.media_controls";
+const NATIVE_HOST="dev.n7s.media_controls";
 let nativePort,requestId=0;
 let connectionState,checkingConnection;
 let protocol=1,bridgeEpoch,streamStarted=false,lastContact=-Infinity,lastPostContact=-Infinity,wireGeneration=0;

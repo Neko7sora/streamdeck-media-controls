@@ -15,6 +15,6 @@ JSON はビルド時に JavaScript へ埋め込まれます。実行時の JSON 
 
 文言は `t("キー", {count: 件数})`、HTML は `data-i18n="キー"` で参照します。キーは文言を修正しても変更しない識別子です。HTML 内のテキストは初回読み込み用の英語表示で、実行時はカタログを使用します。翻訳はプレーンテキストとして挿入され、HTML は実行されません。曲名などの外部メタデータは翻訳しません。
 
-`src/locale-data.generated.ts`、`dev.local.media-controls.sdPlugin/ui/localization.js`、`chrome-extension/localization.js` は生成物です。直接編集せず、JSON を編集して再生成してください。通常のプラグインビルドでも再生成します。watch 実行中に翻訳を編集した場合は `npm run locales:build` を実行し、設定画面／拡張機能を再読み込みしてください。
+`src/locale-data.generated.ts`、`dev.n7s.media-controls.sdPlugin/ui/localization.js`、`chrome-extension/localization.js` は生成物です。直接編集せず、JSON を編集して再生成してください。通常のプラグインビルドでも再生成します。watch 実行中に翻訳を編集した場合は `npm run locales:build` を実行し、設定画面／拡張機能を再読み込みしてください。
 
 `npm run locales:check` は生成物の更新漏れ、未知のキー、空の訳文、プレースホルダーの不一致を検出します。複数形の分岐は自動処理しません。必要な言語では件数に依存しない表現を使うか、複数形ルールを翻訳処理に追加してください。

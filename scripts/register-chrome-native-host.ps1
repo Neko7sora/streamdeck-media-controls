@@ -59,16 +59,16 @@ function Write-IfChanged([string]$Path, [string]$Content, [Text.Encoding]$Encodi
 $launcher = Join-Path $hostDir 'host.cmd'
 $script = Join-Path $hostDir 'chrome-native-host.mjs'
 Write-IfChanged $launcher "@echo off`r`n`"$nodeExe`" `"$script`"`r`n" ([Text.Encoding]::Default)
-$manifestPath = Join-Path $hostDir 'dev.local.media_controls.json'
+$manifestPath = Join-Path $hostDir 'dev.n7s.media_controls.json'
 $manifest = [ordered]@{
-  name = 'dev.local.media_controls'
+  name = 'dev.n7s.media_controls'
   description = 'Stream Deck Media Controls native bridge'
   path = $launcher
   type = 'stdio'
   allowed_origins = @($ExtensionId | Sort-Object -Unique | ForEach-Object { "chrome-extension://$_/" })
 } | ConvertTo-Json
 Write-IfChanged $manifestPath $manifest (New-Object Text.UTF8Encoding($false))
-$key = 'HKCU:\Software\Google\Chrome\NativeMessagingHosts\dev.local.media_controls'
+$key = 'HKCU:\Software\Google\Chrome\NativeMessagingHosts\dev.n7s.media_controls'
 if (-not (Test-Path -LiteralPath $key)) { New-Item -Path $key -Force | Out-Null }
 if ((Get-Item -LiteralPath $key).GetValue('') -cne $manifestPath) { Set-Item -Path $key -Value $manifestPath }
 Write-Host 'Native Messaging host registered. Enable sending in the Chrome extension options.'

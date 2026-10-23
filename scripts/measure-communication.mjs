@@ -15,7 +15,7 @@ const flush=async()=>{for(let i=0;i<8;i++) await new Promise(setImmediate);};
 const settled=async w=>{const start=performance.now();do {await flush();if(performance.now()-start>2000) throw Error('Worker did not settle');} while(w.busy());};
 const bytes=value=>Buffer.byteLength(typeof value==='string'?value:JSON.stringify(value));
 function measureInspector(before) {
-  const pi=inspector({mediaTarget:'a'},{sourceText:source('dev.local.media-controls.sdPlugin/ui/settings.js',before)}),updates=new InspectorUpdates();
+  const pi=inspector({mediaTarget:'a'},{sourceText:source('dev.n7s.media-controls.sdPlugin/ui/settings.js',before)}),updates=new InspectorUpdates();
   let offset=1,requestBytes=0,responseBytes=0,requests=0,responses=0,full=0;
   const payload=second=>({sessions:[{id:'a',label:second<45?'Track':'Next',details:JSON.stringify({title:second<45?'Track':'Next',artist:'Artist',observed_at:second*1000,subtitle:'x'.repeat(4096)})}],audio:[{id:'master',volume:second<30?0.5:0.6,muted:false}],chromeConnection:{state:'connected',sessions:1,lastSeen:second*1000}});
   const receive=value=>{responseBytes+=bytes(value);responses++;pi.receive('sendToPropertyInspector',value);};

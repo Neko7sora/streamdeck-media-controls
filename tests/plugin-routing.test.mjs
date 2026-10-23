@@ -15,7 +15,7 @@ test("Now Playing operates the session last sent to the display, and never falls
     art:`export async function artworkLoadingImage(){return undefined;} export async function artwork(){await globalThis.__mediaTest.artwork?.();return undefined;} export async function applicationIcon(m){return m?.favicon_data_url??m?.app_icon_data_url;}`
   };
   const plugin={name:"test-ports",setup(build){
-    build.onLoad({filter:/control-image\.ts$/},args=>({contents:readFileSync(args.path,"utf8").replaceAll("import.meta.url",JSON.stringify(new URL("../dev.local.media-controls.sdPlugin/bin/plugin.js",import.meta.url).href)),loader:"ts"}));
+    build.onLoad({filter:/control-image\.ts$/},args=>({contents:readFileSync(args.path,"utf8").replaceAll("import.meta.url",JSON.stringify(new URL("../dev.n7s.media-controls.sdPlugin/bin/plugin.js",import.meta.url).href)),loader:"ts"}));
     build.onResolve({filter:/@elgato\/streamdeck$|\.\/media-state\.js$|\.\/native-client\.js$|\.\/chrome-server\.js$|\.\/chrome-registration\.js$|\.\/artwork\.js$/},args=>({path:args.path==="@elgato/streamdeck"?"sdk":args.path.includes("media-state")?"state":args.path.includes("native-client")?"native":args.path.includes("chrome-server")?"chrome":args.path.includes("chrome-registration")?"registration":"art",namespace:"test"}));
     build.onLoad({filter:/.*/,namespace:"test"},args=>({contents:mocks[args.path],loader:"js"}));
   }};

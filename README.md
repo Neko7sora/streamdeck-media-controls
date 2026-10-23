@@ -124,7 +124,7 @@ Chrome の設定画面は、接続確認の応答が6秒間ない場合に「接
 
 通信経路は「Chrome 拡張 → Native Messaging（標準入出力）→ Node.js ホスト → 認証付き localhost HTTP → Stream Deck プラグイン」です。拡張は localhost に直接接続せず、秘密トークンも保持しません。ホストは Chrome の allowed_origins に登録した拡張だけが起動できます。ローカルユーザーが直接ホストを実行することを防ぐ仕組みではありません。
 
-登録解除は `Remove-Item -LiteralPath 'HKCU:\Software\Google\Chrome\NativeMessagingHosts\dev.local.media_controls'` で行います。登録ボタンの処理中は、完了を待ってから解除してください。
+登録解除は `Remove-Item -LiteralPath 'HKCU:\Software\Google\Chrome\NativeMessagingHosts\dev.n7s.media_controls'` で行います。登録ボタンの処理中は、完了を待ってから解除してください。
 
 拡張のオプションは保存済み設定の読み込みが完了してから編集できます。読み込みに失敗した場合は既存設定の上書きを防ぐため編集・保存を無効にし、再読み込みを案内します。保存中も入力と重複保存を止め、保存が失敗した場合は入力内容を残して再試行できます。
 

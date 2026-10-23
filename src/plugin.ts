@@ -15,7 +15,7 @@ import {mediaTargetName,audioTargetName} from "./control-display.js";
 import {InspectorUpdates} from "./inspector-updates.js";
 
 setLanguage(streamDeck.info.application.language);
-const UUID="dev.local.media-controls";
+const UUID="dev.n7s.media-controls";
 const EMPTY_ICON="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAAC0lEQVR42mNgAAIAAAUAAen63NgAAAAASUVORK5CYII=";
 type Settings={mediaTarget?:string;audioTarget?:string;globalKeys?:boolean;dialMode?:string;seekStep?:number;scrollText?:boolean;
   showTitle?:boolean;showArtist?:boolean;showArtwork?:boolean;showAppIcon?:boolean;showStatus?:boolean;

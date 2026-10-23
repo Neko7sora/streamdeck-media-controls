@@ -1,6 +1,6 @@
 {
   "$schema": "https://schemas.elgato.com/streamdeck/plugins/manifest.json",
-  "UUID": "dev.local.media-controls",
+  "UUID": "dev.n7s.media-controls",
   "Name": "Media Controls",
   "Category": "Media Controls",
   "Author": "Local Developer",
@@ -25,7 +25,7 @@
   "Actions": [
     {
       "Name": "Play / Pause",
-      "UUID": "dev.local.media-controls.play-pause",
+      "UUID": "dev.n7s.media-controls.play-pause",
       "Icon": "imgs/actions/play-pause-icon",
       "States": [
         {
@@ -41,7 +41,7 @@
     },
     {
       "Name": "Previous Track",
-      "UUID": "dev.local.media-controls.previous",
+      "UUID": "dev.n7s.media-controls.previous",
       "Icon": "imgs/actions/previous-icon",
       "States": [
         {
@@ -57,7 +57,7 @@
     },
     {
       "Name": "Next Track",
-      "UUID": "dev.local.media-controls.next",
+      "UUID": "dev.n7s.media-controls.next",
       "Icon": "imgs/actions/next-icon",
       "States": [
         {
@@ -73,7 +73,7 @@
     },
     {
       "Name": "Stop",
-      "UUID": "dev.local.media-controls.stop",
+      "UUID": "dev.n7s.media-controls.stop",
       "Icon": "imgs/actions/stop-icon",
       "States": [
         {
@@ -89,7 +89,7 @@
     },
     {
       "Name": "Toggle Mute",
-      "UUID": "dev.local.media-controls.mute",
+      "UUID": "dev.n7s.media-controls.mute",
       "Icon": "imgs/actions/mute-icon",
       "States": [
         {
@@ -105,7 +105,7 @@
     },
     {
       "Name": "Volume Up",
-      "UUID": "dev.local.media-controls.volume-up",
+      "UUID": "dev.n7s.media-controls.volume-up",
       "Icon": "imgs/actions/volume-up-icon",
       "States": [
         {
@@ -121,7 +121,7 @@
     },
     {
       "Name": "Volume Down",
-      "UUID": "dev.local.media-controls.volume-down",
+      "UUID": "dev.n7s.media-controls.volume-down",
       "Icon": "imgs/actions/volume-down-icon",
       "States": [
         {
@@ -137,7 +137,7 @@
     },
     {
       "Name": "Volume Dial",
-      "UUID": "dev.local.media-controls.volume-dial",
+      "UUID": "dev.n7s.media-controls.volume-dial",
       "Icon": "imgs/actions/volume-dial-icon",
       "States": [
         {
@@ -160,7 +160,7 @@
     },
     {
       "Name": "Now Playing (Artwork)",
-      "UUID": "dev.local.media-controls.now-playing",
+      "UUID": "dev.n7s.media-controls.now-playing",
       "Icon": "imgs/actions/play-pause-icon",
       "States": [
         {
@@ -176,7 +176,7 @@
     },
     {
       "Name": "Now Playing +",
-      "UUID": "dev.local.media-controls.now-playing-dial",
+      "UUID": "dev.n7s.media-controls.now-playing-dial",
       "Icon": "imgs/actions/play-pause-icon",
       "States": [
         {

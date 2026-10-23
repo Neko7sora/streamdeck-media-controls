@@ -1,11 +1,11 @@
 import {readFileSync} from 'node:fs';
 import vm from 'node:vm';
 import {randomUUID} from 'node:crypto';
-const source=readFileSync(new URL("../dev.local.media-controls.sdPlugin/ui/settings.js",import.meta.url),"utf8");
-const localization=readFileSync(new URL("../dev.local.media-controls.sdPlugin/ui/localization.js",import.meta.url),"utf8");
+const source=readFileSync(new URL("../dev.n7s.media-controls.sdPlugin/ui/settings.js",import.meta.url),"utf8");
+const localization=readFileSync(new URL("../dev.n7s.media-controls.sdPlugin/ui/localization.js",import.meta.url),"utf8");
 export const displayFields={"show-title":"showTitle","show-artist":"showArtist","show-artwork":"showArtwork","show-app-icon":"showAppIcon","show-status":"showStatus","show-position":"showPosition","show-duration":"showDuration","show-progress":"showProgress","show-dial-info":"showDialInfo","show-control-icon":"showControlIcon","show-target":"showTarget","show-scope":"showScope","show-volume":"showVolume","show-volume-bar":"showVolumeBar"};
 const displayGroups=["control-icon-setting","scope-setting","target-setting","title-setting","artist-setting","artwork-setting","app-icon-setting","volume-setting","status-setting","volume-bar-setting","control-display-note","title-label","status-label","target-warning"];
-export function inspector(settings={},{connect=true,language="ja",sourceText=source,action="dev.local.media-controls.now-playing-dial"}={}) {
+export function inspector(settings={},{connect=true,language="ja",sourceText=source,action="dev.n7s.media-controls.now-playing-dial"}={}) {
   const selects=new Set(["media","audio","dial-mode","seek-step"]);
   const elements=new Map();
   for(const id of ["action-heading","appearance-settings","display-summary","show-all","chrome-setup","chrome-setup-link","chrome-setup-summary","media","audio","media-settings","audio-settings","target-note","now-playing-help","scroll-help","scroll-text","global","global-settings","details","dial-mode","seek-step","dial-settings","seek-settings","status","register-chrome","chrome-registration-status","chrome-connection","chrome-connection-title","chrome-connection-detail","display-settings","dial-display-settings","progress-display-note",...displayGroups,...Object.keys(displayFields)]) {
