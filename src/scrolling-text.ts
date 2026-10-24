@@ -5,7 +5,7 @@ import {DISPLAY_UPDATE_INTERVAL_MS} from "./display-guidelines.js";
 export const SCROLL_HOLD_MS = 1500;
 export const SCROLL_PIXELS_PER_SECOND = 30;
 export const ANIMATION_INTERVAL_MS = DISPLAY_UPDATE_INTERVAL_MS;
-export type TextStyle = {width:number; height:number; fontSize:number; bold?:boolean; scale?:number; scroll?:boolean};
+export type TextStyle = {width:number; height:number; fontSize:number; bold?:boolean; scale?:number; scroll?:boolean; align?:"left"|"center"};
 export type TextFrame = {image:string; offset:number; distance:number};
 type Strip = {data:Buffer; width:number; height:number};
 type Line = {key:string; strip:Promise<Strip>; started?:number; offset?:number; image?:string};
@@ -55,7 +55,7 @@ export class ScrollingText {
       const crop=await sharp(strip.data,{raw:{width:strip.width,height:strip.height,channels:4}})
         .extract({left:offset,top:Math.max(0,Math.floor((strip.height-style.height)/2)),width:Math.min(style.width,strip.width),height}).png().toBuffer();
       const bytes=await sharp({create:{width:style.width,height:style.height,channels:4,background:{r:0,g:0,b:0,alpha:0}}})
-        .composite([{input:crop,left:0,top:Math.floor((style.height-height)/2)}]).png({compressionLevel:1}).toBuffer();
+        .composite([{input:crop,left:style.align==="center"?Math.max(0,Math.floor((style.width-strip.width)/2)):0,top:Math.floor((style.height-height)/2)}]).png({compressionLevel:1}).toBuffer();
       line.offset=offset;line.image=`data:image/png;base64,${bytes.toString("base64")}`;
     }
     return {image:line.image,offset,distance};

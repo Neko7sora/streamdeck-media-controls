@@ -38,11 +38,11 @@ export async function buildMarketplace() {
   new Function("module","exports","require",bundled.outputFiles[0].text)(module,module.exports,createRequire(new URL("../package.json",import.meta.url)));
   const {nowPlayingImage,ScrollingText}=module.exports;
   const scrolling=new ScrollingText();
-  const line=async(field,value,width,height,fontSize,scale=2)=>(await scrolling.frame("sample",field,value,{width,height,fontSize,scale,scroll:false},"sample",0)).image;
+  const line=async(field,value,width,height,fontSize,scale=2,align="left")=>(await scrolling.frame("sample",field,value,{width,height,fontSize,scale,scroll:false,align},"sample",0)).image;
   const title=await line("title","Daylight",128,30,24);
   const artist=await line("artist","Sample",128,28,22);
-  const playing=await line("playing","▶",24,24,18,1);
-  const paused=await line("paused","Ⅱ",24,24,18,1);
+  const playing=await line("playing","▶",24,24,18,1,"center");
+  const paused=await line("paused","Ⅱ",24,24,18,1,"center");
   const cover=await sharp(svg(144,144,`<rect width="144" height="144" fill="#145d70"/><circle cx="106" cy="37" r="27" fill="#f3c987"/><path d="M0 95 53 42 144 133V144H0Z" fill="#72b9b0"/><path d="M0 131 67 73 144 110V144H0Z" fill="#253d64"/>`)).png().toBuffer();
   const data=bytes=>`data:image/png;base64,${bytes.toString("base64")}`;
   const decode=url=>Buffer.from(url.split(",")[1],"base64");

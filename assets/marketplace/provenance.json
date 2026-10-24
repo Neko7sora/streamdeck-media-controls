@@ -3,12 +3,12 @@
     "assets/plugin-icon.svg": "d54087585dfbcc81cf2453390448b3b8ed6a51023c8a1b5a0f723153234e7239",
     "dev.n7s.media-controls.sdPlugin/manifest.json": "e086382c93e63644af99ea45543503ebc147cfb09ea5745b40bb0b3b2ba8dbd5",
     "docs/marketplace/listing.en.json": "83c67752405108e00886feebeceb059077cfc752063ccc8cc58248b4a71172ed",
-    "scripts/build-marketplace.mjs": "278c46efbb7a7583cc0d2f897894d32580e6808e7a79fa4cca5157df8a04280c",
+    "scripts/build-marketplace.mjs": "0ae83a34f24c9605108a21c03ed5be1914315909016b3a22364ce149387f446b",
     "src/now-playing-image.ts": "fdd3e4f34dd266b74d7b8fb941a8e6b37225a3c87ca0417d833eb2e2867a3ce5",
-    "src/scrolling-text.ts": "326d06e75af4a56525d049e833002079fa9c6f9950e58c7741122a7cf9873a1e",
+    "src/scrolling-text.ts": "0a5ef6d91f3f9e1948a7cbfeeb33ad497a354f278852d981ccb14ae2a31cc294",
     "src/display-font.ts": "01120d67e03419bef8699a38e0a224ab7cc0e419d01123a0d3c99dcbde4baa52",
     "src/display-guidelines.ts": "b6fde60b325d24ed310de6448a32a5b6707bed6d7d9d5c17fb1a7e76679682e7",
-    "src/plugin.ts": "7516d076b39dc4252b534322ab6c9aa462d1a0dbf0e84a06e1efc64b3387f986",
+    "src/plugin.ts": "cf6814edfb99ff62efe9077fbbbb4e562b59ec931202c626c094a4cd6549b9cf",
     "dev.n7s.media-controls.sdPlugin/imgs/actions/play-pause@2x.png": "7eea7f4b47d161bfc4f1f0a671e39a688f9de336029983e24364973dd49bd18e",
     "dev.n7s.media-controls.sdPlugin/imgs/actions/previous@2x.png": "712248ec9d30bcf842f352396776c09c67e8492c040b2ed4864ffe9e0efa4419",
     "dev.n7s.media-controls.sdPlugin/imgs/actions/next@2x.png": "150be9b1c37315a053fef5d982e592874189fc2b5869e04bd66edf1946befc16",
@@ -19,10 +19,10 @@
   },
   "outputs": {
     "assets/marketplace/app-icon.png": "ee38f15c7865ee273b7c7364cb736c0cf480fb44dd28c586171ec5d5d6682606",
-    "assets/marketplace/thumbnail.png": "3bc77f3fe292bad5b3b98bd6b497a7c9c067154f49c0268bd36932dc55862b73",
-    "assets/marketplace/gallery-01-now-playing.png": "bc225e9d2e996148d5f673f2550375c4fa99c88b8f9628df585f33c122fabaf7",
+    "assets/marketplace/thumbnail.png": "bdf45286fd10df7d1796898bd6d057e0ef33fe0b6bd08b0df65e66670ccf02dc",
+    "assets/marketplace/gallery-01-now-playing.png": "1d2c33c6bd2d88e8cd71b13bdea4cf541e0fb23e03035a0e254556e086cf9571",
     "assets/marketplace/gallery-02-controls.png": "ad2454bb428f2ebf4c39c3bb23f56a25cd0b0813719dba56a7fc725dd3041508",
-    "assets/marketplace/gallery-03-customization.png": "bf427e86b8cd1c292af8f8a3628fb7d8265c52c0067b59957e00daf4a537f083"
+    "assets/marketplace/gallery-03-customization.png": "0e9b2942e3eca62986b90cf46f840a1b38d26e34425eede653d4864299d33ee1"
   },
   "sample": {
     "title": "Daylight",

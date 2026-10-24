@@ -175,7 +175,7 @@ class NowPlaying extends ConfiguredAction {
     const [title,artist,status]=await Promise.all([
       this.scrolling.frame(a.id,"title",s.showTitle===false?"":displayTitle(m),{width:128,height:30,fontSize:24,scale:2,scroll:s.scrollText},identity),
       this.scrolling.frame(a.id,"artist",s.showArtist===false?"":m?.artist??"",{width:128,height:28,fontSize:22,scale:2,scroll:s.scrollText},identity),
-      this.scrolling.frame(a.id,"status",s.showStatus===false?"":m?.playback_state==="playing"?"▶":m?.playback_state==="paused"?"Ⅱ":"?",{width:24,height:24,fontSize:18,scroll:s.scrollText},identity)
+      this.scrolling.frame(a.id,"status",s.showStatus===false?"":m?.playback_state==="playing"?"▶":m?.playback_state==="paused"?"Ⅱ":"?",{width:24,height:24,fontSize:18,scroll:s.scrollText,align:"center"},identity)
     ]);
     if(!isCurrent()) return;
     const titleImage=s.showTitle===false?undefined:title.image,artistImage=s.showArtist===false?undefined:artist.image,statusImage=s.showStatus===false?undefined:status.image;
