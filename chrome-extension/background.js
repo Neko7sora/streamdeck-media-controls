@@ -277,7 +277,12 @@ async function downloadArtwork(entry) {
       data=`data:${outputMime};base64,${btoa(binary)}`;
       break;
     } catch { /* image unavailable: Windows image is fallback */ }
-    finally {clearTimeout(timeout);if(entry.controller===controller) entry.controller=undefined;}
+    finally {
+      // fetch resolves at the headers. Rejecting those headers must also stop
+      // the unread body before this job moves on and releases its bounded slot.
+      controller.abort();
+      clearTimeout(timeout);if(entry.controller===controller) entry.controller=undefined;
+    }
   }
   return data;
 }

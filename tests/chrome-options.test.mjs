@@ -17,12 +17,18 @@ function options({language="ja",load=Promise.resolve({}),write=async()=>{},conne
     addEventListener(event,fn){this.listeners[event]=fn;}
   }]));
   const writes=[];
-  const timers=new Map();let nextTimer=0,poll;
-  vm.runInNewContext(source,{setInterval(fn){poll=fn;},setTimeout(fn){timers.set(++nextTimer,fn);return nextTimer;},clearTimeout(id){timers.delete(id);},document:{documentElement:{},querySelectorAll:()=>[],getElementById:id=>elements.get(id)},chrome:{i18n:{getUILanguage:()=>language},runtime:{connect,async sendMessage(){return typeof connection==="function"?connection():connection;}},storage:{local:{
+  const timers=new Map();let nextTimer=0,poll,now=1000;
+  vm.runInNewContext(source,{Date:{now:()=>now},setInterval(fn){poll=fn;},setTimeout(fn){timers.set(++nextTimer,fn);return nextTimer;},clearTimeout(id){timers.delete(id);},document:{documentElement:{},querySelectorAll:()=>[],getElementById:id=>elements.get(id)},chrome:{i18n:{getUILanguage:()=>language},runtime:{connect,async sendMessage(){return typeof connection==="function"?connection():connection;}},storage:{local:{
     get:()=>load,
     set(value){writes.push({...value});return write(value);}
   }}}});
-  return {elements,writes,poll:()=>poll(),timeout(){for(const [id,fn] of timers){timers.delete(id);fn();}},change(value){elements.get("enabled").checked=value;elements.get("enabled").listeners.change();},save:()=>elements.get("save").listeners.click(),retry:()=>elements.get("retry-connection").listeners.click(),toggleSetup(){elements.get("setup-summary").listeners.click();elements.get("setup").open=!elements.get("setup").open;}};
+  return {elements,writes,poll:()=>poll(),advance(ms,runPoll=true){now+=ms;if(runPoll) poll();},timeout(){for(const [id,fn] of timers){timers.delete(id);fn();}},change(value){elements.get("enabled").checked=value;elements.get("enabled").listeners.change();},save:()=>elements.get("save").listeners.click(),retry:()=>elements.get("retry-connection").listeners.click(),toggleSetup(){elements.get("setup-summary").listeners.click();elements.get("setup").open=!elements.get("setup").open;}};
+}
+function statusPort(){
+  let receive,onDisconnect;
+  return {sent:[],disconnected:false,onMessage:{addListener(fn){receive=fn;}},onDisconnect:{addListener(fn){onDisconnect=fn;}},
+    postMessage(message){this.sent.push(message);},receive(message){receive(message);},
+    disconnect(){this.disconnected=true;onDisconnect();}};
 }
 function assertDisabled(page,disabled,saveDisabled=disabled){
   assert.equal(page.elements.get("enabled").disabled,disabled,"enabled");
@@ -49,6 +55,71 @@ test('popup receives pushed changes and ignores an older status request after a 
   page.poll();assert.equal(sent.at(-1).type,'status');
   receive({state:'disabled'});assert.equal(page.elements.get('connection').dataset.state,'disabled');
   disconnect();assert.equal(page.elements.get('connection').dataset.state,'unavailable');
+});
+
+test('a disconnected status port invalidates pending replies before reconnecting',async()=>{
+  const pending=deferred(),ports=[statusPort(),statusPort()];let connections=0,requests=0;
+  const page=options({connect:()=>ports[connections++],connection:()=>++requests===1?pending.promise:Promise.resolve({state:'disabled'})});
+  ports[0].disconnect();
+  assert.equal(page.elements.get('connection').dataset.state,'unavailable');
+  pending.resolve({state:'connected'});await flush();
+  assert.equal(page.elements.get('connection').dataset.state,'unavailable','pre-disconnect replies must not restore connected status');
+  page.poll();await flush();
+  assert.equal(connections,2);
+  assert.equal(page.elements.get('connection').dataset.state,'disabled');
+  ports[0].receive({state:'connected'});
+  assert.equal(page.elements.get('connection').dataset.state,'disabled');
+  ports[1].receive({state:'connected'});
+  assert.equal(page.elements.get('connection').dataset.state,'connected');
+});
+
+test('a silent status port is released and replaced while settings edits are preserved',async()=>{
+  const pending=deferred(),ports=[statusPort(),statusPort()];let connections=0,requests=0;
+  const page=options({connect:()=>ports[connections++],connection:()=>++requests===1?Promise.resolve({state:'connected'}):pending.promise});
+  await flush();ports[0].receive({state:'connected'});page.change(true);
+  page.advance(5000);
+  assert.equal(connections,1,'a healthy port should be reused');
+  assert.equal(ports[0].sent.at(-1).type,'status');
+  page.advance(5000);
+  assert.equal(ports[0].disconnected,true);
+  assert.equal(connections,2,'a silent port must not permanently suppress reconnects');
+  assert.equal(page.elements.get('connection').dataset.state,'unavailable');
+  ports[1].receive({state:'disabled'});
+  ports[0].disconnect();ports[0].receive({state:'connected'});
+  pending.resolve({state:'connected'});await flush();
+  assert.equal(page.elements.get('connection').dataset.state,'disabled');
+  assert.equal(page.elements.get('enabled').checked,true);
+  assert.equal(page.elements.get('save').disabled,false);
+  assert.equal(page.elements.get('status').dataset.state,'dirty');
+  assert.deepEqual(page.writes,[]);
+});
+
+test('a failed status-port send reconnects immediately without accepting its pending reply',async()=>{
+  const pending=deferred(),ports=[statusPort(),statusPort()];let connections=0,requests=0;
+  ports[0].postMessage=()=>{throw Error('port closed');};
+  const page=options({connect:()=>ports[connections++],connection:()=>++requests===1?pending.promise:Promise.resolve({state:'disabled'})});
+  page.poll();await flush();
+  assert.equal(ports[0].disconnected,true);
+  assert.equal(connections,2);
+  assert.equal(page.elements.get('connection').dataset.state,'disabled');
+  pending.resolve({state:'connected'});await flush();
+  assert.equal(page.elements.get('connection').dataset.state,'disabled');
+});
+
+test('manual retry replaces a silent status port before starting a fresh connection check',async()=>{
+  const pending=deferred(),ports=[statusPort(),statusPort()];let connections=0,requests=0;
+  const page=options({connect:()=>ports[connections++],connection:()=>++requests===1?Promise.resolve({state:'connected'}):pending.promise});
+  await flush();page.advance(8000,false);page.retry();
+  assert.equal(ports[0].disconnected,true);
+  assert.equal(connections,2);
+  assert.equal(page.elements.get('connection').dataset.state,'checking');
+  assert.equal(page.elements.get('retry-connection').disabled,true);
+  ports[0].receive({state:'disabled'});
+  pending.resolve({state:'connected'});await flush();
+  page.advance(2000);
+  assert.equal(page.elements.get('connection').dataset.state,'connected');
+  assert.equal(connections,2,'the next poll should keep the replacement port');
+  assert.equal(ports[1].sent.at(-1).type,'status');
 });
 
 test('popup shows live connection, disabled sending and connection failures separately from saved settings',async()=>{

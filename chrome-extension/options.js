@@ -7,16 +7,25 @@ let loaded=false,saving=false,savedEnabled=false;
 let setupChosen=false;
 let connectionRequest=0,connectionPending=false,connectionTimeout;
 let statusPort,lastStatusAt=0;
+function releaseStatus(port){
+  if(statusPort!==port) return;
+  statusPort=undefined;
+  // A reply started before the disconnect cannot restore a stale connected state.
+  connectionRequest++;connectionPending=false;clearTimeout(connectionTimeout);
+  try {port.disconnect();} catch {}
+  showConnection("unavailable");
+}
 function connectStatus(){
+  if(statusPort&&Date.now()-lastStatusAt>6000) releaseStatus(statusPort);
   if(statusPort||!chrome.runtime.connect) return;
   try {
-    const port=chrome.runtime.connect({name:"bridge-status"});statusPort=port;
+    const port=chrome.runtime.connect({name:"bridge-status"});statusPort=port;lastStatusAt=Date.now();
     port.onMessage.addListener(message=>{
       if(statusPort!==port) return;
       connectionRequest++;connectionPending=false;clearTimeout(connectionTimeout);
       lastStatusAt=Date.now();showConnection(message.state);
     });
-    port.onDisconnect.addListener(()=>{if(statusPort===port) {statusPort=undefined;showConnection("unavailable");}});
+    port.onDisconnect.addListener(()=>{releaseStatus(port);});
   } catch {statusPort=undefined;}
 }
 async function refreshConnection(force=false){
@@ -51,15 +60,16 @@ function showConnection(state){
 }
 document.getElementById("setup-summary").addEventListener("click",()=>{setupChosen=true;});
 retryConnection.addEventListener("click",()=>{
-  showConnection("checking");connectStatus();void refreshConnection(true);
+  connectStatus();showConnection("checking");void refreshConnection(true);
 });
 void refreshConnection();
 connectStatus();
 setInterval(()=>{
   if(statusPort) {
-    if(Date.now()-lastStatusAt>6000) showConnection("unavailable");
-    try {statusPort.postMessage({type:"status"});} catch {statusPort=undefined;}
-  } else {connectStatus();void refreshConnection();}
+    if(Date.now()-lastStatusAt>6000) releaseStatus(statusPort);
+    else try {statusPort.postMessage({type:"status"});} catch {releaseStatus(statusPort);}
+  }
+  if(!statusPort) {connectStatus();void refreshConnection();}
 },5000);
 function isDirty(){return loaded&&enable.checked!==savedEnabled;}
 function updateControls(){

@@ -126,6 +126,32 @@ test('unsafe URLs and unsupported declared formats do not displace usable artwor
  assert.match(updates(w).at(-1).media.artwork_data_url,/^data:image\/png;base64,/);
 });
 
+test('rejected image downloads stop before trying the next candidate',async()=>{
+ for(const protocol2 of [false,true]) for(const failure of ['http','mime','size','read']) {
+  let rejectedSignal,abortedBeforeFallback;
+  const w=worker(true,(url,options)=>{
+   if(url==='https://cdn.test/rejected.png') {
+    rejectedSignal=options.signal;
+    return {ok:failure!=='http',headers:new Headers({
+     'content-type':failure==='mime'?'text/html':'image/png',
+     'content-length':failure==='size'?'350001':'1'
+    }),body:{getReader(){return {async read(){throw Error('Connection interrupted');}};}}};
+   }
+   if(url==='https://cdn.test/fallback.png') {
+    abortedBeforeFallback=rejectedSignal.aborted;
+    return new Response(new Uint8Array([1]),{headers:{'content-type':'image/png'}});
+   }
+   return {ok:false,headers:new Headers()};
+  },{protocol2});
+  await flush();
+  const media={title:'Track',artwork_candidates:[{src:'https://cdn.test/rejected.png'},{src:'https://cdn.test/fallback.png'}]};
+  w.send(media);await settle();w.send(media);await settle();
+  assert.equal(abortedBeforeFallback,true,`${protocol2}/${failure}: rejected response must release its network request`);
+  if(protocol2) assert.ok(updates(w).some(update=>Object.values(update.images??{}).includes('data:image/png;base64,AQ==')));
+  else assert.equal(updates(w).at(-1).media.artwork_data_url,'data:image/png;base64,AQ==');
+ }
+});
+
 test('a full set of broken page icons still tries the conventional favicon within three requests',async()=>{
  const w=worker(true,url=>url==='https://site.test/favicon.ico'
   ?new Response(new Uint8Array([0,0,1,0]),{headers:{'content-type':'image/x-icon'}})

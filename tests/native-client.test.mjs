@@ -123,3 +123,62 @@ test("commands reject an ended input stream before writing",async t=>{
   await assert.rejects(client.nativeCommand({command:"next"}),/unavailable/);
   assert.equal(child.writes.length,0);
 });
+
+test("oversized complete native lines are rejected before publishing their contents",async t=>{
+  const {driver,client}=await harness();
+  t.mock.timers.enable({apis:["setTimeout","setInterval"]});
+  const snapshots=[],errors=[];
+  const stop=client.startNative(value=>snapshots.push(value),value=>errors.push(value));t.after(stop);
+  const child=driver.children[0];
+  const pending=assert.rejects(client.nativeCommand({command:"next"}),/disconnected/);
+  // Trailing JSON whitespace keeps this a valid snapshot, so an unbounded
+  // readline parser would publish it before a later data listener checks size.
+  const oversized=Buffer.alloc(64_000_002,32);
+  oversized.write(JSON.stringify({...snapshot,sessions:[{title:"Must not be published"}]}));
+  oversized[oversized.length-1]=10;
+  child.stdout.write(oversized);
+  await pending;
+  assert.deepEqual(snapshots,[snapshot]);
+  assert.deepEqual(errors,["Windows helper output exceeded limit"]);
+  assert.equal(child.killed,true);
+  t.mock.timers.tick(3000);
+  assert.equal(driver.children.length,2);
+  driver.children[1].output({...snapshot,sessions:[{title:"Recovered"}]});
+  assert.equal(snapshots.at(-1).sessions[0].title,"Recovered");
+});
+
+test("native line limits include a partial line after the last newline in each chunk",async t=>{
+  const {driver,client}=await harness();
+  t.mock.timers.enable({apis:["setTimeout","setInterval"]});
+  const snapshots=[],errors=[];
+  const stop=client.startNative(value=>snapshots.push(value),value=>errors.push(value));t.after(stop);
+  const child=driver.children[0];
+  const first=Buffer.concat([Buffer.from(JSON.stringify(snapshot)+"\n"),Buffer.alloc(32_000_001,32)]);
+  child.stdout.write(first);
+  assert.equal(child.killed,false);
+  const second=Buffer.concat([Buffer.alloc(32_000_000,32),Buffer.from(JSON.stringify({...snapshot,sessions:[{title:"Too large"}]})+"\n")]);
+  child.stdout.write(second);
+  assert.equal(child.killed,true);
+  assert.equal(snapshots.length,2);
+  assert.ok(snapshots.every(value=>value.sessions.length===0));
+  assert.deepEqual(errors,["Windows helper output exceeded limit"]);
+});
+
+test("native JSON lines preserve split UTF-8, CRLF, batched lines and a final unterminated line",async t=>{
+  const {driver,client}=await harness();
+  const snapshots=[],errors=[];
+  const stop=client.startNative(value=>snapshots.push(value),value=>errors.push(value));t.after(stop);
+  const child=driver.children[0];
+  const line=title=>JSON.stringify({...snapshot,sessions:[{title}]});
+  const unicode=Buffer.from(line("日本語")+"\r\n");
+  const split=unicode.indexOf(Buffer.from("日"))+1;
+  child.stdout.write(unicode.subarray(0,split));
+  assert.equal(snapshots.length,0);
+  child.stdout.write(unicode.subarray(split,unicode.length-1));
+  assert.equal(snapshots.length,0);
+  child.stdout.write(Buffer.from("\n"+line("Second")+"\n"+line("Final")));
+  assert.deepEqual(snapshots.map(value=>value.sessions[0].title),["日本語","Second"]);
+  child.stdout.end();await setImmediate();
+  assert.deepEqual(snapshots.map(value=>value.sessions[0].title),["日本語","Second","Final"]);
+  assert.deepEqual(errors,[]);
+});

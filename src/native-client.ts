@@ -1,12 +1,12 @@
 import {spawn, type ChildProcessWithoutNullStreams} from "node:child_process";
 import {fileURLToPath} from "node:url";
-import {createInterface} from "node:readline";
 import {validateSnapshot} from "./media-validation.js";
 import type {MediaSnapshot} from "./media-model.js";
 import {NativeWire} from "./native-wire.js";
 
 const helper = fileURLToPath(new URL("../native/media-info.exe",import.meta.url));
 const COMMAND_TIMEOUT_MS=5000;
+const MAX_OUTPUT_LINE_BYTES=64_000_000;
 type PendingCommand={resolve:()=>void;reject:(e:Error)=>void;timer:NodeJS.Timeout};
 type Connection={child:ChildProcessWithoutNullStreams;pending:Map<number,PendingCommand>};
 let connection:Connection|undefined;
@@ -37,11 +37,11 @@ export function startNative(onSnapshot:(s:MediaSnapshot)=>void,onError:(s:string
     connection=current;
     let finished=false, watchdog:NodeJS.Timeout|undefined;
     let lastSeen=Date.now(), length=0;
-    const lines=createInterface({input:processChild.stdout});
+    let fragments:Buffer[]=[];
     const finish=()=>{
       if(finished) return;
       finished=true;
-      clearInterval(watchdog);lines.close();
+      clearInterval(watchdog);fragments=[];length=0;
       if(connection===current) connection=undefined;
       for(const p of current.pending.values()) {clearTimeout(p.timer);p.reject(new Error("Windows helper disconnected"));}
       current.pending.clear();
@@ -58,15 +58,8 @@ export function startNative(onSnapshot:(s:MediaSnapshot)=>void,onError:(s:string
     // Writable errors are emitted even when write() has an error callback.
     processChild.stdin.on("error",e=>fail(`Windows helper input: ${e.message}`));
     processChild.stdout.on("error",e=>fail(`Windows helper output: ${e.message}`));
-    lines.on("error",e=>fail(`Windows helper output: ${e.message}`));
     processChild.stderr.on("error",e=>fail(`Windows helper stderr: ${e.message}`));
-    processChild.stdout.on("data",(bytes:Buffer)=>{
-      if(finished) return;
-      length+=bytes.length;
-      if(length>64_000_000) fail("Windows helper output exceeded limit");
-      if(bytes.includes(10)) length=0;
-    });
-    lines.on("line",line=>{
+    const receiveLine=(line:string)=>{
       if(finished) return;
       try {
         const v:unknown=JSON.parse(line);
@@ -82,7 +75,26 @@ export function startNative(onSnapshot:(s:MediaSnapshot)=>void,onError:(s:string
           lastSeen=Date.now();
         }
       } catch(e) {report(`Native output: ${String(e)}`);}
+    };
+    const flushLine=()=>{
+      const line=(fragments.length===1?fragments[0]!:Buffer.concat(fragments,length)).toString("utf8");
+      fragments=[];length=0;
+      receiveLine(line);
+    };
+    processChild.stdout.on("data",(bytes:Buffer)=>{
+      // Bound each JSON line before decoding or parsing it. A chunk may hold
+      // several complete lines plus the beginning of the next one.
+      let start=0;
+      while(!finished&&start<bytes.length) {
+        const newline=bytes.indexOf(10,start),end=newline<0?bytes.length:newline;
+        length+=end-start;
+        if(length>MAX_OUTPUT_LINE_BYTES) {fail("Windows helper output exceeded limit");return;}
+        if(end>start) fragments.push(bytes.subarray(start,end));
+        if(newline<0) return;
+        flushLine();start=end+1;
+      }
     });
+    processChild.stdout.on("end",()=>{if(!finished&&length) flushLine();});
     processChild.stderr.on("data",(b:Buffer)=>{if(!finished) report(b.toString().slice(0,2000));});
     processChild.on("error",e=>fail(`Windows helper: ${e.message}`));
     watchdog=setInterval(()=>{if(Date.now()-lastSeen>12000) fail("Windows helper snapshot timed out");},2000);
