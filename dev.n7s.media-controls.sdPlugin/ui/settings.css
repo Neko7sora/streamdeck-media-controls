@@ -27,7 +27,11 @@ fieldset { min-width: 0; margin: 0; padding: 0; border: 0; }
 legend { padding: 0 5px; margin-left: -5px; }
 .field + .field { margin-top: 13px; }
 .field > label { display: block; margin-bottom: 6px; font-size: 12px; color: #d3d8e0; }
-select, button { width: 100%; min-width: 0; min-height: 40px; padding: 8px 10px; border: 1px solid #657079; border-radius: 7px; color: #f4f5f7; background: #22282c; font: inherit; }
+select, button, input[type="text"] { width: 100%; min-width: 0; min-height: 40px; padding: 8px 10px; border: 1px solid #657079; border-radius: 7px; color: #f4f5f7; background: #22282c; font: inherit; }
+input[type="text"] { font-family: Consolas, monospace; }
+input[type="text"]:hover:read-write { border-color: #9ba7b6; }
+input[aria-invalid="true"] { border-color: #f1a5a5; }
+#chrome-registration-status[data-state="invalid"] { color: #f1a5a5; }
 select { text-overflow: ellipsis; cursor: pointer; }
 select[data-state="missing"] { border-color: #d5aa6d; }
 button { font-weight: 600; cursor: pointer; }
@@ -71,6 +75,7 @@ details[open] > summary { margin-bottom: 12px; }
 .advanced summary { color: var(--muted); font-size: 11px; }
 .advanced[open] > summary { margin-bottom: 4px; }
 .setup-card button { margin-top: 12px; }
+#chrome-registration-form { margin-top: 12px; }
 .feedback { margin: 9px 0 0; font-size: 12px; line-height: 1.65; overflow-wrap: anywhere; }
 .feedback:empty { display: none; }
 .connection-feedback { margin: 0 2px 14px; color: #f1d1a2; }

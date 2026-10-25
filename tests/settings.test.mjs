@@ -340,6 +340,47 @@ test("registration timeout and disconnect report a result without retrying",()=>
   const closedCount=pi.messages.length;pi.elements.get("chrome-extension-id").value="a".repeat(32);pi.click("register-chrome");pi.timeout();assert.equal(pi.messages.length,closedCount);
 });
 
+test('registration validation focuses the invalid field and clears feedback while correcting it',()=>{
+  for(const language of ['en','ja']) {
+    const pi=inspector({},{language}),input=pi.elements.get('chrome-extension-id');
+    assert.equal(input.attributes['aria-invalid'],undefined,'do not show an error before interaction');
+    for(const value of ['', 'a'.repeat(31), 'a'.repeat(33), 'z'.repeat(32)]) {
+      input.value=value;const before=pi.messages.length;
+      assert.equal(pi.submit(),true,'prevent navigation for invalid submissions');
+      assert.equal(pi.messages.length,before);
+      assert.equal(input.attributes['aria-invalid'],'true');
+      assert.equal(input.focused,true);assert.equal(input.validityReported,true);
+      assert.match(input.validationMessage,/32/);
+      assert.equal(pi.elements.get('chrome-registration-status').dataset.state,'invalid');
+      input.value='b';input.listeners.input();
+      assert.equal(input.attributes['aria-invalid'],undefined);
+      assert.equal(input.validationMessage,'');
+      assert.equal(pi.elements.get('chrome-registration-status').textContent,'');
+    }
+    input.value=`  ${'b'.repeat(32)}\n`;
+    assert.equal(pi.submit(),true,'prevent navigation for valid submissions too');
+    assert.equal(pi.messages.at(-1).payload.extensionId,'b'.repeat(32));
+    assert.equal(input.value,'b'.repeat(32));assert.equal(input.readOnly,true);
+    const before=pi.messages.length;pi.submit();assert.equal(pi.messages.length,before);
+  }
+});
+
+test('registration input unlocks only after the current reply, timeout or disconnect',()=>{
+  const pi=inspector(),input=pi.elements.get('chrome-extension-id');
+  input.value='a'.repeat(32);pi.submit();const first=pi.messages.at(-1).payload;
+  assert.equal(input.readOnly,true);
+  pi.receive('sendToPropertyInspector',{response:'chromeHostRegistration',requestId:first.requestId,message:'Registered'});
+  assert.equal(input.readOnly,false);
+  pi.submit();const second=pi.messages.at(-1).payload;
+  pi.receive('sendToPropertyInspector',{response:'chromeHostRegistration',requestId:first.requestId,message:'Old reply'});
+  assert.equal(input.readOnly,true);
+  pi.timeout();assert.equal(input.readOnly,false);
+  pi.submit();assert.equal(input.readOnly,true);
+  pi.close();assert.equal(input.readOnly,false);assert.equal(pi.elements.get('register-chrome').disabled,true);
+  pi.receive('sendToPropertyInspector',{response:'chromeHostRegistration',requestId:second.requestId,message:'Late reply'});
+  assert.notEqual(pi.elements.get('chrome-registration-status').textContent,'Late reply');
+});
+
 test("settings updates retain newly selected or disconnected targets until options catch up",()=>{
   const pi=inspector();
   pi.receive("sendToPropertyInspector",{sessions:[{id:"A",label:"Track A"}],audio:[]});
