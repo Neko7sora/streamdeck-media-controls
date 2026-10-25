@@ -4,6 +4,8 @@
 
 コード、掲載原稿、提出用画像、ローカル検査を整備した段階。**公開準備中**。ストアの申告・公開 URL・実機での受け入れ確認・Google の審査は別途必要。
 
+必須の [Program Policies 対応記録](chrome-program-policies.md) に、Limited Use・権限・同意・安全な取り扱い・最小機能・掲載内容・公開者設定との照合をまとめた。外部プラグインが必要な構成の [審査用手順](chrome-web-store/reviewer-instructions.md) も用意している。
+
 Chrome 公式の Improve extension security の項目別対応と、任意文字列実行・外部コード読み込み・CSP 緩和の自動検査は [拡張のセキュリティ要件への対応](chrome-extension-security.md) にまとめた。`chrome:store:check` と ZIP 作成時にもこの検査を実行する。
 
 ## 対応範囲
@@ -42,9 +44,11 @@ npm run chrome:pack
 
 画像は [assets/chrome-web-store](../assets/chrome-web-store/) に保存する。スクリーンショットは無効状態の実拡張設定ページのキャプチャであり、接続成功や物理デバイスの動作を装わない。画像生成 AI や架空の接続状態は使用しない。再生成した画像は目視確認してから提出する。
 
-`chrome:store:check` は manifest、許可する同梱ファイル、権限、CSP、言語原稿、PNG の寸法・ハッシュを検査する。`--release` を直接渡すと公開 URL・非公開問い合わせ先が未設定のときは失敗する。外部 URL の到達性、申告の正しさ、審査適合を保証する検査ではない。
+`chrome:store:check` は manifest、許可する同梱ファイル、権限、CSP、言語原稿、PNG の寸法・ハッシュ、Limited Use 開示と README のポリシーリンクを検査する。`npm run chrome:release:check` は公開 URL・非公開問い合わせ先が未設定のときは失敗する。外部 URL の到達性、申告の正しさ、審査適合を保証する検査ではない。
 
 `chrome:pack` は検査後に `media-bridge-<version>.zip` を作成する。ZIP の直下に manifest があり、Windows の実行ファイル、node_modules、秘密トークン、ストア用原稿は含めない。まだ公開されていない提出候補なので、既存の公開済みバージョンがある場合は更新番号も先に確認する。
+
+公開情報の設定後は `npm run chrome:pack -- -Release` でリリース検査を通してから ZIP を作成する。実機確認・ダッシュボード・公開者設定は別途必要。
 
 ## 公開前の受け入れチェック
 

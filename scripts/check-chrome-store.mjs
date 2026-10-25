@@ -41,6 +41,12 @@ for(const file of ['page-main.js','bridge-isolated.js']) {
   assert.equal(/\bunload\b|\b(?:WebSocket|RTCPeerConnection)\s*\(/.test(source),false,`${file}: avoid known bfcache blockers`);
 }
 const pending=new Set();
+const publicPolicy=await read('docs/marketplace/privacy.md');
+assert.match(publicPolicy,/adheres to the Chrome Web Store User Data Policy, including the Limited Use requirements/,'Public policy must affirm Limited Use compliance');
+assert.match(await read('README.md'),/\]\(docs\/marketplace\/privacy\.md\)/,'Privacy policy must be one click from the project homepage');
+const privacyPage=await read(join(root,'privacy.html'));
+assert.ok(privacyPage.includes('data-i18n="extension.policy.limitedUse"'),'Packaged privacy page must expose the Limited Use statement');
+let publicationMetadata;
 const records=JSON.parse(await read('assets/chrome-web-store/screenshots.json'));
 for(const path of ['chrome-extension/manifest.json','chrome-extension/options.html','chrome-extension/options.css','chrome-extension/options.js','chrome-extension/localization.js','tests/chrome-e2e.mjs']) {
   const hash=createHash('sha256').update((await read(path)).replaceAll('\r\n','\n')).digest('hex');
@@ -49,6 +55,12 @@ for(const path of ['chrome-extension/manifest.json','chrome-extension/options.ht
 for(const language of ['en','ja']) {
   const listing=JSON.parse(await read(`docs/chrome-web-store/listing.${language}.json`));
   const messages=JSON.parse(await read(join(root,`_locales/${language}/messages.json`)));
+  const catalog=JSON.parse(await read(`locales/${language}.json`));
+  assert.match(catalog['extension.policy.limitedUse'],/Chrome Web Store User Data Policy/);
+  assert.match(catalog['extension.policy.limitedUse'],/Limited Use/);
+  const metadata={privacyPolicyUrl:listing.privacyPolicyUrl,privateContact:listing.privateContact};
+  if(publicationMetadata) assert.deepEqual(metadata,publicationMetadata,'Localized listings must use the same policy URL and private contact');
+  publicationMetadata=metadata;
   assert.equal(listing.name,messages.extensionName.message);
   assert.equal(listing.summary,messages.extensionDescription.message);
   assert.ok(listing.name.length<=75&&listing.summary.length<=132&&listing.description.length<=16000);
@@ -56,7 +68,7 @@ for(const language of ['en','ja']) {
   for(const field of ['supportUrl','homepageUrl']) assert.equal(new URL(listing[field]).protocol,'https:');
   if(!listing.privacyPolicyUrl) pending.add('Public HTTPS privacy policy URL');
   else assert.equal(new URL(listing.privacyPolicyUrl).protocol,'https:');
-  if(!listing.privateContact) pending.add('Private support/privacy contact');
+  if(typeof listing.privateContact!=='string'||!listing.privateContact.trim()) pending.add('Private support/privacy contact');
   assert.ok(listing.screenshots.length>=1&&listing.screenshots.length<=5);
   for(const path of listing.screenshots) {
     const meta=await sharp(path).metadata();
@@ -64,6 +76,6 @@ for(const language of ['en','ja']) {
     assert.equal(createHash('sha256').update(await readFile(path)).digest('hex'),records.images[path.split('/').at(-1)]);
   }
 }
-console.log('Chrome Web Store: local manifest, permissions, CSP, locales, package files, icons and listing assets OK.');
+console.log('Chrome Web Store: local manifest, permissions, CSP, locales, package files, icons, privacy disclosures and listing assets OK.');
 if(pending.size) console.log('Publication pending: '+[...pending].join('; ')+'. See docs/chrome-web-store.md for manual acceptance checks.');
 if(process.argv.includes('--release')) assert.equal(pending.size,0,'Finish publication metadata before release; device tests and dashboard review are also required.');

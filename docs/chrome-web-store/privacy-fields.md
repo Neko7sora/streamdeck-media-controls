@@ -35,6 +35,8 @@ No, I am not using remote code. All executable JavaScript is packaged with the e
 
 データを販売せず、単一目的以外や信用判断・融資に使用しない。認証情報・位置情報・支払い情報・健康情報を要求しない。サイトが曲名等に私的な情報を含める可能性があるため、データを一般に「非機密」と断定しない。最終的なチェックボックスの分類と適合の認証は公開者が確認する。
 
+同梱ポリシーと公開用原稿には「Chrome Web Store User Data Policy の Limited Use 要件に準拠する」と明記している。README から公開用原稿へ直接リンクする。公開後もホームページから1クリック以内にこの表明へ到達できることを確認する。これはダッシュボードの認証の代わりにはならない。
+
 ## Privacy policy URL
 
 同梱の [privacy.html](../../chrome-extension/privacy.html) はオフラインで閲覧できる説明。ストアの公開 URL の代わりにはならない。[プラグインを含むポリシー原稿](../marketplace/privacy.md) を公開し、ログイン不要で読める HTTPS URL と非公開の問い合わせ先を listing.*.json に設定する。内容は同梱説明と一致させる。

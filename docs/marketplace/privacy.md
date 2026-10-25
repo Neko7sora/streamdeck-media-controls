@@ -12,6 +12,10 @@ Stream Deck stores the settings you choose for each action, including selected t
 
 ## Optional Chrome bridge
 
+Media Bridge's use of information received from Chrome APIs adheres to the Chrome Web Store User Data Policy, including the Limited Use requirements. See the [Chrome Web Store User Data Policy](https://developer.chrome.com/docs/webstore/program-policies/policies#limited-use).
+
+Media Bridge による Chrome API から受け取った情報の利用は、Limited Use 要件を含む Chrome Web Store User Data Policy に準拠します。
+
 The companion extension is optional. Sending is off by default. You enable it in the extension settings and save; you can disable it there at any time. Chrome also lets you limit the extension's site access. Its declared HTTP/HTTPS access supports media pages and artwork hosts; it does not request history, cookies, audio capture or webRequest permissions.
 
 Chrome user data is used and transferred only as needed for the extension's single purpose: displaying media and providing supported controls through the local Media Controls plugin. It is not sold, used for advertising, tracking, credit or lending decisions, or repurposed for unrelated features. The developer has no media-data endpoint or access to the live media stream. Support information is read only when the user chooses to submit it for help; do not submit personal data through public issues.

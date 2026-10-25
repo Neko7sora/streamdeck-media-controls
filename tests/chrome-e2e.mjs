@@ -65,6 +65,8 @@ for(const language of ['en','ja']) {
     await privacy.waitForLoadState();
     assert.equal(await privacy.locator('html').getAttribute('lang'),language);
     assert.equal(await privacy.locator('#policy-network').isVisible(),true);
+    assert.equal(await privacy.locator('#policy-limited-use').isVisible(),true);
+    assert.match(await privacy.locator('[data-i18n="extension.policy.limitedUse"]').innerText(),/Chrome Web Store User Data Policy/);
     assert.equal(await privacy.locator('script[src^="http"]').count(),0);
     await privacy.close();
     // Exercise saving without a registered host: the error is presented as a
