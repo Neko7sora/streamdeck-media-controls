@@ -10,6 +10,8 @@ Elgato のプラグインガイドラインへの対応状況・自動検査・�
 
 Chrome Web Store のベストプラクティスに合わせた掲載原稿・日英のプライバシー説明・アイコン・ブラウザテスト・ZIP 作成手順は [Chrome Web Store 対応記録](docs/chrome-web-store.md) を参照してください。公開ポリシー URL、非公開の問い合わせ先、実サイトと物理 Stream Deck での受け入れ確認は提出前に必要です。
 
+掲載ページの概要・説明文、スクリーンショット、プロモーション画像と提出ファイルは [掲載ページの準備](docs/chrome-web-store/best-listing.md) にまとめています。
+
 [データとプライバシー / Privacy policy](docs/marketplace/privacy.md)（Limited Use 表明・情報の用途・通信先・削除手順）。[Program Policies 対応記録](docs/chrome-program-policies.md) に、必須ポリシーとの照合結果と公開前の残作業をまとめています。
 
 Marketplace の商品ガイドラインに合わせた英語説明、288pxアイコン、1920×960pxのサムネイルとギャラリー3点は [商品ガイドライン対応記録](docs/product-guidelines.md) にまとめています。`npm run marketplace:build` で再生成、`npm run marketplace:check` でローカル検査できます。名称の独自性、権利、AI使用履歴、実機確認、価格・公開リンクと問い合わせ先の確定は提出前に必要です。

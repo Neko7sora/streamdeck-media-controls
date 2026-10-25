@@ -6,6 +6,8 @@
 
 必須の [Program Policies 対応記録](chrome-program-policies.md) に、Limited Use・権限・同意・安全な取り扱い・最小機能・掲載内容・公開者設定との照合をまとめた。外部プラグインが必要な構成の [審査用手順](chrome-web-store/reviewer-instructions.md) も用意している。
 
+[優れたリスティング ページへの対応](chrome-web-store/best-listing.md) に、概要・説明・アイコン・スクリーンショット・プロモーション画像・リンクの照合と、ダッシュボードへ渡すファイルをまとめた。小型プロモーション画像（必須）とマーキー画像（任意）は、既存の製品マークを使った文字なしの図で用意している。
+
 Chrome 公式の Improve extension security の項目別対応と、任意文字列実行・外部コード読み込み・CSP 緩和の自動検査は [拡張のセキュリティ要件への対応](chrome-extension-security.md) にまとめた。`chrome:store:check` と ZIP 作成時にもこの検査を実行する。
 
 ## 対応範囲
@@ -18,7 +20,7 @@ Chrome 公式の Improve extension security の項目別対応と、任意文字
 | プライバシー | 送信は初期無効。トグルに隣接する転送項目と外部画像通信の説明、同梱の日英ポリシー、停止・削除手順。メディアなしの通知はページ名・URL・任意データを除去 | ポリシーの公開 HTTPS URL と非公開の問い合わせ先を確定し、Privacy practices でデータ分類・Limited use を最終申告 |
 | 性能・機能 | 状態差分、画像共有・容量制限、送信レート制限。content script に unload / WebSocket / WebRTC 接続なし | 実サイトの戻る／進むキャッシュ、低速回線、バックグラウンドタブ、複数フレーム、Stream Deck 実機の操作・復旧 |
 | UX / onboarding | 接続バッジ、設定読込・保存・エラー表示、必要な Windows / プラグイン / Node.js と拡張 ID 登録の案内、再生タブの再読込手順 | 初回ユーザーが掲載説明から最後まで設定できることを確認 |
-| 掲載情報 | [英語原稿](chrome-web-store/listing.en.json)、[日本語原稿](chrome-web-store/listing.ja.json)、実拡張設定画面の1280×800スクリーンショット、Tools カテゴリ案、サポートリンク | プラグイン配布先と必要環境の到達性、名称・商標・画像の権利、価格と配布地域を確認。実機操作の画像や動画の追加も推奨 |
+| 掲載情報 | [英語原稿](chrome-web-store/listing.en.json)、[日本語原稿](chrome-web-store/listing.ja.json)、貼り付け用説明、実拡張設定画面の1280×800スクリーンショット、440×280プロモーション・1400×560マーキー画像、Tools カテゴリ案、サポートリンク | プラグイン配布先と必要環境の到達性、名称・商標・画像の権利、価格と配布地域を確認。実機操作の画像や動画の追加も推奨 |
 
 HTTP のページ情報は既存のメディアページ対応のために観測する。画像取得は HTTPS のみ。Native Messaging ホストからプラグインへの HTTP は認証付きの `127.0.0.1` 固定で、外部ネットワークへ送らない。拡張は loopback に直接接続せず、トークンを保持しない。
 
@@ -33,6 +35,7 @@ HTTP のページ情報は既存のメディアページ対応のために観測
 ```powershell
 npm run chrome:icons
 npm run locales:build
+npm run chrome:listing:build
 npx playwright install chromium
 npm run test:chrome:e2e -- --screenshots
 npm run chrome:store:check
@@ -44,7 +47,7 @@ npm run chrome:pack
 
 画像は [assets/chrome-web-store](../assets/chrome-web-store/) に保存する。スクリーンショットは無効状態の実拡張設定ページのキャプチャであり、接続成功や物理デバイスの動作を装わない。画像生成 AI や架空の接続状態は使用しない。再生成した画像は目視確認してから提出する。
 
-`chrome:store:check` は manifest、許可する同梱ファイル、権限、CSP、言語原稿、PNG の寸法・ハッシュ、Limited Use 開示と README のポリシーリンクを検査する。`npm run chrome:release:check` は公開 URL・非公開問い合わせ先が未設定のときは失敗する。外部 URL の到達性、申告の正しさ、審査適合を保証する検査ではない。
+`chrome:store:check` は manifest、許可する同梱ファイル、権限、CSP、言語原稿と貼り付け用説明の一致、スクリーンショット・プロモーション画像の寸法とハッシュ、Limited Use 開示と README のポリシーリンクを検査する。`npm run chrome:release:check` は公開 URL・非公開問い合わせ先が未設定のときは失敗する。外部 URL の到達性、申告の正しさ、審査適合を保証する検査ではない。
 
 `chrome:pack` は検査後に `media-bridge-<version>.zip` を作成する。ZIP の直下に manifest があり、Windows の実行ファイル、node_modules、秘密トークン、ストア用原稿は含めない。まだ公開されていない提出候補なので、既存の公開済みバージョンがある場合は更新番号も先に確認する。
 
@@ -60,6 +63,6 @@ npm run chrome:pack
 - [ ] DevTools の Application → Back/forward cache でメディアページを検査し、戻る／進む後にも状態更新と操作が復旧することを確認する。キャッシュ不可の原因が拡張以外のサイト実装である場合も記録する。
 - [ ] サービスワーカー停止、ブラウザ再起動、ホスト未登録・切断、プラグイン再起動、低速／切断回線、画像エラー、長時間バックグラウンドを確認する。
 - [ ] 最小対応版と Chrome Stable、ライト／ダーク、キーボード、スクリーンリーダー、ズーム200%で操作と説明の可読性を確認する。
-- [ ] 128pxアイコン、日英スクリーンショット、必要環境と外部配布先、サポートリンク、名称と権利を確認し、公開者アカウントの保護・配布設定・テスト指示を整える。
+- [ ] 128pxアイコン、日英スクリーンショット、小型プロモーション画像、任意のマーキー画像を原寸・半分のサイズと掲載プレビューで確認。必要環境と外部配布先、サポートリンク、名称と権利を確認し、公開者アカウントの保護・配布設定・テスト指示を整える。
 
 参照: [Stay secure](https://developer.chrome.com/docs/extensions/develop/security-privacy/stay-secure)、[Privacy fields](https://developer.chrome.com/docs/webstore/cws-dashboard-privacy)、[Permission warnings](https://developer.chrome.com/docs/extensions/develop/concepts/permission-warnings)、[Listing requirements](https://developer.chrome.com/docs/webstore/program-policies/listing-requirements)、[Images](https://developer.chrome.com/docs/webstore/images)、[Great listing](https://developer.chrome.com/docs/webstore/best-listing)、[Playwright extension tests](https://playwright.dev/docs/chrome-extensions)。

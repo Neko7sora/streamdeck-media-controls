@@ -9,6 +9,7 @@
   "scripts": {
     "icons:build": "node scripts/build-icons.mjs",
     "chrome:icons": "node scripts/build-chrome-icons.mjs",
+    "chrome:listing:build": "node scripts/build-chrome-listing.mjs",
     "chrome:security:check": "node scripts/check-chrome-security.mjs",
     "chrome:store:check": "node scripts/check-chrome-store.mjs",
     "chrome:release:check": "node scripts/check-chrome-store.mjs --release",

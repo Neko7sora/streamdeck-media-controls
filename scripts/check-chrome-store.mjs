@@ -48,6 +48,25 @@ const privacyPage=await read(join(root,'privacy.html'));
 assert.ok(privacyPage.includes('data-i18n="extension.policy.limitedUse"'),'Packaged privacy page must expose the Limited Use statement');
 let publicationMetadata;
 const records=JSON.parse(await read('assets/chrome-web-store/screenshots.json'));
+const listingAssets=JSON.parse(await read('assets/chrome-web-store/listing-assets.json'));
+const assetSources=['assets/plugin-icon.svg','scripts/build-chrome-listing.mjs',...['en','ja'].map(language=>`docs/chrome-web-store/listing.${language}.json`)];
+assert.deepEqual(Object.keys(listingAssets.sources).sort(),[...assetSources].sort());
+for(const path of assetSources) {
+  const hash=createHash('sha256').update((await read(path)).replaceAll('\r\n','\n')).digest('hex');
+  assert.equal(listingAssets.sources[path],hash,`Stale listing source: ${path}. Run npm run chrome:listing:build and review images.`);
+}
+const assetOutputs=['assets/chrome-web-store/promo-small.png','assets/chrome-web-store/promo-marquee.png',...['en','ja'].map(language=>`docs/chrome-web-store/description.${language}.txt`)];
+assert.deepEqual(Object.keys(listingAssets.outputs).sort(),[...assetOutputs].sort());
+for(const path of assetOutputs) {
+  const bytes=await readFile(path);
+  const content=path.endsWith('.txt')?bytes.toString('utf8').replaceAll('\r\n','\n'):bytes;
+  assert.equal(createHash('sha256').update(content).digest('hex'),listingAssets.outputs[path],`Changed listing asset: ${path}. Run npm run chrome:listing:build and review images.`);
+}
+for(const [path,width,height] of [['assets/chrome-web-store/promo-small.png',440,280],['assets/chrome-web-store/promo-marquee.png',1400,560]]) {
+  const meta=await sharp(path).metadata();
+  assert.equal(meta.format,'png');assert.equal(meta.width,width);assert.equal(meta.height,height);
+  assert.equal(meta.hasAlpha,false,'Promotional images must fill the entire canvas');
+}
 for(const path of ['chrome-extension/manifest.json','chrome-extension/options.html','chrome-extension/options.css','chrome-extension/options.js','chrome-extension/localization.js','tests/chrome-e2e.mjs']) {
   const hash=createHash('sha256').update((await read(path)).replaceAll('\r\n','\n')).digest('hex');
   assert.equal(records.sources?.[path],hash,`Stale screenshot source: ${path}. Run npm run test:chrome:e2e -- --screenshots and review images.`);
@@ -64,6 +83,11 @@ for(const language of ['en','ja']) {
   assert.equal(listing.name,messages.extensionName.message);
   assert.equal(listing.summary,messages.extensionDescription.message);
   assert.ok(listing.name.length<=75&&listing.summary.length<=132&&listing.description.length<=16000);
+  assert.ok(listing.name.trim()&&listing.summary.trim()&&listing.description.trim(),'Listing text must not be empty');
+  assert.equal((await read(`docs/chrome-web-store/description.${language}.txt`)).replaceAll('\r\n','\n'),listing.description+'\n','Plain-text description must match the listing');
+  assert.equal(listing.storeIcon,'chrome-extension/icons/icon-128.png');
+  assert.equal(listing.promoTile,'assets/chrome-web-store/promo-small.png');
+  assert.equal(listing.marquee,'assets/chrome-web-store/promo-marquee.png');
   assert.equal(listing.category,'Tools');
   for(const field of ['supportUrl','homepageUrl']) assert.equal(new URL(listing[field]).protocol,'https:');
   if(!listing.privacyPolicyUrl) pending.add('Public HTTPS privacy policy URL');
@@ -76,6 +100,6 @@ for(const language of ['en','ja']) {
     assert.equal(createHash('sha256').update(await readFile(path)).digest('hex'),records.images[path.split('/').at(-1)]);
   }
 }
-console.log('Chrome Web Store: local manifest, permissions, CSP, locales, package files, icons, privacy disclosures and listing assets OK.');
+console.log('Chrome Web Store: local manifest, permissions, CSP, locales, package files, icons, privacy disclosures, descriptions, screenshots and promotional assets OK.');
 if(pending.size) console.log('Publication pending: '+[...pending].join('; ')+'. See docs/chrome-web-store.md for manual acceptance checks.');
 if(process.argv.includes('--release')) assert.equal(pending.size,0,'Finish publication metadata before release; device tests and dashboard review are also required.');
