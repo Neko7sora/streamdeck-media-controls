@@ -280,7 +280,10 @@ test('pending artwork and favicon loads do not delay fresh metadata or commands'
  assert.equal(w.images.length,2,'in-flight image requests are shared across page samples');
  assert.equal(updates(w).at(-1).media.artwork_data_url,undefined);
  image.resolve();await flush();
- assert.equal(updates(w).length,2,'image completion cannot replay stale page metadata');
+ const completed=updates(w).at(-1).media;
+ assert.equal(completed.timeline.position_sec,20,'image completion uses the latest sample');
+ assert.match(completed.artwork_data_url,/^data:image\/png;base64,/);
+ assert.match(completed.favicon_data_url,/^data:image\/png;base64,/);
  w.send({...media,timeline:{position_sec:30}});await flush();
  const loaded=updates(w).at(-1).media;
  assert.equal(loaded.timeline.position_sec,30);
@@ -290,6 +293,75 @@ test('pending artwork and favicon loads do not delay fresh metadata or commands'
  assert.equal(updates(w).at(-1).media.artwork_data_url,loaded.artwork_data_url);
  assert.equal(updates(w).at(-1).media.favicon_data_url,loaded.favicon_data_url);
  assert.equal(w.images.length,2,'cached images remain visible without repeated downloads');
+});
+
+for(const protocol2 of [false,true]) {
+ test(`artwork completion displays during playback without a pause or page sample in protocol ${protocol2?2:1}`,async()=>{
+  const image=deferred(),wire=new ChromeWire(),received=[];
+  const w=worker(true,url=>url.includes('/cover.png')?image.promise:Promise.resolve(new Response(null,{status:404})),{
+   protocol2,async bridgeResponse(url,body){
+    if(!url.endsWith('/result')) received.push(protocol2?wire.decode(body).media:body.media);
+    return {json:async()=>({ok:true,commands:[]})};
+   }
+  });
+  await flush();
+  w.send({title:'YouTube video',playback_state:'playing',artwork_candidates:[{src:'https://cdn.test/cover.png'}],timeline:{position_sec:10,updated_at:10000}});
+  await flush();assert.equal(received.at(-1).artwork_loading,true);
+  // No pause, timeupdate, heartbeat or new page sample follows this download.
+  image.resolve(new Response(new Uint8Array([1]),{headers:{'content-type':'image/png'}}));await settle();
+  const latest=received.at(-1);
+  assert.equal(latest.artwork_data_url,'data:image/png;base64,AQ==');
+  assert.equal(latest.artwork_loading,false);
+  assert.equal(latest.playback_state,'playing');
+  assert.deepEqual(latest.timeline,{position_sec:10,updated_at:10000},'original timestamp prevents rewinding playback');
+ });
+
+ test(`late artwork does not revive an expired page sample in protocol ${protocol2?2:1}`,async()=>{
+  let now=10000;const image=deferred();
+  const w=worker(true,url=>url.includes('/cover.png')?image.promise:Promise.resolve(new Response(null,{status:404})),{protocol2,now:()=>now});
+  await flush();w.send({title:'Old video',artwork_candidates:[{src:'https://cdn.test/cover.png'}]});await flush();
+  const before=updates(w).length;now+=15000;
+  image.resolve(new Response(new Uint8Array([1]),{headers:{'content-type':'image/png'}}));await settle();
+  assert.equal(updates(w).length,before);
+ });
+
+ test(`image completion cannot replay an old track over a processing navigation in protocol ${protocol2?2:1}`,async()=>{
+  const image=deferred(),settings=deferred(),wire=new ChromeWire(),received=[];let blockRead=false;
+  const w=worker(true,url=>url.endsWith('/old.png')?image.promise:Promise.resolve(new Response(new Uint8Array([2]),{headers:{'content-type':'image/png'}})),{
+   protocol2,readSettings(){if(blockRead) {blockRead=false;return settings.promise;}},
+   async bridgeResponse(url,body){
+    if(!url.endsWith('/result')) received.push({document:body.document_id,media:protocol2?wire.decode(body).media:body.media});
+    return {json:async()=>({ok:true,commands:[]})};
+   }
+  });
+  await flush();w.send({title:'Old',artwork_candidates:[{src:'https://cdn.test/old.png'}]},0,4,'old-document');await settle();
+  blockRead=true;
+  w.send({title:'New',artwork_candidates:[{src:'https://cdn.test/new.png'}]},0,4,'new-document');await flush();
+  image.resolve(new Response(new Uint8Array([1]),{headers:{'content-type':'image/png'}}));await flush();
+  const before=received.length;
+  settings.resolve();await settle();
+  assert.ok(received.length>before);
+  assert.ok(received.slice(before).every(update=>update.document==='new-document'&&update.media.title==='New'));
+  assert.equal(received.at(-1).media.artwork_data_url,'data:image/png;base64,Ag==');
+ });
+}
+
+test('artwork tries the smallest sufficient thumbnail before oversized originals',async()=>{
+ const w=worker(true,url=>url.endsWith('/192.png')
+  ?new Response(new Uint8Array([1]),{headers:{'content-type':'image/png'}})
+  :new Response(null,{status:404}),{protocol2:true});
+ await flush();
+ w.send({title:'Video',artwork_candidates:[512,128,384,192,256].map(size=>({src:`https://cdn.test/${size}.png`,sizes:`${size}x${size}`}))});await settle();
+ assert.deepEqual(w.images.filter(x=>x.url.startsWith('https://cdn.test/')).map(x=>x.url),['https://cdn.test/192.png']);
+});
+
+test('artwork retains smaller and unspecified candidates when no sufficient thumbnail exists',async()=>{
+ const w=worker(true,url=>url.endsWith('/unspecified.png')
+  ?new Response(new Uint8Array([1]),{headers:{'content-type':'image/png'}})
+  :new Response(null,{status:404}),{protocol2:true});
+ await flush();
+ w.send({title:'Video',artwork_candidates:[{src:'https://cdn.test/64.png',sizes:'64x64'},{src:'https://cdn.test/unspecified.png'},{src:'https://cdn.test/128.png',sizes:'128x128'}]});await settle();
+ assert.deepEqual(w.images.filter(x=>x.url.startsWith('https://cdn.test/')).map(x=>x.url),['https://cdn.test/128.png','https://cdn.test/64.png','https://cdn.test/unspecified.png']);
 });
 
 test('old document image completion cannot replace the new track artwork',async()=>{
@@ -331,8 +403,8 @@ test('matching cached artwork stays visible during refresh and temporary failure
 });
 
 test('disabling discards in-flight images even if they finish after re-enabling',async()=>{
- const image=deferred();
- const w=worker(true,async()=>{await image.promise;return new Response(new Uint8Array([1]),{headers:{'content-type':'image/png'}});});
+ const image=deferred(),freshImage=deferred();let requests=0;
+ const w=worker(true,async()=>{const fresh=++requests>2;await (fresh?freshImage:image).promise;return new Response(new Uint8Array([fresh?2:1]),{headers:{'content-type':'image/png'}});});
  const media={title:'Track',artwork_candidates:[{src:'https://cdn.test/album.png'}]};
  w.send(media);await flush();assert.equal(w.images.length,2);
  w.changeSettings({enabled:false});
@@ -342,8 +414,8 @@ test('disabling discards in-flight images even if they finish after re-enabling'
  w.send(media);await flush();
  assert.equal(updates(w).at(-1).media.artwork_data_url,undefined,'previous opt-in images are not revived');
  assert.equal(w.images.length,4,'a fresh opt-in reloads images');
- w.send(media);await flush();
- assert.equal(updates(w).at(-1).media.artwork_data_url,'data:image/png;base64,AQ==');
+ freshImage.resolve();await flush();
+ assert.equal(updates(w).at(-1).media.artwork_data_url,'data:image/png;base64,Ag==');
 });
 
 test('slow images stay bounded while all frames continue metadata and command polling',async()=>{

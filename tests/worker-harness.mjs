@@ -9,7 +9,7 @@ export function worker(enabled=true,imageResponse,hooks={}){
   let connections=0,receiveEvent,readState,connectListener;
   const settings=hooks.settings??{enabled,token:"a".repeat(64)};
   const requests=[],commands=[],images=[],probes=[],badges=[],nativeMessages=[],storageWrites=[];
-  const chrome={i18n:{getUILanguage:()=>hooks.language??"ja"},storage:{local:{async setAccessLevel(v){access=v.accessLevel;},async get(){return {...settings};},async set(values){storageWrites.push({...values});await hooks.saveSettings?.(values);Object.assign(settings,values);}},onChanged:{addListener(fn){settingsChanged=fn;}}},runtime:{onConnect:{addListener(fn){connectListener=fn;}},onMessage:{addListener(fn){listener=fn;}}},tabs:{onRemoved:{addListener(fn){removed=fn;}},async sendMessage(tab,message,options){commands.push({tab,message,options});if(hooks.sendMessage) return hooks.sendMessage(tab,message,options);return {ok:true};}}};
+  const chrome={i18n:{getUILanguage:()=>hooks.language??"ja"},storage:{local:{async setAccessLevel(v){access=v.accessLevel;},async get(){if(hooks.readSettings) await hooks.readSettings();return {...settings};},async set(values){storageWrites.push({...values});await hooks.saveSettings?.(values);Object.assign(settings,values);}},onChanged:{addListener(fn){settingsChanged=fn;}}},runtime:{onConnect:{addListener(fn){connectListener=fn;}},onMessage:{addListener(fn){listener=fn;}}},tabs:{onRemoved:{addListener(fn){removed=fn;}},async sendMessage(tab,message,options){commands.push({tab,message,options});if(hooks.sendMessage) return hooks.sendMessage(tab,message,options);return {ok:true};}}};
   const fetch=async(url,options)=>{
     if(!String(url).startsWith("http://127.0.0.1:39761/chrome")) {
       images.push({url,options});

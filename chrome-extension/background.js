@@ -22,7 +22,11 @@ function queueCommand(command,frameState) {
 }
 function contact(){lastContact=Date.now();if(connectionState!=="disabled") setConnectionState("connected");}
 function resetWire(){wireGeneration++;sentImages.clear();transferringImages.clear();for(const state of frames.values()) {state.sent=undefined;state.sequence=undefined;}}
-function replayFrames(){for(const state of frames.values()) if(state.sample&&Date.now()-state.sample.receivedAt<15000) {state.latest??=state.sample;queueFrame(state);}drainFrames();}
+function replayFrame(state) {
+  const sample=state.latest??state.processing??state.sample;
+  if(sample&&Date.now()-sample.receivedAt<15000) {state.latest??=sample;queueFrame(state);}
+}
+function replayFrames(){for(const state of frames.values()) replayFrame(state);drainFrames();}
 async function receiveCommand(command,generation,frameState) {
   if(!command||typeof command.id!=="string"||!Number.isSafeInteger(command.tab_id)||!Number.isSafeInteger(command.frame_id)||typeof command.document_id!=="string") return;
   if(generation!==settingsGeneration) return;
@@ -121,9 +125,11 @@ function drainArtwork() {
       entry.pending=false;
       entry.data=data??entry.data;
       entry.expires=Date.now()+(data?300000:5000);
-      if(protocol===2&&changed) {
+      if(changed) {
         const state=frames.get(entry.key.replace(/^favicon:/,""));
-        if(state?.sample) {state.latest??=state.sample;queueFrame(state);drainFrames();}
+        // Downloads finish independently of playback events in both transports.
+        // Reuse only a recent, current document sample; keep its timeline timestamp.
+        if(state) {replayFrame(state);drainFrames();}
       }
     }).finally(()=>{entry.pending=false;activeArtworkJobs--;drainArtwork();});
   }
@@ -198,7 +204,16 @@ function artworkFor(tab,media,icon=false,fallback) {
     const sizes=String(x.sizes??"").slice(0,100).matchAll(/(\d+)x(\d+)/gi);
     return Math.max(0,...Array.from(sizes,s=>Math.min(16384,Number(s[1]))*Math.min(16384,Number(s[2]))));
   };
-  const ranked=[...candidates].sort((a,b)=>parseSize(b)-parseSize(a));
+  // Stream Deck needs at most 144px. Prefer the smallest sufficient artwork,
+  // rather than downloading a large original before trying its thumbnails.
+  // Favicons retain their existing ranking and conventional fallback.
+  const ranked=[...candidates].sort((a,b)=>{
+    const x=parseSize(a),y=parseSize(b);
+    if(icon) return y-x;
+    const sufficient=size=>size>=144*144;
+    if(sufficient(x)!==sufficient(y)) return sufficient(x)?-1:1;
+    return sufficient(x)?x-y:y-x;
+  });
   let top=ranked.slice(0,3);
   // Reserve one of the bounded attempts for the conventional favicon, even when
   // the page declares many larger icons that fail to load.
@@ -208,7 +223,7 @@ function artworkFor(tab,media,icon=false,fallback) {
   const cached=cachedArtwork.get(tab);
   if(cached?.signature===signature && (cached.pending || Date.now()<cached.expires)) return cached.data;
   // Images must not delay metadata or command polling. Keep a matching cached
-  // image during refresh; newly loaded images join the next fresh page sample.
+  // image during refresh; completion publishes it without waiting for playback.
   const entry={key:tab,signature,top,icon,allowed,data:cached?.signature===signature?cached.data:undefined,pending:true};
   discardArtwork(tab);
   cachedArtwork.set(tab,entry);
@@ -288,8 +303,7 @@ async function downloadArtwork(entry) {
   return data;
 }
 const frames=new Map();
-// Legacy polling releases its processing state after each update. Keep a bounded
-// address book so closing an idle tab can still clear every published frame.
+// Keep a bounded address book so closing an evicted idle frame still clears it.
 const publishedFrames=new Map(),removedFrames=[];
 let clearingFrames=false;
 function postFrame(state,update,body) {
@@ -344,11 +358,11 @@ function drainFrames() {
     state.running=true;
     // Process one sample per turn so a busy frame cannot starve other frames.
     void processFrame(state).catch(logUnavailable).finally(()=>{
+      state.processing=null;
       state.running=false;
       activeJobs--;
       if(currentFrame(state)) {
         if(state.latest) queueFrame(state);
-        else if(protocol!==2) frames.delete(state.key);
       } else {
         discardArtwork(state.key);
         discardArtwork(`favicon:${state.key}`);
@@ -361,12 +375,13 @@ async function processFrame(state) {
   const key=state.key,frame=state.frame;
   const generation=settingsGeneration;
   const update=state.latest;state.latest=null;
+  state.processing=update;
   await storageReady;
   const {enabled=false}=await chrome.storage.local.get(["enabled"]);
   if(!currentFrame(state) || generation!==settingsGeneration || !enabled) return;
   const media=update.media;
   if(!media || typeof media!=="object" || Array.isArray(media) || JSON.stringify(media).length>64000) return;
-  if(protocol===2) state.sample=update;
+  state.sample=update;
   let fallbackFavicon;
   // The sender address provides the conventional fallback, never an unrelated tab/frame.
   try {const url=new URL(update.sender.url);fallbackFavicon={src:new URL("/favicon.ico",url.origin).href};} catch {}
