@@ -1,0 +1,11 @@
+{
+  "extensionName": {
+    "message": "Stream Deck Media Metadata Bridge (Local)"
+  },
+  "extensionDescription": {
+    "message": "Send browser media details and artwork to Media Controls on this PC. Requires Windows, Stream Deck and local setup."
+  },
+  "actionTitle": {
+    "message": "Media Bridge: Checking connection"
+  }
+}

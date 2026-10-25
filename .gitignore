@@ -7,3 +7,4 @@ node_modules/
 *.sdPlugin/node_modules/
 .DS_Store
 tests/.generated/
+media-bridge-*.zip

@@ -1,0 +1,12 @@
+{
+  "name": "Stream Deck Media Metadata Bridge (Local)",
+  "summary": "Send browser media details and artwork to Media Controls on this PC. Requires Windows, Stream Deck and local setup.",
+  "category": "Tools",
+  "language": "en",
+  "supportUrl": "https://github.com/Neko7sora/streamdeck-media-controls/issues",
+  "homepageUrl": "https://github.com/Neko7sora/streamdeck-media-controls",
+  "privacyPolicyUrl": null,
+  "privateContact": null,
+  "screenshots": ["assets/chrome-web-store/setup-en.png"],
+  "description": "Connect browser media to the Media Controls plugin on your Windows PC. This companion extension adds available media metadata and artwork to Stream Deck and supports direct play/pause, stop and seeking for accessible HTML audio and video elements.\n\nRequires Windows 10 version 1809 or later (x64) or Windows 11 (x64), Stream Deck 7.1 or later, the Media Controls plugin, Chrome 111 or later and Node.js 24 or later for the local bridge. The extension cannot work on its own. Dial actions require Stream Deck +. macOS is not supported.\n\nSetup: install the companion plugin, open Setup Chrome integration in its action settings, enter this extension's ID from chrome://extensions and register the local host. Enable sending in this extension and save, then reload your media tabs. The toolbar badge shows connection or disabled status.\n\nSending is off by default. When enabled, media information, page titles and page addresses without credentials, queries or fragments are passed to the plugin through a local native host. Page scripts may observe media APIs even when sending is disabled; use Chrome site access controls or uninstall to stop them.\n\nArtwork and site icons are requested from public HTTPS image hosts, which receive your IP address and the requested image URL. There is no account, advertising, analytics or developer-operated media upload service.\n\nMetadata and controls depend on each site. Direct next/previous track commands, Web Audio-only players, closed Shadow DOM and inaccessible frames are not supported. Browser-tab volume control is not provided; the plugin uses Windows audio targets."
+}

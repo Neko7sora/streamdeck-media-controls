@@ -53,6 +53,14 @@ h2 { font-size: 13px; font-weight: 650; line-height: 1.5; }
 
 .settings-card { padding: 18px; border: 1px solid var(--border); border-radius: 12px; background: var(--surface); }
 .settings-card h2 { margin-bottom: 9px; }
+.consent-copy, .setup-requirements { color: var(--muted); font-size: 12px; line-height: 1.7; }
+.consent-copy { margin-bottom: 12px; }
+.setup-requirements { padding: 0 18px; }
+a { color: var(--accent); text-underline-offset: 3px; }
+a:focus-visible { outline: 3px solid var(--accent); outline-offset: 4px; }
+.privacy-document section { margin-top: 22px; }
+.privacy-document h2 { margin-bottom: 6px; }
+.privacy-document p + p { margin-top: 10px; }
 .setting-row { display: flex; align-items: center; justify-content: space-between; gap: 18px; min-height: 52px; cursor: pointer; }
 .setting-copy { display: block; }
 .setting-title { display: block; font-weight: 500; line-height: 1.5; }

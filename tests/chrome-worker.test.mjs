@@ -64,6 +64,28 @@ test("disabled extension sends neither metadata nor artwork requests",async()=>{
   const w=worker(false);w.send({title:"Track",artwork_candidates:[{src:"https://cdn.test/a.png"}],favicon_candidates:[{src:"https://cdn.test/favicon.ico"}]});await settle();assert.equal(w.requests.length,0);assert.equal(w.images.length,0);
 });
 
+test('empty observations clear media without exposing browsing details in either protocol',async()=>{
+  for(const protocol2 of [false,true]) {
+    const wire=new ChromeWire(),decoded=[];
+    const w=worker(true,undefined,{protocol2,async bridgeResponse(url,body){
+      if(!url.endsWith('/result')) decoded.push(protocol2?wire.decode(body).media:body.media);
+      return {json:async()=>({ok:true,commands:[]})};
+    }});
+    await flush();
+    w.send({title:'Track',artist:'Artist'});await settle();
+    assert.equal(decoded.at(-1).page_title,'Tab');
+    const previousImages=w.images.length;
+    w.send({title:'',page_url:'https://private.test/',page_title:'Private',extra:'Private',artwork_candidates:[{src:'https://cdn.test/private.png'}]});await settle();
+    const cleared=decoded.at(-1);
+    assert.equal(cleared.title,'');
+    assert.equal(cleared.page_url,'');assert.equal(cleared.page_title,'');
+    assert.ok(cleared.artist==null);assert.ok(cleared.extra==null);
+    assert.ok(cleared.artwork_data_url==null);
+    assert.equal(JSON.stringify(cleared).includes('private'),false);
+    assert.equal(w.images.length,previousImages);
+  }
+});
+
 test('settings changes discard commands returned to an earlier opt-in session',async()=>{
  for(const change of ['disable','disable-enable']) {
   const gate=deferred();

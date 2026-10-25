@@ -1,6 +1,6 @@
 # Media Controls: data and privacy
 
-Updated: 2026-10-23. This notice describes the code in this repository. The publisher must review it and publish a reachable version before listing the product.
+Updated: 2026-10-25. This notice describes the code in this repository. The publisher must review it and publish a reachable version before listing the product.
 
 Media Controls processes media information on your Windows PC to display it on Stream Deck and control the targets you choose. It has no analytics, advertising, account system or developer-operated media upload service.
 
@@ -14,11 +14,15 @@ Stream Deck stores the settings you choose for each action, including selected t
 
 The companion extension is optional. Sending is off by default. You enable it in the extension settings and save; you can disable it there at any time. Chrome also lets you limit the extension's site access. Its declared HTTP/HTTPS access supports media pages and artwork hosts; it does not request history, cookies, audio capture or webRequest permissions.
 
+Chrome user data is used and transferred only as needed for the extension's single purpose: displaying media and providing supported controls through the local Media Controls plugin. It is not sold, used for advertising, tracking, credit or lending decisions, or repurposed for unrelated features. The developer has no media-data endpoint or access to the live media stream. Support information is read only when the user chooses to submit it for help; do not submit personal data through public issues.
+
 When sending is enabled, the extension transfers available Media Session and accessible HTML media element information, artwork and favicons, page titles, sanitized page URLs, and tab/frame/document identifiers to the local plugin. URL credentials, queries and fragments are removed from page URLs before transfer. A random local bridge identifier distinguishes Chrome instances; it is stored in the extension's local storage with your settings. It is not an analytics identifier. Even with sending disabled, the installed page scripts may observe media API calls within the page; disabling sending prevents forwarding media information and fetching artwork. Remove the extension or restrict its site access to stop those page scripts from running on a site.
 
-Communication uses Chrome Native Messaging and authenticated HTTP bound to `127.0.0.1:39761`. A random bridge token and native host files are stored under `%LOCALAPPDATA%\StreamDeckMediaControls`. Registration reads Chrome extension settings to identify the companion extension and adds a per-user native host registry entry. The token is not sent to web pages or stored in the extension.
+Empty observations clear an earlier media target without sending page titles, page addresses or arbitrary page fields. They do not fetch images.
 
-Artwork and favicon fetching can contact the original website or an image host over HTTPS. These servers receive ordinary request information, such as your IP address and the requested image URL. Requests omit credentials, do not follow redirects and send no referrer. This is separate from the local transfer of media information. The plugin does not collect audio/video streams or DRM data.
+Communication uses Chrome Native Messaging and authenticated HTTP bound to `127.0.0.1:39761`. A random bridge token and native host files are stored under `%LOCALAPPDATA%\StreamDeckMediaControls`. Registration requires the user to verify and enter the extension ID from `chrome://extensions`, and adds a per-user native host registry entry for that one ID. It does not select extensions by reading Chrome profile settings. The token is not sent to web pages or stored in the extension.
+
+Artwork and favicon fetching can contact the original website or an image host over HTTPS. These servers receive ordinary request information, such as your IP address and the requested image URL. Unlike page addresses, image URLs may retain site-provided query parameters. Requests omit credentials, do not follow redirects and send no referrer. This is separate from the local transfer of media information. The plugin does not collect audio/video streams or DRM data.
 
 ## Stopping use and deleting local data
 

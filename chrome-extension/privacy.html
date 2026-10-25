@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <meta name="referrer" content="no-referrer">
+  <title>Media Bridge — Data and privacy</title>
+  <link rel="stylesheet" href="options.css">
+</head>
+<body>
+  <main class="privacy-document">
+    <h1 data-i18n="extension.privacy.link">Data and privacy</h1>
+    <p class="intro" data-i18n="extension.policy.intro">Media Bridge connects browser media to the Media Controls plugin on your Windows PC. No account, advertising, analytics or developer-operated media upload service.</p>
+    <section aria-labelledby="policy-data">
+      <h2 id="policy-data" data-i18n="extension.policy.data.title">Information used</h2>
+      <p data-i18n="extension.policy.data">When you enable sending and save, media pages share available titles, artists, albums, playback state, timeline, HTML media element state, artwork and favicons with the local plugin. Page titles, page addresses without credentials, queries or fragments, and tab/frame/document identifiers identify media targets. Empty observations clear a target without sending page titles or addresses. Audio/video streams, cookies, passwords and DRM data are not read.</p>
+    </section>
+    <section aria-labelledby="policy-network">
+      <h2 id="policy-network" data-i18n="extension.policy.network.title">Where it goes</h2>
+      <p data-i18n="extension.policy.network">Media data travels through Chrome Native Messaging to a local host, then authenticated HTTP on 127.0.0.1:39761 to the plugin. Artwork and favicons are fetched separately from public HTTPS image hosts without credentials or referrers; those hosts receive your IP address and requested image URL. Image URLs can contain site-provided query parameters. No media is sent to the developer.</p>
+    </section>
+    <section aria-labelledby="policy-storage">
+      <h2 id="policy-storage" data-i18n="extension.policy.storage.title">Storage and retention</h2>
+      <p data-i18n="extension.policy.storage">Sending preferences and a random local bridge identifier are stored in extension local storage, not Chrome sync. Live media and bounded image caches stay in memory, not a saved browsing or listening history. The companion plugin stores action settings and local diagnostic logs; review logs before sharing. Native host files and a secret token are stored under %LOCALAPPDATA%\StreamDeckMediaControls. The token is not exposed to pages or stored in the extension.</p>
+    </section>
+    <section aria-labelledby="policy-control">
+      <h2 id="policy-control" data-i18n="extension.policy.control.title">Control and deletion</h2>
+      <p data-i18n="extension.policy.control">Disable sending and save to stop forwarding and new image requests. Page scripts may still observe media API calls; restrict site access in Chrome or uninstall the extension and reload existing tabs to stop them. Uninstalling removes extension settings and the bridge identifier. Exit Chrome and the plugin to clear memory caches. The plugin can retain its last display for about 15 seconds.</p>
+      <p data-i18n="extension.policy.delete">To remove companion data, stop Stream Deck, remove the per-user Chrome NativeMessagingHosts registry entry dev.n7s.media_controls, then delete %LOCALAPPDATA%\StreamDeckMediaControls. Remove plugin actions, uninstall the plugin and delete residual logs or profile backups you no longer need. Restarting or registering the plugin can recreate bridge files.</p>
+    </section>
+    <section aria-labelledby="policy-permissions">
+      <h2 id="policy-permissions" data-i18n="extension.policy.permissions.title">Permissions and purpose</h2>
+      <p data-i18n="extension.policy.permissions">Storage saves your preference and local bridge identifier. Native Messaging connects the user-registered Windows companion. HTTP/HTTPS content scripts observe media across sites and embedded frames; HTTPS host permission fetches artwork from site-selected image hosts. Restrict site access in Chrome to limit coverage. These permissions are used only for the local media bridge, not advertising, tracking, data sale, credit decisions or unrelated purposes.</p>
+    </section>
+    <section aria-labelledby="policy-support">
+      <h2 id="policy-support" data-i18n="extension.support.link">Support</h2>
+      <p data-i18n="extension.policy.support">Use the project support page for general questions. Issues are public: do not post private media details, tokens or unreviewed logs. Opening support is optional and contacts GitHub under its own privacy practices.</p>
+      <p><a href="https://github.com/Neko7sora/streamdeck-media-controls/issues" target="_blank" rel="noopener noreferrer" data-i18n="extension.support.link">Support</a> · <a href="options.html" data-i18n="extension.policy.settings">Sharing settings</a></p>
+    </section>
+  </main>
+  <script src="localization.js"></script>
+  <script src="privacy.js"></script>
+</body>
+</html>

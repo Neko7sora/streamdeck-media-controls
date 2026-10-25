@@ -34,12 +34,13 @@
 
     <section class="settings-card" aria-labelledby="sharing-title">
       <h2 id="sharing-title" data-i18n="extension.sharing.title">Browser sharing</h2>
+      <p class="consent-copy" id="sharing-data" data-i18n="extension.sharing.data">When enabled, media details, artwork, page titles and page addresses (without credentials, queries or fragments) are sent to Media Controls on this PC. Image hosts receive HTTPS requests for artwork and site icons.</p>
       <label class="setting-row" for="enabled">
         <span class="setting-copy">
           <span class="setting-title" data-i18n="enable.sending.from.the.browser">Enable sending from the browser</span>
           <span class="setting-help" id="sharing-help" data-i18n="extension.sharing.help">Changes apply after saving.</span>
         </span>
-        <input type="checkbox" id="enabled" role="switch" aria-describedby="sharing-help" disabled>
+        <input type="checkbox" id="enabled" role="switch" aria-describedby="sharing-data sharing-help" disabled>
       </label>
       <div class="save-row">
         <p id="status" role="status" aria-live="polite" aria-atomic="true"><span data-i18n="loading.settings">Loading settings…</span></p>
@@ -49,18 +50,21 @@
 
     <details class="setup-card" id="setup" open>
       <summary id="setup-summary"><span data-i18n="extension.setup.title">First-time setup</span><svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="m4 6 4 4 4-4"/></svg></summary>
+      <p class="setup-requirements" data-i18n="extension.setup.requirements">Requires Windows 10 (1809)+ x64, Stream Deck 7.1+, the Media Controls plugin and Node.js 24+. This extension cannot work on its own.</p>
       <ol>
         <li data-i18n="extension.setup.step1">Open Media Controls settings in Stream Deck.</li>
-        <li data-i18n="extension.setup.step2">Click “Register Chrome integration”.</li>
+        <li data-i18n="extension.setup.step2">Enter this extension’s ID from chrome://extensions, then click “Register Chrome integration”.</li>
         <li data-i18n="extension.setup.step3">Enable sending above, then save.</li>
+        <li data-i18n="extension.setup.step4">Reload your media tabs and start playback. Check that the connection reads “Connected to Stream Deck”.</li>
       </ol>
     </details>
 
     <footer class="privacy">
       <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 3 4.5 6v5.3c0 4.4 3.1 7.5 7.5 9.7 4.4-2.2 7.5-5.3 7.5-9.7V6L12 3Z"/><path d="m8.5 12 2.3 2.3 4.7-4.6"/></svg>
       <div>
-        <h2 data-i18n="extension.privacy.title">Stays on this device</h2>
-        <p data-i18n="extension.privacy">This extension sends Media Session information and available artwork from playing pages to the local Stream Deck plugin. Nothing is uploaded to the cloud.</p>
+        <h2 data-i18n="extension.privacy.title">You control sharing</h2>
+        <p data-i18n="extension.privacy">Sending is off by default. No analytics or developer-operated upload service. Disable sending and save to stop forwarding and image requests. Page scripts can still observe media APIs; restrict site access or remove the extension to stop them.</p>
+        <p><a href="privacy.html" target="_blank" rel="noopener" data-i18n="extension.privacy.link">Data and privacy</a> · <a href="https://github.com/Neko7sora/streamdeck-media-controls/issues" target="_blank" rel="noopener noreferrer" data-i18n="extension.support.link">Support</a></p>
       </div>
     </footer>
   </main>

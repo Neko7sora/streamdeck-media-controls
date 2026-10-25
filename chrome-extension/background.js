@@ -347,7 +347,10 @@ async function processFrame(state) {
   const artwork=hasMedia?artworkFor(key,media):undefined;
   if(!currentFrame(state) || generation!==settingsGeneration) return;
   const favicon=hasMedia?artworkFor(`favicon:${key}`,{favicon_candidates:media.favicon_candidates},true,fallbackFavicon):undefined;
-  const payload={
+  // Empty observations only clear a former media target. Do not attach browsing
+  // details or page-supplied fields when there is no media to display.
+  if(!hasMedia) {discardArtwork(key);discardArtwork(`favicon:${key}`);}
+  const payload=hasMedia?{
     ...media,
     page_url:pageAddress(update.sender.url),
     page_title:update.sender.tab.title??"",
@@ -355,7 +358,7 @@ async function processFrame(state) {
     artwork_loading:!!(hasMedia && cachedArtwork.get(key)?.pending && cachedArtwork.get(key)?.top.length),
     app_icon_data_url:null,
     favicon_data_url:favicon
-  };
+  }:{title:"",page_url:"",page_title:"",artwork_data_url:null,artwork_loading:false,app_icon_data_url:null,favicon_data_url:null};
   try {
     const current=await chrome.storage.local.get(["enabled"]);
     if(!currentFrame(state) || generation!==settingsGeneration || !current.enabled) return;
