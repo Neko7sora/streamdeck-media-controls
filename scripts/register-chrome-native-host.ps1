@@ -1,45 +1,18 @@
 param(
-  [ValidatePattern('^[a-p]{32}$')][string[]]$ExtensionId,
+  [ValidatePattern('^[a-p]{32}$')][string]$ExtensionId,
   [string]$NodePath = (node -p 'process.execPath'),
   [string]$ChromeUserDataDir = (Join-Path $env:LOCALAPPDATA 'Google\Chrome\User Data'),
   [switch]$DetectOnly
 )
 $ErrorActionPreference = 'Stop'
 
-# Inspect only extension settings. Never modify Chrome's profile files.
+# Labels cannot authorize an extension. Require an ID verified by the user.
+# ChromeUserDataDir is retained for CLI compatibility; profiles are not trusted.
 if (-not $ExtensionId) {
-  $detected = @()
-  if (Test-Path -LiteralPath $ChromeUserDataDir) {
-    $profiles = Get-ChildItem -LiteralPath $ChromeUserDataDir -Directory | Where-Object { $_.Name -eq 'Default' -or $_.Name -match '^Profile \d+$' }
-    foreach ($profile in $profiles) {
-      foreach ($prefName in @('Preferences', 'Secure Preferences')) {
-        $prefPath = Join-Path $profile.FullName $prefName
-        if (-not (Test-Path -LiteralPath $prefPath)) { continue }
-        try { $prefs = Get-Content -LiteralPath $prefPath -Raw -Encoding UTF8 | ConvertFrom-Json }
-        catch { continue } # Chrome may be replacing the file; retry on the next attempt.
-        foreach ($entry in $prefs.extensions.settings.PSObject.Properties) {
-          if ($entry.Name -notmatch '^[a-p]{32}$' -or $entry.Value.state -eq 0) { continue }
-          $extension = $entry.Value
-          $extensionManifest = $extension.manifest
-          if (-not $extensionManifest.name -and $extension.path) {
-            $extensionPath = $extension.path
-            if (-not [IO.Path]::IsPathRooted($extensionPath)) { $extensionPath = Join-Path (Join-Path $profile.FullName 'Extensions') $extensionPath }
-            try { $extensionManifest = Get-Content -LiteralPath (Join-Path $extensionPath 'manifest.json') -Raw -Encoding UTF8 | ConvertFrom-Json }
-            catch { continue }
-          }
-          if ($extensionManifest.name -eq 'Stream Deck Media Metadata Bridge (Local)' -and
-              $extensionManifest.permissions -contains 'nativeMessaging' -and
-              $extensionManifest.background.service_worker -eq 'background.js') { $detected += $entry.Name }
-        }
-      }
-    }
-  }
-  $ExtensionId = @($detected | Sort-Object -Unique)
-}
-if (-not $ExtensionId) {
-  Write-Host 'Chrome media extension not found yet; load chrome-extension in Chrome first.'
+  Write-Host 'Specify -ExtensionId with the verified ID from chrome://extensions.'
   exit 2
 }
+if ($ExtensionId -cnotmatch '^[a-p]{32}$') { throw 'Invalid extension ID' }
 if ($DetectOnly) { $ExtensionId | Write-Output; exit 0 }
 
 $nodeExe = (Resolve-Path -LiteralPath $NodePath).Path

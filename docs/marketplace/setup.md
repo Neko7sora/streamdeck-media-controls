@@ -11,10 +11,12 @@ Now Playing displays artwork, track title, artist and playback state. Now Playin
 Windows media sessions work without the extension. The optional companion adds browser metadata and direct control of accessible HTML media elements. It requires Chrome 111 or later.
 
 1. Obtain the `chrome-extension` folder from this repository's source download and keep it in a stable location. In `chrome://extensions`, enable Developer mode, choose **Load unpacked**, and select that folder. This is a manual setup; there is currently no Chrome Web Store listing.
-2. In a Media Controls action's settings, open **Setup Chrome integration**, then click **Register Chrome integration**. This installs a local native host for the companion extension. Use this button for an installed plugin; it uses Stream Deck's bundled Node.js runtime.
+2. In a Media Controls action's settings, open **Setup Chrome integration**, enter the ID from the intended extension in `chrome://extensions`, then click **Register Chrome integration**. Verify that it is the extension you loaded from this repository; a matching display name is not proof of identity. Only this ID is authorized. This installs a local native host for the companion extension. Use this button for an installed plugin; it uses Stream Deck's bundled Node.js runtime.
 3. Open the extension's options, enable **Enable sending from the browser**, and save. Confirm the connected state, then reload media pages that were already open.
 4. Choose the browser session in the action settings. You can restrict the extension's site access using Chrome's controls.
 
 Direct Chrome controls support play/pause, stop and seeking when an accessible media element supports them. Direct previous/next track commands, Web Audio-only players, closed Shadow DOM and inaccessible frames are not supported. Volume actions use Windows audio targets, not individual browser tabs. Missing information is displayed as unavailable rather than inferred from the page title.
 
 If disconnected, start Stream Deck, register the integration again and reload the extension and media page. Reselect a target if it disappeared or a Windows helper restarted. See [data and privacy](privacy.md) for data flow, disabling and removal instructions, and the [project README](../../README.md) for development and troubleshooting details.
+
+After updating from an older version, register again with the verified ID and fully quit and restart Chrome. Re-registration replaces the old origin allowlist; restarting Chrome ends already running native-host connections.

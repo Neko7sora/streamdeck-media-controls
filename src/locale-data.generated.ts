@@ -22,7 +22,7 @@ export default {
     "chrome.disconnected": "Chrome: Disconnected",
     "chrome.integration": "Chrome integration",
     "chrome.registration.failed": "Registration failed. Check the plugin logs and try again.",
-    "chrome.registration.help": "After loading the extension in Chrome, register the integration using the button below.",
+    "chrome.registration.help": "In chrome://extensions, verify the extension you loaded from this repository and copy its ID below. Names alone do not identify the intended extension.",
     "chrome.registration.notFound": "Extension not found. Load the chrome-extension folder in Chrome, then try again.",
     "chrome.registration.success": "Chrome integration registered. Enable sending in the extension options. If it cannot connect, reload the extension.",
     "chrome.registration.timeout": "No response received. Please try again.",
@@ -158,7 +158,10 @@ export default {
     "volume.percent": "Volume (%)",
     "waiting.for.information": "Waiting for information",
     "waiting.for.the.plugin.to.respond": "Waiting for the plugin to respond.",
-    "windows.media": "Windows media"
+    "windows.media": "Windows media",
+    "chrome.registration.extensionId": "Chrome extension ID",
+    "chrome.registration.invalidId": "Enter the verified 32-character extension ID (a–p) from chrome://extensions.",
+    "chrome.registration.busy": "Registration is in progress. Wait for it to finish, then try again."
   },
   "ja": {
     "1.s": "1秒",
@@ -182,7 +185,7 @@ export default {
     "chrome.disconnected": "Chrome：未接続",
     "chrome.integration": "Chrome 連携",
     "chrome.registration.failed": "登録に失敗しました。プラグインのログを確認し、もう一度お試しください。",
-    "chrome.registration.help": "Chrome に拡張機能を読み込んだ後、下のボタンで連携を登録できます。",
+    "chrome.registration.help": "chrome://extensions で、このリポジトリから読み込んだ拡張機能を確認し、その ID を下に入力してください。名前だけで判断しないでください。",
     "chrome.registration.notFound": "拡張機能が見つかりません。Chrome で chrome-extension フォルダーを読み込んでから、もう一度ボタンを押してください。",
     "chrome.registration.success": "Chrome 連携を登録しました。拡張機能のオプションで送信を有効にしてください。接続できない場合は拡張機能を再読み込みしてください。",
     "chrome.registration.timeout": "応答を確認できませんでした。もう一度お試しください。",
@@ -304,6 +307,9 @@ export default {
     "volume.percent": "音量（%）",
     "waiting.for.information": "情報待ち",
     "waiting.for.the.plugin.to.respond": "プラグインからの応答を待っています。",
-    "windows.media": "Windows メディア"
+    "windows.media": "Windows メディア",
+    "chrome.registration.extensionId": "Chrome 拡張機能 ID",
+    "chrome.registration.invalidId": "chrome://extensions で確認した32文字（a〜p）の拡張機能 ID を入力してください。",
+    "chrome.registration.busy": "登録処理中です。完了してから、もう一度お試しください。"
   }
 };

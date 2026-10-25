@@ -87,8 +87,12 @@
     <details class="card setup-card" id="chrome-setup">
       <summary id="chrome-setup-summary" data-i18n="settings.chromeSetup">Setup Chrome integration</summary>
       <p class="section-help" data-i18n="settings.chromeSetup.help">Optional: adds media information from browser tabs.</p>
-      <p class="help" data-i18n="chrome.registration.help">After loading the extension in Chrome, register the integration using the button below.</p>
+      <p class="help" data-i18n="chrome.registration.help">In chrome://extensions, verify the extension you loaded from this repository and copy its ID below. Names alone do not identify the intended extension.</p>
       <p class="help"><a id="setup-guide" href="https://github.com/Neko7sora/streamdeck-media-controls#chrome-拡張任意オプトイン" data-i18n="settings.setupGuide">Setup guide &amp; troubleshooting</a></p>
+      <div class="field">
+        <label for="chrome-extension-id" data-i18n="chrome.registration.extensionId">Chrome extension ID</label>
+        <input id="chrome-extension-id" type="text" maxlength="32" pattern="[a-p]{32}" autocomplete="off" spellcheck="false" aria-describedby="chrome-registration-status">
+      </div>
       <button id="register-chrome" type="button" aria-describedby="chrome-registration-status" disabled data-i18n="register.chrome.integration">Register Chrome integration</button>
       <p class="feedback" id="chrome-registration-status" role="status" aria-live="polite"></p>
     </details>

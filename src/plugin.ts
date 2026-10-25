@@ -298,7 +298,7 @@ streamDeck.ui.onSendToPlugin(ev=>{
   if(request.request==="registerChromeHost") {
     const requestId=request.requestId;
     if(streamDeck.ui.action?.id!==ev.action.id||typeof requestId!=="string"||!/^[a-f0-9-]{36}$/i.test(requestId)) return;
-    void registerChromeHost(msg=>streamDeck.logger.warn(msg)).then(async result=>{
+    void registerChromeHost(request.extensionId,msg=>streamDeck.logger.warn(msg)).then(async result=>{
       if(streamDeck.ui.action?.id!==ev.action.id) return;
       await streamDeck.ui.sendToPropertyInspector({response:"chromeHostRegistration",requestId,...result});
     }).catch(e=>streamDeck.logger.warn(String(e)));

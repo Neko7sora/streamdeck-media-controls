@@ -20,7 +20,7 @@
   "chrome.disconnected": "Chrome: Disconnected",
   "chrome.integration": "Chrome integration",
   "chrome.registration.failed": "Registration failed. Check the plugin logs and try again.",
-  "chrome.registration.help": "After loading the extension in Chrome, register the integration using the button below.",
+  "chrome.registration.help": "In chrome://extensions, verify the extension you loaded from this repository and copy its ID below. Names alone do not identify the intended extension.",
   "chrome.registration.notFound": "Extension not found. Load the chrome-extension folder in Chrome, then try again.",
   "chrome.registration.success": "Chrome integration registered. Enable sending in the extension options. If it cannot connect, reload the extension.",
   "chrome.registration.timeout": "No response received. Please try again.",
@@ -156,5 +156,8 @@
   "volume.percent": "Volume (%)",
   "waiting.for.information": "Waiting for information",
   "waiting.for.the.plugin.to.respond": "Waiting for the plugin to respond.",
-  "windows.media": "Windows media"
+  "windows.media": "Windows media",
+  "chrome.registration.extensionId": "Chrome extension ID",
+  "chrome.registration.invalidId": "Enter the verified 32-character extension ID (a–p) from chrome://extensions.",
+  "chrome.registration.busy": "Registration is in progress. Wait for it to finish, then try again."
 }

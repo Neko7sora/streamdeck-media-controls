@@ -8,7 +8,7 @@
     "src/scrolling-text.ts": "0a5ef6d91f3f9e1948a7cbfeeb33ad497a354f278852d981ccb14ae2a31cc294",
     "src/display-font.ts": "01120d67e03419bef8699a38e0a224ab7cc0e419d01123a0d3c99dcbde4baa52",
     "src/display-guidelines.ts": "b6fde60b325d24ed310de6448a32a5b6707bed6d7d9d5c17fb1a7e76679682e7",
-    "src/plugin.ts": "cf6814edfb99ff62efe9077fbbbb4e562b59ec931202c626c094a4cd6549b9cf",
+    "src/plugin.ts": "27f7bd914c3a93dd3f60825e6e6227dbca10bdecee3aa966ecfa8d48cc4b745e",
     "dev.n7s.media-controls.sdPlugin/imgs/actions/play-pause@2x.png": "7eea7f4b47d161bfc4f1f0a671e39a688f9de336029983e24364973dd49bd18e",
     "dev.n7s.media-controls.sdPlugin/imgs/actions/previous@2x.png": "712248ec9d30bcf842f352396776c09c67e8492c040b2ed4864ffe9e0efa4419",
     "dev.n7s.media-controls.sdPlugin/imgs/actions/next@2x.png": "150be9b1c37315a053fef5d982e592874189fc2b5869e04bd66edf1946befc16",

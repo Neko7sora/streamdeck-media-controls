@@ -160,9 +160,11 @@ window.connectElgatoStreamDeckSocket=(port,uuid,registerEvent,_info,actionInfo)=
 };
 registerChrome.addEventListener("click",()=>{
   if(socket?.readyState!==WebSocket.OPEN||registrationRequestId!==null) return;
+  const extensionId=document.getElementById("chrome-extension-id").value.trim();
+  if(!/^[a-p]{32}$/.test(extensionId)) {chromeStatus.textContent=t("chrome.registration.invalidId");return;}
   registrationRequestId=crypto.randomUUID();registerChrome.disabled=true;
   chromeStatus.textContent=t("registering.chrome.integration");
-  send("sendToPlugin",{request:"registerChromeHost",requestId:registrationRequestId});
+  send("sendToPlugin",{request:"registerChromeHost",requestId:registrationRequestId,extensionId});
   registrationTimeout=setTimeout(()=>{
     registrationRequestId=null;registerChrome.disabled=socket?.readyState!==WebSocket.OPEN;
     chromeStatus.textContent=t("chrome.registration.timeout");

@@ -219,7 +219,7 @@ test('Chrome connection is independent of registration and distinguishes idle, r
   const receive=chromeConnection=>pi.receive('sendToPropertyInspector',{chromeConnection});
   receive({state:'disconnected',sessions:0});
   assert.match(pi.elements.get('chrome-connection-title').textContent,/未接続/);
-  pi.click('register-chrome');const request=pi.messages.at(-1).payload;
+  pi.elements.get('chrome-extension-id').value='a'.repeat(32);pi.click('register-chrome');const request=pi.messages.at(-1).payload;
   pi.receive('sendToPropertyInspector',{response:'chromeHostRegistration',requestId:request.requestId,status:'registered',message:'登録しました。'});
   assert.match(pi.elements.get('chrome-connection-title').textContent,/未接続/);
   receive({state:'connected',sessions:0});
@@ -310,17 +310,17 @@ test("Chrome registration runs on click, blocks duplicate clicks, and keeps sele
   const pi=inspector({mediaTarget:"A",audioTarget:"app"});
   pi.receive("sendToPropertyInspector",{sessions:[{id:"A",label:"Track A",details:"Track details"}],audio:[{id:"app",label:"Player"}]});
   pi.poll();assert.ok(pi.messages.every(message=>message.payload?.request!=="registerChromeHost"));
-  pi.click("register-chrome");
+  pi.elements.get("chrome-extension-id").value="a".repeat(32);pi.click("register-chrome");
   const request=pi.messages.at(-1).payload;
   assert.equal(request.request,"registerChromeHost");assert.equal(pi.elements.get("register-chrome").disabled,true);
-  const count=pi.messages.length;pi.click("register-chrome");assert.equal(pi.messages.length,count);
+  const count=pi.messages.length;pi.elements.get("chrome-extension-id").value="a".repeat(32);pi.click("register-chrome");assert.equal(pi.messages.length,count);
   pi.receive("sendToPropertyInspector",{response:"chromeHostRegistration",requestId:request.requestId,status:"not-found",message:"拡張機能が見つかりません。"});
   assert.equal(pi.elements.get("register-chrome").disabled,false);
   assert.match(pi.elements.get("chrome-registration-status").textContent,/見つかりません/);
   assert.equal(pi.elements.get("details").textContent,"Track details");
   assert.equal(pi.elements.get("media").value,"A");assert.equal(pi.elements.get("audio").value,"app");
   pi.poll();assert.equal(pi.messages.at(-1).payload.request,"options","regular options refresh must not register a host");
-  pi.click("register-chrome");const next=pi.messages.at(-1).payload;
+  pi.elements.get("chrome-extension-id").value="a".repeat(32);pi.click("register-chrome");const next=pi.messages.at(-1).payload;
   assert.notEqual(next.requestId,request.requestId);
   pi.receive("sendToPropertyInspector",{response:"chromeHostRegistration",requestId:request.requestId,message:"Old reply"});
   assert.equal(pi.elements.get("register-chrome").disabled,true,"stale replies cannot finish a newer attempt");
@@ -330,14 +330,14 @@ test("Chrome registration runs on click, blocks duplicate clicks, and keeps sele
 });
 
 test("registration timeout and disconnect report a result without retrying",()=>{
-  const pi=inspector();pi.click("register-chrome");
+  const pi=inspector();pi.elements.get("chrome-extension-id").value="a".repeat(32);pi.click("register-chrome");
   const count=pi.messages.length;pi.timeout();assert.equal(pi.messages.length,count);
   assert.equal(pi.elements.get("register-chrome").disabled,false);
   assert.match(pi.elements.get("chrome-registration-status").textContent,/応答/);
-  pi.click("register-chrome");pi.close();
+  pi.elements.get("chrome-extension-id").value="a".repeat(32);pi.click("register-chrome");pi.close();
   assert.equal(pi.elements.get("register-chrome").disabled,true);
   assert.match(pi.elements.get("chrome-registration-status").textContent,/開き直して/);
-  const closedCount=pi.messages.length;pi.click("register-chrome");pi.timeout();assert.equal(pi.messages.length,closedCount);
+  const closedCount=pi.messages.length;pi.elements.get("chrome-extension-id").value="a".repeat(32);pi.click("register-chrome");pi.timeout();assert.equal(pi.messages.length,closedCount);
 });
 
 test("settings updates retain newly selected or disconnected targets until options catch up",()=>{
@@ -531,4 +531,14 @@ test('saved legacy mode is discoverable without reopening advanced controls on e
   pi.change('scroll-text',false);
   assert.equal(advanced.open,false,'saving an unrelated preference must preserve disclosure state');
   assert.equal(pi.messages.at(-1).payload.globalKeys,true);
+});
+
+test('Chrome registration requires an explicit valid ID and forwards exactly that ID',()=>{
+  const pi=inspector();const before=pi.messages.length;
+  for(const id of ['', 'invalid', 'A'.repeat(32), 'a'.repeat(32)+','+'b'.repeat(32)]) {
+    pi.elements.get('chrome-extension-id').value=id;pi.click('register-chrome');
+    assert.equal(pi.messages.length,before);assert.equal(pi.elements.get('register-chrome').disabled,false);
+  }
+  pi.elements.get('chrome-extension-id').value='b'.repeat(32);pi.click('register-chrome');
+  assert.equal(pi.messages.at(-1).payload.extensionId,'b'.repeat(32));
 });

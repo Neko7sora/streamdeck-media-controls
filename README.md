@@ -106,15 +106,15 @@ Now Playing / Now Playing + の「表示する項目」で、曲名・タイト�
 
 1. プラグインを起動します。Native Messaging ホストからの中継を受けるため、`127.0.0.1:39761` にだけ待ち受けます。
 2. `chrome://extensions` の開発者モードで `chrome-extension` を「パッケージ化されていない拡張機能」として読み込みます。
-3. Stream Deck アプリで Media Controls のアクションを選択し、設定画面の「Chrome 連携を登録」をクリックします。拡張機能 ID を自動検出し、現在のユーザーの HKCU に Native Messaging ホストを登録します。起動時や定期的な登録は行わず、ボタンを押したときだけ実行します。未導入の場合は Chrome で拡張を読み込んでから再度クリックしてください。Stream Deck に同梱された Node.js 24 を使い、ホストを LOCALAPPDATA にコピーします。管理者権限や別途 Node.js のインストールは不要です。拡張のオプションで送信を有効にしてください。トークンの貼り付けは不要です。
+3. Stream Deck アプリで Media Controls のアクションを選択し、設定画面で確認した拡張機能 ID を入力して「Chrome 連携を登録」をクリックします。入力した拡張機能 ID のみを許可し、現在のユーザーの HKCU に Native Messaging ホストを登録します。起動時や定期的な登録は行わず、ボタンを押したときだけ実行します。未導入の場合は Chrome で拡張を読み込んでから再度クリックしてください。Stream Deck に同梱された Node.js 24 を使い、ホストを LOCALAPPDATA にコピーします。管理者権限や別途 Node.js のインストールは不要です。拡張のオプションで送信を有効にしてください。トークンの貼り付けは不要です。
 
-   手動で登録・修復したい場合は、リポジトリで次を実行できます（Node.js 24 が必要）。ID を省略すると Chrome の Default / Profile プロファイルから自動検出します。
+   手動で登録・修復したい場合は、リポジトリで次を実行できます（Node.js 24 が必要）。chrome://extensions で、このリポジトリから読み込んだ拡張機能の ID を確認してください。名前だけでは識別できないため、自動検出は行いません。
 
    ```powershell
-   powershell -NoProfile -ExecutionPolicy Bypass -File scripts/register-chrome-native-host.ps1
+   powershell -NoProfile -ExecutionPolicy Bypass -File scripts/register-chrome-native-host.ps1 -ExtensionId <確認した拡張機能ID>
    ```
 
-   必要に応じて `-ExtensionId <拡張機能ID>`、`-NodePath C:\path\to\node.exe`、`-ChromeUserDataDir C:\path\to\UserData` を指定できます。`-DetectOnly` は検出した ID の表示だけを行います。自動登録の対象は通常版 Google Chrome の Default / Profile プロファイルです。別の保存先を使う場合は手動指定してください。
+   `-ExtensionId` は必須で、1つの ID だけを登録します。`-NodePath C:\path\to\node.exe` も指定できます。`-DetectOnly` は指定した ID の形式確認と表示だけを行い、インストール元の検証は行いません。Chrome のプロファイルから登録対象を選ぶことはありません。
 4. 既に開いていたメディアページを再読み込みして、再生を開始します。Stream Deck の設定に Chrome の各フレームが現れるか確認してください。
 5. 拡張更新後は Chrome で拡張を再読み込みしてください。ホスト更新や拡張 ID の変更後は「Chrome 連携を登録」を再度クリックします。ホストの更新を既存の接続にも反映する場合は拡張を再読み込みしてください。送信の有効化は自動では変更しません。
 
@@ -127,6 +127,8 @@ Chrome の設定画面は、接続確認の応答が6秒間ない場合に「接
 この接続表示を追加する更新では Native Messaging ホストも変更しています。プラグインを再起動した後に「Chrome 連携を登録」をもう一度押し、Chrome 拡張を再読み込みしてください。
 
 通信経路は「Chrome 拡張 → Native Messaging（標準入出力）→ Node.js ホスト → 認証付き localhost HTTP → Stream Deck プラグイン」です。拡張は localhost に直接接続せず、秘密トークンも保持しません。ホストは Chrome の allowed_origins に登録した拡張だけが起動できます。ローカルユーザーが直接ホストを実行することを防ぐ仕組みではありません。
+
+旧版で登録済みの場合も、更新後に正しい ID で再登録し、Chrome を完全に終了して起動し直してください。既存の許可リストは再登録で置き換わり、Chrome の終了で起動済みのホスト接続も終了します。
 
 登録解除は `Remove-Item -LiteralPath 'HKCU:\Software\Google\Chrome\NativeMessagingHosts\dev.n7s.media_controls'` で行います。登録ボタンの処理中は、完了を待ってから解除してください。
 
