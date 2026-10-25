@@ -3,10 +3,13 @@ import {readFile,readdir} from 'node:fs/promises';
 import {resolve,join} from 'node:path';
 import {createHash} from 'node:crypto';
 import sharp from 'sharp';
+import {checkChromeSecurity,readChromePackage} from './check-chrome-security.mjs';
 
 const root=resolve('chrome-extension');
 const read=path=>readFile(path,'utf8');
 const manifest=JSON.parse(await read(join(root,'manifest.json')));
+const {files}=await readChromePackage(root);
+checkChromeSecurity(manifest,files);
 assert.equal(manifest.manifest_version,3);
 assert.equal(manifest.version,JSON.parse(await read('package.json')).version);
 assert.deepEqual([...manifest.permissions].sort(),['nativeMessaging','storage']);

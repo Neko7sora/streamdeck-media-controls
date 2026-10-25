@@ -4,6 +4,8 @@
 
 コード、掲載原稿、提出用画像、ローカル検査を整備した段階。**公開準備中**。ストアの申告・公開 URL・実機での受け入れ確認・Google の審査は別途必要。
 
+Chrome 公式の Improve extension security の項目別対応と、任意文字列実行・外部コード読み込み・CSP 緩和の自動検査は [拡張のセキュリティ要件への対応](chrome-extension-security.md) にまとめた。`chrome:store:check` と ZIP 作成時にもこの検査を実行する。
+
 ## 対応範囲
 
 | 観点 | 実装・用意したもの | 公開前の残作業 |

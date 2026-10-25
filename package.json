@@ -9,6 +9,7 @@
   "scripts": {
     "icons:build": "node scripts/build-icons.mjs",
     "chrome:icons": "node scripts/build-chrome-icons.mjs",
+    "chrome:security:check": "node scripts/check-chrome-security.mjs",
     "chrome:store:check": "node scripts/check-chrome-store.mjs",
     "chrome:pack": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/pack-chrome.ps1",
     "test:chrome:e2e": "node tests/chrome-e2e.mjs",

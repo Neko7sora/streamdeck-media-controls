@@ -106,6 +106,8 @@ Now Playing / Now Playing + の「表示する項目」で、曲名・タイト�
 
 ## Chrome 拡張（任意・オプトイン）
 
+Chrome 公式のセキュリティ要件との対応と自動検査は [Chrome 拡張のセキュリティ要件への対応](docs/chrome-extension-security.md) を参照してください。
+
 1. プラグインを起動します。Native Messaging ホストからの中継を受けるため、`127.0.0.1:39761` にだけ待ち受けます。
 2. `chrome://extensions` の開発者モードで `chrome-extension` を「パッケージ化されていない拡張機能」として読み込みます。
 3. Stream Deck アプリで Media Controls のアクションを選択し、設定画面で確認した拡張機能 ID を入力して「Chrome 連携を登録」をクリックします。入力した拡張機能 ID のみを許可し、現在のユーザーの HKCU に Native Messaging ホストを登録します。起動時や定期的な登録は行わず、ボタンを押したときだけ実行します。未導入の場合は Chrome で拡張を読み込んでから再度クリックしてください。Stream Deck に同梱された Node.js 24 を使い、ホストを LOCALAPPDATA にコピーします。管理者権限や別途 Node.js のインストールは不要です。拡張のオプションで送信を有効にしてください。トークンの貼り付けは不要です。
