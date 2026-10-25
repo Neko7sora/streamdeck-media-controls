@@ -29,6 +29,9 @@ export function startNative(onSnapshot:(s:MediaSnapshot)=>void,onError:(s:string
   let stopConnection:(()=>void)|undefined;
   let lastError="",lastErrorAt=0;
   const report=(message:string)=>{if(message!==lastError||Date.now()-lastErrorAt>30000){lastError=message;lastErrorAt=Date.now();onError(message);}};
+  const notify=(snapshot:MediaSnapshot)=>{
+    try {onSnapshot(snapshot);} catch(e) {report(`Native snapshot callback: ${String(e)}`);}
+  };
   const start=()=>{
     if(stopped || process.platform!=="win32") return;
     const processChild=spawn(helper,["--watch","--delta"],{windowsHide:true,stdio:"pipe"});
@@ -46,7 +49,7 @@ export function startNative(onSnapshot:(s:MediaSnapshot)=>void,onError:(s:string
       for(const p of current.pending.values()) {clearTimeout(p.timer);p.reject(new Error("Windows helper disconnected"));}
       current.pending.clear();
       if(!stopped) {
-        onSnapshot({current:null,sessions:[],audio:null});
+        notify({current:null,sessions:[],audio:null});
         retry=setTimeout(start,3000);
       }
     };
@@ -61,6 +64,7 @@ export function startNative(onSnapshot:(s:MediaSnapshot)=>void,onError:(s:string
     processChild.stderr.on("error",e=>fail(`Windows helper stderr: ${e.message}`));
     const receiveLine=(line:string)=>{
       if(finished) return;
+      let snapshot:MediaSnapshot|undefined;
       try {
         const v:unknown=JSON.parse(line);
         if(!v || typeof v!=="object") throw new Error("Invalid native output");
@@ -71,10 +75,15 @@ export function startNative(onSnapshot:(s:MediaSnapshot)=>void,onError:(s:string
           if(record.ok===true) p.resolve(); else p.reject(new Error(typeof record.error==="string" ? record.error : "Native command failed"));
         } else {
           const decoded=record.native_wire===2?wire.decode(record):v;
-          if(decoded!==undefined) onSnapshot(validateSnapshot(decoded));
+          if(decoded!==undefined) snapshot=validateSnapshot(decoded);
           lastSeen=Date.now();
         }
-      } catch(e) {report(`Native output: ${String(e)}`);}
+      } catch(e) {
+        // Later deltas and heartbeats cannot repair a lost base or image.
+        // Restart so the helper sends a complete snapshot with a fresh cache.
+        fail(`Native output: ${String(e)}`);return;
+      }
+      if(snapshot!==undefined) notify(snapshot);
     };
     const flushLine=()=>{
       const line=(fragments.length===1?fragments[0]!:Buffer.concat(fragments,length)).toString("utf8");

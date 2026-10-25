@@ -124,6 +124,74 @@ test("commands reject an ended input stream before writing",async t=>{
   assert.equal(child.writes.length,0);
 });
 
+test("a failed native delta clears stale media and restarts from a complete snapshot",async t=>{
+  const {driver,client}=await harness();
+  t.mock.timers.enable({apis:["setTimeout","setInterval","Date"],now:1_000_000});
+  const snapshots=[],errors=[];
+  const stop=client.startNative(value=>snapshots.push(value),value=>errors.push(value));t.after(stop);
+  const old=driver.children[0];
+  old.output({native_wire:2,reset:true,changes:{current:"old",sessions:[{session_id:"old",title:"Old track"}],audio:null},images:{}});
+  assert.equal(snapshots.at(-1).current.title,"Old track");
+  const pending=assert.rejects(client.nativeCommand({command:"next",session_id:"old"}),/disconnected/);
+  // A missing image invalidates the delta base. Subsequent empty heartbeats
+  // cannot reconstruct it, so keeping this helper alive would freeze old media.
+  old.output({native_wire:2,changes:{sessions:[{session_id:"old",title:"Lost update",artwork_data_url:{image:"missing"}}]},images:{}});
+  assert.equal(old.killed,true);
+  await pending;
+  assert.deepEqual(snapshots.at(-1),snapshot);
+  assert.match(errors[0],/Missing native image/);
+  old.output({native_wire:2,changes:{},images:{}});
+  old.output({...snapshot,sessions:[{title:"Late output"}]});
+  assert.equal(snapshots.length,2);
+  await assert.rejects(client.nativeCommand({command:"next",session_id:"old"}),/unavailable/);
+  t.mock.timers.tick(2999);assert.equal(driver.children.length,1);
+  t.mock.timers.tick(1);assert.equal(driver.children.length,2);
+  const replacement=driver.children[1];
+  replacement.output({native_wire:2,reset:true,changes:{current:"new",sessions:[{session_id:"new",title:"Recovered",artwork_data_url:{image:"1"}}],audio:null},images:{1:"data:image/png;base64,AQ=="}});
+  assert.equal(snapshots.at(-1).current.title,"Recovered");
+  assert.equal(snapshots.at(-1).current.artwork_data_url,"data:image/png;base64,AQ==");
+  const recovered=client.nativeCommand({command:"next",session_id:"new"});
+  replacement.output({reply:replacement.writes[0].id,ok:true});await recovered;
+});
+
+test("malformed native JSON and invalid snapshots trigger one recovery and discard the rest of the chunk",async t=>{
+  for(const line of ["{broken JSON}",JSON.stringify({current:null,sessions:"invalid"})]) {
+    await t.test(line,async t=>{
+      const {driver,client}=await harness();
+      t.mock.timers.enable({apis:["setTimeout","setInterval"]});
+      const snapshots=[],errors=[];
+      const stop=client.startNative(value=>snapshots.push(value),value=>errors.push(value));t.after(stop);
+      const child=driver.children[0];
+      child.stdout.write(line+"\n"+JSON.stringify({...snapshot,sessions:[{title:"Stale output"}]})+"\n");
+      assert.equal(child.killed,true);
+      assert.deepEqual(snapshots,[snapshot]);
+      assert.equal(errors.length,1);
+      assert.match(errors[0],/^Native output:/);
+      child.emit("close",1);
+      t.mock.timers.tick(3000);assert.equal(driver.children.length,2);
+      driver.children[1].output({...snapshot,sessions:[{title:"Recovered"}]});
+      assert.equal(snapshots.at(-1).sessions[0].title,"Recovered");
+    });
+  }
+});
+
+test("snapshot callback failures do not restart a healthy helper or prevent protocol recovery",async t=>{
+  const {driver,client}=await harness();
+  t.mock.timers.enable({apis:["setTimeout","setInterval"]});
+  const errors=[];
+  const stop=client.startNative(()=>{throw Error("Display subscriber failed");},value=>errors.push(value));t.after(stop);
+  const child=driver.children[0];child.output(snapshot);
+  assert.equal(child.killed,false);
+  assert.match(errors[0],/Native snapshot callback:.*Display subscriber failed/);
+  const command=client.nativeCommand({command:"mute",target:"master"});
+  child.output({reply:child.writes[0].id,ok:true});await command;
+  child.stdout.write("invalid JSON\n");
+  assert.equal(child.killed,true);
+  t.mock.timers.tick(3000);assert.equal(driver.children.length,2);
+  driver.children[1].output(snapshot);
+  assert.equal(driver.children[1].killed,false);
+});
+
 test("oversized complete native lines are rejected before publishing their contents",async t=>{
   const {driver,client}=await harness();
   t.mock.timers.enable({apis:["setTimeout","setInterval"]});

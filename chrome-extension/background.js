@@ -8,6 +8,7 @@ let protocol=1,bridgeEpoch,streamStarted=false,lastContact=-Infinity,lastPostCon
 const sentImages=new Set(),imageIds=new Map();
 const transferringImages=new Set();
 let wireSequence=0;
+function nextWireSequence(){return wireSequence=Math.max(wireSequence+1,Date.now());}
 const commandQueues=new Map();
 let queuedCommands=0;
 function queueCommand(command,frameState) {
@@ -287,6 +288,32 @@ async function downloadArtwork(entry) {
   return data;
 }
 const frames=new Map();
+// Legacy polling releases its processing state after each update. Keep a bounded
+// address book so closing an idle tab can still clear every published frame.
+const publishedFrames=new Map(),removedFrames=[];
+let clearingFrames=false;
+function postFrame(state,update,body) {
+  const frame={tab_id:state.tab,frame_id:state.frame,document_id:update.sender.documentId};
+  publishedFrames.delete(state.key);publishedFrames.set(state.key,frame);
+  if(publishedFrames.size>256) publishedFrames.delete(publishedFrames.keys().next().value);
+  return post("",{...frame,...body});
+}
+async function clearRemovedFrames() {
+  if(clearingFrames) return;
+  clearingFrames=true;
+  try {
+    // Use one extra request slot, even when many frames disappear together.
+    while(removedFrames.length) {
+      const {frame,generation}=removedFrames.shift();
+      try {
+        await storageReady;
+        const {enabled=false}=await chrome.storage.local.get(["enabled"]);
+        if(!enabled||generation!==settingsGeneration) continue;
+        await post("",{...frame,sequence:nextWireSequence(),media:null,...(protocol===2?{protocol:2,base:null}: {})});
+      } catch {if(generation===settingsGeneration) logUnavailable();}
+    }
+  } finally {clearingFrames=false;}
+}
 const queuedFrames=[];
 let activeJobs=0;
 let lastErrorLog=0;
@@ -362,7 +389,7 @@ async function processFrame(state) {
   try {
     const current=await chrome.storage.local.get(["enabled"]);
     if(!currentFrame(state) || generation!==settingsGeneration || !current.enabled) return;
-    const response=protocol===2?await sendDelta(state,update,payload):await post("",{tab_id:state.tab,frame_id:frame,document_id:update.sender.documentId,sequence:Date.now(),media:payload});
+    const response=protocol===2?await sendDelta(state,update,payload):await postFrame(state,update,{sequence:nextWireSequence(),media:payload});
     if(generation!==settingsGeneration||!currentFrame(state)) return;
     if(response.skipped!==true) contact();
     // Polling can overlap a reconnecting command stream. Enqueue the whole
@@ -420,7 +447,7 @@ async function sendDelta(state,update,payload) {
       if(!previous||JSON.stringify(previous[field])!==JSON.stringify(normalized[field])) patch[field]=normalized[field]??null;
     }
     if(previous&&!Object.keys(patch).length&&Date.now()-(state.lastSent??0)<5000) return {skipped:true};
-    const sequence=wireSequence=Math.max(wireSequence+1,Date.now());
+    const sequence=nextWireSequence();
     const transfer=Object.fromEntries(Object.entries(images).filter(([id])=>!sentImages.has(id)&&!transferringImages.has(id)));
     // A different frame may already be transferring these bytes. Publish its
     // metadata now and attach the image after that transfer completes.
@@ -431,7 +458,7 @@ async function sendDelta(state,update,payload) {
     }
     for(const id of Object.keys(transfer)) transferringImages.add(id);
     let response;
-    try {response=await post("",{protocol:2,tab_id:state.tab,frame_id:state.frame,document_id:update.sender.documentId,sequence,base:previous?state.sequence:null,media:patch,images:transfer});}
+    try {response=await postFrame(state,update,{protocol:2,sequence,base:previous?state.sequence:null,media:patch,images:transfer});}
     finally {
       if(wireVersion===wireGeneration) for(const id of Object.keys(transfer)) transferringImages.delete(id);
     }
@@ -454,6 +481,11 @@ chrome.tabs.onRemoved.addListener(id=>{
   }
   for(let i=queuedFrames.length-1;i>=0;i--) if(queuedFrames[i].tab===id) queuedFrames.splice(i,1);
   for(const key of cachedArtwork.keys()) if(key.startsWith(`${id}:`) || key.startsWith(`favicon:${id}:`)) discardArtwork(key);
+  for(const [key,frame] of publishedFrames) if(frame.tab_id===id) {
+    publishedFrames.delete(key);removedFrames.push({frame,generation:settingsGeneration});
+    if(removedFrames.length>256) removedFrames.shift();
+  }
+  void clearRemovedFrames();
   drainFrames();
 });
 chrome.storage.onChanged.addListener((changes,area)=>{
@@ -466,7 +498,7 @@ chrome.storage.onChanged.addListener((changes,area)=>{
       if(streamStarted) void post("/unsubscribe",{}).catch(()=>{});
       streamStarted=false;
       for(const state of frames.values()) {state.closed=true;state.latest=null;}
-      frames.clear();queuedFrames.length=0;sharedArtwork.clear();imageIds.clear();
+      frames.clear();queuedFrames.length=0;publishedFrames.clear();removedFrames.length=0;sharedArtwork.clear();imageIds.clear();
     }
     setConnectionState(changes.enabled.newValue?"checking":"disabled");
     // Finish any old probe before checking the new opt-in generation.

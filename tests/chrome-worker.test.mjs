@@ -7,6 +7,79 @@ const settle=()=>new Promise(resolve=>setTimeout(resolve,30));
 const flush=()=>new Promise(setImmediate);
 const deferred=()=>{let resolve;const promise=new Promise(done=>{resolve=done;});return {promise,resolve};};
 const updates=w=>w.requests.filter(x=>!x.url.endsWith('/result')).map(x=>JSON.parse(x.options.body));
+const mediaUpdates=w=>updates(w).filter(body=>body.media!==null);
+
+for(const protocol2 of [false,true]) {
+  test(`closing a tab immediately removes its completed frames in protocol ${protocol2?2:1}`,async()=>{
+    const wire=new ChromeWire(),sessions=new Map();
+    const w=worker(true,undefined,{protocol2,async bridgeResponse(_url,body){
+      if(body.id) return {json:async()=>({ok:true})};
+      const key=`${body.tab_id}:${body.frame_id}`,media=body.protocol===2?wire.decode(body).media:body.media;
+      if(media===null) sessions.delete(key);else sessions.set(key,media);
+      return {json:async()=>({ok:true,commands:[]})};
+    }});
+    await flush();
+    w.send({title:'First'},0);w.send({title:'Child frame'},1);w.send({title:'Other tab'},0,5);await settle();
+    assert.equal(sessions.size,3);
+    const previous=updates(w);
+    w.remove(4);await settle();
+    assert.deepEqual([...sessions.keys()],['5:0']);
+    const cleared=updates(w).filter(body=>body.media===null);
+    assert.equal(cleared.length,2);
+    for(const clear of cleared) {
+      assert.equal(clear.tab_id,4);
+      assert.equal(clear.document_id,`doc-${clear.frame_id}`);
+      assert.ok(clear.sequence>Math.max(...previous.map(body=>body.sequence)));
+    }
+  });
+
+  test(`late metadata cannot restore a closed tab in protocol ${protocol2?2:1}`,async t=>{
+    const gate=deferred(),received=new Map(),latest=new Map();let commandCount=0;
+    t.after(()=>gate.resolve());
+    const w=worker(true,undefined,{protocol2,async bridgeResponse(_url,body){
+      if(body.id) return {json:async()=>({ok:true})};
+      if(body.media!==null) await gate.promise;
+      const key=`${body.tab_id}:${body.frame_id}`;
+      if(body.sequence>=(latest.get(key)??-1)) {
+        latest.set(key,body.sequence);
+        if(body.media===null) received.delete(key);else received.set(key,body.media);
+      }
+      return {json:async()=>({ok:true,commands:body.media===null?[]:[{id:`late-${++commandCount}`,command:'play-pause'}]})};
+    }});
+    await flush();w.send({title:'Closing track'});await flush();
+    assert.equal(mediaUpdates(w).length,1);
+    w.send({title:'Queued track'});w.remove(4);await settle();
+    assert.equal(updates(w).filter(body=>body.media===null).length,1);
+    gate.resolve();await settle();
+    assert.equal(received.size,0);
+    assert.equal(mediaUpdates(w).length,1);
+    assert.equal(w.commands.length,0);
+  });
+}
+
+test('a closed-tab notification cannot cross an interrupted opt-in generation',async()=>{
+  const w=worker(true,undefined,{protocol2:true});await flush();
+  w.send({title:'Track'});await settle();
+  w.remove(4);w.changeSettings({enabled:false});w.changeSettings({enabled:true});await settle();
+  assert.equal(updates(w).filter(body=>body.media===null).length,0);
+});
+
+test('closing many frames uses one removal request at a time and skips unpublished frames',async t=>{
+  const gate=deferred();let blocked=false;
+  t.after(()=>gate.resolve());
+  const w=worker(true,undefined,{protocol2:true,async bridgeResponse(_url,body){
+    if(body.media===null&&!blocked) {blocked=true;await gate.promise;}
+    return {json:async()=>({ok:true,commands:[]})};
+  }});
+  await flush();
+  for(let frame=0;frame<12;frame++) w.send({title:`Track ${frame}`},frame);
+  await settle();w.remove(4);await flush();
+  assert.equal(updates(w).filter(body=>body.media===null).length,1);
+  gate.resolve();await settle();
+  assert.equal(updates(w).filter(body=>body.media===null).length,12);
+  const disabled=worker(false);disabled.send({title:'Never published'});disabled.remove(4);await flush();
+  assert.equal(updates(disabled).length,0);
+});
 test('connection badges probe without media, recover from failures, and stop probing when disabled',async()=>{
   let ui,fail=false;
   const w=worker(true,undefined,{inspect(value){ui=value;},async statusResponse(){if(fail) throw Error('offline');return {json:async()=>({ok:true})};}});
@@ -309,12 +382,12 @@ test('closed tabs cancel queued and coalesced samples and skip returned commands
  w.send({title:'Later sample'},0);
  w.remove(4);
  gate.resolve();await flush();
- assert.equal(w.requests.length,8);
+ assert.equal(mediaUpdates(w).length,8);
+ assert.equal(updates(w).filter(body=>body.media===null).length,8);
  assert.equal(w.commands.length,0);
  w.send({title:'Other tab'},0,5);await flush();
- const updates=w.requests.filter(x=>!x.url.endsWith('/result'));
- assert.equal(updates.length,9);
- assert.equal(JSON.parse(updates.at(-1).options.body).tab_id,5);
+ assert.equal(mediaUpdates(w).length,9);
+ assert.equal(mediaUpdates(w).at(-1).tab_id,5);
 });
 
 test('closing a tab aborts image loads and prevents queued fallback requests',async()=>{
@@ -326,7 +399,8 @@ test('closing a tab aborts image loads and prevents queued fallback requests',as
  assert.ok(w.images.every(image=>image.options.signal.aborted));
  image.resolve({ok:false,headers:new Headers()});await flush();
  assert.equal(w.images.length,2);
- assert.equal(updates(w).length,1);
+ assert.equal(mediaUpdates(w).length,1);
+ assert.equal(updates(w).filter(body=>body.media===null).length,1);
 });
 
 test('busy frames coalesce samples and yield to an already queued frame',async()=>{
