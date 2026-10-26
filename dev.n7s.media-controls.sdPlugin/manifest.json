@@ -5,7 +5,7 @@
   "Category": "Media Controls",
   "Author": "Neko7sora",
   "Description": "Windows and Chrome metadata, album artwork, playback timeline, media and volume control.",
-  "Version": "0.4.7.0",
+  "Version": "1.0.0.0",
   "SDKVersion": 3,
   "Software": {
     "MinimumVersion": "7.1"

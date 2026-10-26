@@ -16,7 +16,7 @@
 | ギャラリー2 | [gallery-02-controls.png](../assets/marketplace/gallery-02-controls.png) | 1920 × 960 PNG。同梱の再生・音量操作アイコン |
 | ギャラリー3 | [gallery-03-customization.png](../assets/marketplace/gallery-03-customization.png) | 1920 × 960 PNG。全情報／アートワークのみ／文字のみ |
 | セットアップ | [setup.md](marketplace/setup.md) | Windows・Stream Deck・Chrome の要件、手動の拡張導入、操作と制限を英語で説明 |
-| リリースノート原稿 | [release-notes.en.txt](marketplace/release-notes.en.txt) | 現行 v0.4.7 の機能と制限を英語で記載 |
+| リリースノート原稿 | [release-notes.en.txt](marketplace/release-notes.en.txt) | 初回リリース v1.0.0（STABLE）の機能と制限を英語で記載 |
 | データの取り扱い | [privacy.md](marketplace/privacy.md) | ローカル処理、画像取得の外部通信、Chrome の opt-in、設定・トークン・ログ・削除手順を英語で説明 |
 | 生成記録 | [provenance.json](../assets/marketplace/provenance.json) | 原稿・描画ソース・画像の SHA-256、架空データの由来、AI使用の開示 |
 
