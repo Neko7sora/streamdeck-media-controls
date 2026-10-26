@@ -2,14 +2,14 @@
   "method": "Playwright Chromium; real extension first-run options page; sending disabled; native host calls stubbed to fail so no user host is contacted",
   "sources": {
     "chrome-extension/manifest.json": "1ee530a0f3fa41f2519ed83b7e2fa17c7a18bfd9c0377332f298e4abf446653e",
-    "chrome-extension/options.html": "8d520379e7187b2aa94f95e995a80d78fb9dc59855d99e91812e21ef913c796f",
+    "chrome-extension/options.html": "aaca91e90d88479b28828995e42aec898721fe25e6439ccc05bf913623978998",
     "chrome-extension/options.css": "045e2e25feb4d9e3a2eca5cac880c824df55c07e43d0920bebecb91623a6993e",
     "chrome-extension/options.js": "74206e6f0807779cebb8ff5f10bb210ea9c03b568b2384f1be3f0a9420066e37",
-    "chrome-extension/localization.js": "f2e001b0d7cb64495eba04c2cae79fac93cfde225f1f1f0a0a18b2cace27b9ca",
+    "chrome-extension/localization.js": "cdfa0bffd6c89ea5d9ee1e39d0cc9f9c6b2a2131b51ef0d3c478f96456e4e961",
     "tests/chrome-e2e.mjs": "f0d97d38b004a46928384121d0be9455f401fe04cd92343ffad0a62773dfa477"
   },
   "images": {
-    "setup-en.png": "107cc3192c21e27d5dcd0bebccde7cfde2dfae43fbc62fde7245620f50655c3a",
-    "setup-ja.png": "2c4dfe5d67461817c90472f117625bdfa0b78d0cbb31e7806c5ae25df745c15d"
+    "setup-en.png": "ca16ae934600f9b770eaf14e71e737cb3c161f4242f34816694dda64cac130bf",
+    "setup-ja.png": "8809f5336356c7e0f9c32beeb74d66bb3cbc4afd4bf4ec99f9b89385ff1bc882"
   }
 }

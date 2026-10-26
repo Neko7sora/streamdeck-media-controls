@@ -1,6 +1,6 @@
 # Media Controls setup
 
-Requires Windows 10 version 1809 or later (x64) or Windows 11 (x64), and Stream Deck 7.1 or later. Dial actions require Stream Deck +. macOS is not supported.
+Requires Windows 11 or later (x64), and Stream Deck 7.1 or later. Dial actions require Stream Deck +. macOS is not supported.
 
 Install the plugin and add a Media Controls action to a key or dial. Start a media app and choose a playback target in the action settings, or leave automatic selection enabled. Choose the system output or an available app as the separate audio target for volume actions. Artwork, metadata and playback controls depend on what the selected app exposes to Windows. Unsupported operations show an alert.
 

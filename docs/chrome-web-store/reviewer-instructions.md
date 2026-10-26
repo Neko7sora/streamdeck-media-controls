@@ -11,7 +11,7 @@ Draft, 2026-10-25. This extension is a Windows companion for Media Controls on S
 
 ## Requirements and access
 
-Windows 10 version 1809 or later (x64), or Windows 11 (x64); Chrome 111 or later; Stream Deck software 7.1 or later; a Stream Deck device and the Media Controls plugin. Now Playing + dial/seek tests require Stream Deck +. macOS is unsupported. The extension needs the companion to display media and receive device commands.
+Windows 11 or later (x64); Chrome 111 or later; Stream Deck software 7.1 or later; a Stream Deck device and the Media Controls plugin. Now Playing + dial/seek tests require Stream Deck +. macOS is unsupported. The extension needs the companion to display media and receive device commands.
 
 No extension account, subscription, license key or paid website account is required. Stream Deck hardware is a separate prerequisite. Host registration through the plugin uses Stream Deck's bundled Node.js runtime, requires no separate Node.js installation and does not request administrator access. Manual registration from source instead requires Node.js 24 or later.
 

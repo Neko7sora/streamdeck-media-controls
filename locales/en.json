@@ -60,7 +60,7 @@
   "extension.privacy.link": "Data and privacy",
   "extension.support.link": "Support",
   "extension.sharing.data": "When enabled, media details, artwork, page titles and page addresses (without credentials, queries or fragments) are sent to Media Controls on this PC. Image hosts receive HTTPS requests for artwork and site icons.",
-  "extension.setup.requirements": "Requires Windows 10 (1809)+ x64, Stream Deck 7.1+, the Media Controls plugin and local bridge registration. Setup uses Stream Deck's bundled runtime. This extension cannot work on its own.",
+  "extension.setup.requirements": "Requires Windows 11 or later (x64), Stream Deck 7.1+, the Media Controls plugin and local bridge registration. Setup uses Stream Deck's bundled runtime. This extension cannot work on its own.",
   "extension.policy.intro": "Media Bridge connects browser media to the Media Controls plugin on your Windows PC. No account, advertising, analytics or developer-operated media upload service.",
   "extension.policy.data.title": "Information used",
   "extension.policy.data": "When you enable sending and save, media pages share available titles, artists, albums, playback state, timeline, HTML media element state, artwork and favicons with the local plugin. Page titles, page addresses without credentials, queries or fragments, and tab/frame/document identifiers identify media targets. Empty observations clear a target without sending page titles or addresses. Audio/video streams, cookies, passwords and DRM data are not read.",

@@ -3,13 +3,13 @@
   "sources": {
     "assets/plugin-icon.svg": "d54087585dfbcc81cf2453390448b3b8ed6a51023c8a1b5a0f723153234e7239",
     "scripts/build-chrome-listing.mjs": "e849a3309252079e3158647b9acea6ad324f576537cd3b4e1ed226c5f4901e79",
-    "docs/chrome-web-store/listing.en.json": "2eaa1bedcb3f73d2ca6f9715ae7a5c3d260e902da544ef497e93380aa702c92f",
-    "docs/chrome-web-store/listing.ja.json": "3eea8c583d3b053bb307963ee33073ed793c2100da619933c4b8809b3cae641a"
+    "docs/chrome-web-store/listing.en.json": "d0f3e168c2bcc5cbcb17ce70ce05427a4e22b4ddfd1118922b9b23afd91ebb47",
+    "docs/chrome-web-store/listing.ja.json": "83672cbe0d60f7b73a3d36da1bc509d68e5c778447c4fb0819b93fd06b252923"
   },
   "outputs": {
     "assets/chrome-web-store/promo-small.png": "32d9bf92817d018e73c756689877c95f434f73bfda5dd5dfb7dca4d1c7955599",
     "assets/chrome-web-store/promo-marquee.png": "cd2ae70d5b181aabb97e87b7a170a9768e421d94bd5a7e0b599c719783e64712",
-    "docs/chrome-web-store/description.en.txt": "2d0cfba135abbfd241d6e0286d914743ba6f7bb19f15b55488440cde918bedd1",
-    "docs/chrome-web-store/description.ja.txt": "2cb84b3ad35ffe76924204897899ab3908743baeb98cbdec55025d8221ef7d1b"
+    "docs/chrome-web-store/description.en.txt": "9edc37b84d99de48c8f94bf5fc97127884ee8706d7a85d84bc4aab8525e648c1",
+    "docs/chrome-web-store/description.ja.txt": "e952d5ec92af9fcb67feed02f8445a38ffc0bbc3a81b618fb9607693cb0ce094"
   }
 }

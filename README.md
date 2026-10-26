@@ -47,7 +47,7 @@ Windows + Chrome 向けの Stream Deck プラグインです。v0.4.7 は操作�
 
 ## Windows x64 ビルド
 
-Windows 10 1809+ / Windows 11、Stream Deck 7.1+、Node.js 24、Rust MSVC toolchain と Visual Studio C++ Build Tools / Windows SDK が必要です。CLI はプロジェクト依存に含まれます。
+Windows 11 以降（x64）、Stream Deck 7.1+、Node.js 24、Rust MSVC toolchain と Visual Studio C++ Build Tools / Windows SDK が必要です。CLI はプロジェクト依存に含まれます。
 
 **Developer PowerShell for Visual Studio（x64）** でリポジトリを開きます。`cargo` / `node` / `npm` が PATH にあることを確認してください。
 

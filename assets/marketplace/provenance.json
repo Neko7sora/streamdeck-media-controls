@@ -1,8 +1,8 @@
 {
   "sources": {
     "assets/plugin-icon.svg": "d54087585dfbcc81cf2453390448b3b8ed6a51023c8a1b5a0f723153234e7239",
-    "dev.n7s.media-controls.sdPlugin/manifest.json": "e086382c93e63644af99ea45543503ebc147cfb09ea5745b40bb0b3b2ba8dbd5",
-    "docs/marketplace/listing.en.json": "9b646c65f010e9691d737f016a621544d2dc54eaadd3420da6579d1262af8db8",
+    "dev.n7s.media-controls.sdPlugin/manifest.json": "ada359b07cba241c5038bcf3e4ee8333b1bd41bf43081ffd82a71cea0a056d6d",
+    "docs/marketplace/listing.en.json": "409d9ad10c5dd4fd1e7a4a34ef075fc7f9812aed502796cdce62c8c2a05557ef",
     "scripts/build-marketplace.mjs": "0ae83a34f24c9605108a21c03ed5be1914315909016b3a22364ce149387f446b",
     "src/now-playing-image.ts": "fdd3e4f34dd266b74d7b8fb941a8e6b37225a3c87ca0417d833eb2e2867a3ce5",
     "src/scrolling-text.ts": "0a5ef6d91f3f9e1948a7cbfeeb33ad497a354f278852d981ccb14ae2a31cc294",
