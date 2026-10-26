@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import {readFile,readdir} from 'node:fs/promises';
 import {posix,resolve,join} from 'node:path';
 import {pathToFileURL} from 'node:url';
-import ts from 'typescript';
+import {parse} from 'acorn';
 
 // A regression guard for this extension's deliberately small package, not a
 // general JavaScript security analyzer. Review new execution mechanisms manually.
@@ -45,30 +45,36 @@ export function checkChromeSecurity(manifest,files) {
   }
   for(const path of [manifest.options_page,manifest.options_ui?.page,manifest.action?.default_popup].filter(Boolean)) resource(path,'manifest.json','.html');
 
-  const literal=node=>node&&(ts.isStringLiteral(node)||ts.isNoSubstitutionTemplateLiteral(node))?node.text:undefined;
-  const member=node=>ts.isIdentifier(node)?node.text:ts.isPropertyAccessExpression(node)?node.name.text:
-    ts.isElementAccessExpression(node)?literal(node.argumentExpression):undefined;
+  const literal=node=>node?.type==='Literal'&&typeof node.value==='string'?node.value:
+    node?.type==='TemplateLiteral'&&!node.expressions.length?node.quasis[0].value.cooked:undefined;
+  const member=node=>node.type==='Identifier'?node.name:node.type==='MemberExpression'?
+    (node.computed?literal(node.property):node.property.name):undefined;
   for(const [file,source] of files) {
     if(file.endsWith('.js')) {
-      const ast=ts.createSourceFile(file,source,ts.ScriptTarget.Latest,true,ts.ScriptKind.JS);
-      assert.equal(ast.parseDiagnostics.length,0,`${file}: invalid JavaScript`);
+      let ast;
+      assert.doesNotThrow(()=>{ast=parse(source,{ecmaVersion:'latest',sourceType:'module'});},`${file}: invalid JavaScript`);
       function visit(node) {
         const name=member(node);
         // Reject references too, so ordinary aliases of these APIs are caught.
         assert.ok(!['eval','Function','WebAssembly'].includes(name),`${file}: ${name} execution is not allowed`);
-        if(ts.isCallExpression(node)||ts.isNewExpression(node)) {
-          const callee=member(node.expression),args=node.arguments??[];
+        if(node.type==='CallExpression'||node.type==='NewExpression') {
+          const callee=member(node.callee),args=node.arguments??[];
           if(['setTimeout','setInterval'].includes(callee)) assert.equal(literal(args[0]),undefined,`${file}: string timer is not allowed`);
           if(callee==='executeScript') assert.fail(`${file}: programmatic injection requires a fresh security review; use manifest content scripts`);
           if(callee==='createElement'&&literal(args[0])?.toLowerCase()==='script') assert.fail(`${file}: dynamic script elements require a fresh security review`);
-          if(callee==='importScripts'||node.expression.kind===ts.SyntaxKind.ImportKeyword||['Worker','SharedWorker'].includes(callee)) {
+          if(callee==='importScripts'||['Worker','SharedWorker'].includes(callee)) {
             const resources=callee==='importScripts'?args:args.slice(0,1);
             assert.ok(resources.length,`${file}: missing code resource`);
             for(const argument of resources) resource(literal(argument),file,'.js');
           }
         }
-        if((ts.isImportDeclaration(node)||ts.isExportDeclaration(node))&&node.moduleSpecifier) resource(literal(node.moduleSpecifier),file,'.js');
-        ts.forEachChild(node,visit);
+        if(node.type==='ImportExpression') resource(literal(node.source),file,'.js');
+        if(['ImportDeclaration','ExportNamedDeclaration','ExportAllDeclaration'].includes(node.type)&&node.source) resource(literal(node.source),file,'.js');
+        // Include property keys and identifiers so API aliases receive the same checks.
+        for(const value of Object.values(node)) {
+          const children=Array.isArray(value)?value:[value];
+          for(const child of children) if(child&&typeof child.type==='string') visit(child);
+        }
       }
       visit(ast);
     }

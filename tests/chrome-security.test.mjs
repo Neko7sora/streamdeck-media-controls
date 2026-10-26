@@ -15,10 +15,17 @@ function check({code,html,css,csp,manifest={}}={}) {
 
 test('the shipped extension uses only packaged code and a restrictive MV3 CSP',()=>check());
 
+test('rejects invalid JavaScript and TypeScript-only syntax',()=>{
+  for(const code of ['const broken = ;','const value: string = "text";']) {
+    assert.throws(()=>check({code}),/invalid JavaScript/,code);
+  }
+});
+
 test('rejects string execution, aliases, string timers and remote code loaders',()=>{
   for(const code of [
     'eval(remote)', '(0,eval)(remote)', 'const run=globalThis["eval"];run(remote)',
     'new Function(remote)', 'const build=window.Function;build(remote)',
+    'const {eval:run}=globalThis;run(remote)',
     'setTimeout("run()",10)', 'window.setInterval(`run()`,10)',
     'importScripts("https://cdn.test/library.js")', 'importScripts(url)',
     'import("//cdn.test/library.js")', 'import(url)',

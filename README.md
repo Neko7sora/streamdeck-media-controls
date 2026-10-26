@@ -64,6 +64,8 @@ npm run pack:review
 
 Cargo.lock / package-lock.json を固定してビルドします。`link.exe not found` は C++ ツール未導入か開発用シェルの環境設定不備を確認してください。GSMTC が `0x80070005` を返す制限付きシェルでは、通常の対話 Windows ユーザー環境で実行してください。スキーマ取得エラーがある場合、CLI の「成功」表示だけを正式な検証成功と扱わないでください。
 
+型検査は TypeScript 7 を使用します。Chrome 拡張の構文・コード読み込み検査は Acorn を使用し、TypeScript のコンパイラー API から独立させています。`@types/node` は Stream Deck の Node.js 24 に合わせて 24 系の最新版を使用します。
+
 `pack:review` はローカル確認用の候補を作成します。正式な `npm run pack` は [総合監査](docs/guideline-audit.md) の確認記録も必要です。スキーマを取得できない場合は `validate` とパッケージ作成を失敗させます。
 
 生成した `.streamDeckPlugin` をダブルクリックして導入できます。開発中は次も使用できます。

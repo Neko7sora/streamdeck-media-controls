@@ -11,7 +11,7 @@ docs/release-review.json; this inventory alone does not certify those obligation
 
 ========================================================================
 
-npm: @elgato/streamdeck@3.0.2
+npm: @elgato/streamdeck@3.0.3
 Declared license: MIT
 
 ========================================================================
@@ -42,7 +42,7 @@ SOFTWARE.
 
 ========================================================================
 
-npm: @elgato/schemas@0.5.2
+npm: @elgato/schemas@0.5.3
 Declared license: MIT
 
 ========================================================================
@@ -104,7 +104,7 @@ SOFTWARE.
 
 ========================================================================
 
-npm: zod@4.6.6
+npm: zod@4.6.7
 Declared license: MIT
 
 ========================================================================
@@ -994,9 +994,9 @@ https://github.com/lovell/sharp-libvips/issues/new
 
 ========================================================================
 
-Cargo: base64@0.22.1
+Cargo: base64@0.23.1
 Declared license: MIT OR Apache-2.0
-Source: https://crates.io/crates/base64/0.22.1
+Source: https://crates.io/crates/base64/0.23.1
 
 ========================================================================
 
@@ -1210,7 +1210,7 @@ base64/LICENSE-MIT
 
 The MIT License (MIT)
 
-Copyright (c) 2015 Alice Maz
+Copyright (c) 2025 Alice Maz, Marshall Pierce
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
