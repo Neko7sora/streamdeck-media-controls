@@ -71,7 +71,7 @@
   "extension.policy.control.title": "Control and deletion",
   "extension.policy.control": "Disable sending and save to stop forwarding and new image requests. Page scripts may still observe media API calls; restrict site access in Chrome or uninstall the extension and reload existing tabs to stop them. Uninstalling removes extension settings and the bridge identifier. Exit Chrome and the plugin to clear memory caches. The plugin can retain its last display for about 15 seconds.",
   "extension.policy.delete": "To remove companion data, stop Stream Deck, remove the per-user Chrome NativeMessagingHosts registry entry dev.n7s.media_controls, then delete %LOCALAPPDATA%\\StreamDeckMediaControls. Remove plugin actions, uninstall the plugin and delete residual logs or profile backups you no longer need. Restarting or registering the plugin can recreate bridge files.",
-  "extension.policy.support": "Use the project support page for general questions. Issues are public: do not post private media details, tokens or unreviewed logs. Opening support is optional and contacts GitHub under its own privacy practices.",
+  "extension.policy.support": "Use GitHub Issues for questions and support. Issues are public: do not post personal information, private media details, tokens or unreviewed logs. Remove local media data and settings on your PC using the steps above; the developer does not store a remote copy. Opening support is optional and contacts GitHub under its own privacy practices.",
   "extension.policy.settings": "Sharing settings",
   "extension.policy.permissions.title": "Permissions and purpose",
   "extension.policy.limitedUse.title": "Limited Use",

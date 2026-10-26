@@ -6,15 +6,17 @@ Japanese and English interfaces are supported. Plugin settings and key / dial la
 
 翻訳は `locales/*.json` で管理しています。他言語の追加方法は [翻訳ガイド](locales/README.md) を参照してください。
 
+横断的な監査結果・修正・公開前の残作業は [ガイドライン総合監査](docs/guideline-audit.md) を参照してください。
+
 Elgato のプラグインガイドラインへの対応状況・自動検査・公開前の確認事項は [ガイドライン対応記録](docs/plugin-guidelines.md) を参照してください。
 
-Chrome Web Store のベストプラクティスに合わせた掲載原稿・日英のプライバシー説明・アイコン・ブラウザテスト・ZIP 作成手順は [Chrome Web Store 対応記録](docs/chrome-web-store.md) を参照してください。公開ポリシー URL、非公開の問い合わせ先、実サイトと物理 Stream Deck での受け入れ確認は提出前に必要です。
+Chrome Web Store のベストプラクティスに合わせた掲載原稿・日英のプライバシー説明・アイコン・ブラウザテスト・ZIP 作成手順は [Chrome Web Store 対応記録](docs/chrome-web-store.md) を参照してください。公開ポリシー URL、GitHub Issues の到達性、実サイトと物理 Stream Deck での受け入れ確認は提出前に必要です。
 
 掲載ページの概要・説明文、スクリーンショット、プロモーション画像と提出ファイルは [掲載ページの準備](docs/chrome-web-store/best-listing.md) にまとめています。
 
 [データとプライバシー / Privacy policy](docs/marketplace/privacy.md)（Limited Use 表明・情報の用途・通信先・削除手順）。[Program Policies 対応記録](docs/chrome-program-policies.md) に、必須ポリシーとの照合結果と公開前の残作業をまとめています。
 
-Marketplace の商品ガイドラインに合わせた英語説明、288pxアイコン、1920×960pxのサムネイルとギャラリー3点は [商品ガイドライン対応記録](docs/product-guidelines.md) にまとめています。`npm run marketplace:build` で再生成、`npm run marketplace:check` でローカル検査できます。名称の独自性、権利、AI使用履歴、実機確認、価格・公開リンクと問い合わせ先の確定は提出前に必要です。
+Marketplace の商品ガイドラインに合わせた英語説明、288pxアイコン、1920×960pxのサムネイルとギャラリー3点は [商品ガイドライン対応記録](docs/product-guidelines.md) にまとめています。`npm run marketplace:build` で再生成、`npm run marketplace:check` でローカル検査できます。名称の独自性、権利、AI使用履歴、実機確認、公開リンクの到達性は提出前に確認が必要です。無料配布、組織名 Neko7sora、問い合わせ先 GitHub Issues は確定しました。
 
 Windows + Chrome 向けの Stream Deck プラグインです。v0.4.7 は操作指示を状態更新と独立した常設経路へ分離し、状態の差分送信、画像の内容キャッシュ、設定画面の変更通知を導入しました。設計・互換性・通信量と操作遅延の測定結果は [COMMUNICATION.md](COMMUNICATION.md) を参照してください。設定画面と Chrome 拡張には実際の接続状態を表示し、再生ページがなくても連携を確認できます。Chrome の拡張ボタンには接続・未接続・送信無効のバッジを表示します。日本語の曲名・アーティスト名の描画、滑らかなスクロール、再生位置のリアルタイム表示、ダイヤルによる巻き戻し・早送りも引き続き利用できます。
 
@@ -55,12 +57,14 @@ npm run check
 npm run test:native
 npm run test:smoke
 npm run validate
-npm run pack
+npm run pack:review
 ```
 
 `check` は JS 構文、TypeScript の SDK 型、JS テスト、Rust release ビルド、パッケージ資産と同梱画像ランタイムを検証します。`test:native` は Rust テスト（ローカル実行ファイルの Shell アイコン読み取りを含む）、`test:smoke` は実際の Windows API 読み取り・存在しない対象の操作拒否・終了確認です。再生や音量は変更しません。
 
 Cargo.lock / package-lock.json を固定してビルドします。`link.exe not found` は C++ ツール未導入か開発用シェルの環境設定不備を確認してください。GSMTC が `0x80070005` を返す制限付きシェルでは、通常の対話 Windows ユーザー環境で実行してください。スキーマ取得エラーがある場合、CLI の「成功」表示だけを正式な検証成功と扱わないでください。
+
+`pack:review` はローカル確認用の候補を作成します。正式な `npm run pack` は [総合監査](docs/guideline-audit.md) の確認記録も必要です。スキーマを取得できない場合は `validate` とパッケージ作成を失敗させます。
 
 生成した `.streamDeckPlugin` をダブルクリックして導入できます。開発中は次も使用できます。
 

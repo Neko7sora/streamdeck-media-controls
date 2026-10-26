@@ -16,7 +16,7 @@ for(const language of ['en','ja']) {
   let context;
   try {
     context=await chromium.launchPersistentContext(profile,{
-      channel:'chromium',headless:true,locale:language,viewport:{width:1280,height:800},
+      channel:'chromium',headless:true,locale:language,viewport:{width:1280,height:800},timeout:30000,
       args:[`--disable-extensions-except=${extension}`,`--load-extension=${extension}`,`--lang=${language}`]
     });
     const worker=context.serviceWorkers()[0]??await context.waitForEvent('serviceworker',{timeout:15000});
@@ -50,6 +50,18 @@ for(const language of ['en','ja']) {
       await page.screenshot({path:join(output,name)});
       images[name]=createHash('sha256').update(await readFile(join(output,name))).digest('hex');
     }
+    // Native checkbox semantics expose switch state without a second ARIA state
+    // that can drift from checked. Exercise the keyboard in the real browser.
+    await page.locator('#enabled').focus();await page.keyboard.press('Space');
+    assert.equal(await page.locator('#enabled').isChecked(),true);
+    assert.match(await page.locator('#enabled').ariaSnapshot(),/switch .*\[checked\]/);
+    await page.keyboard.press('Space');
+    assert.equal(await page.locator('#enabled').isChecked(),false);
+    const setupOpen=await page.locator('#setup').evaluate(element=>element.open);
+    await page.locator('#setup-summary').press('Enter');
+    assert.equal(await page.locator('#setup').evaluate(element=>element.open),!setupOpen);
+    await page.locator('#setup-summary').press('Enter');
+    assert.equal(await page.locator('#setup').evaluate(element=>element.open),setupOpen);
     for(const colorScheme of ['light','dark']) {
       await page.emulateMedia({colorScheme});
       for(const width of [320,420,1280]) {
@@ -66,6 +78,8 @@ for(const language of ['en','ja']) {
     assert.equal(await privacy.locator('html').getAttribute('lang'),language);
     assert.equal(await privacy.locator('#policy-network').isVisible(),true);
     assert.equal(await privacy.locator('#policy-limited-use').isVisible(),true);
+    assert.equal(await privacy.locator('#policy-support + p').isVisible(),true);
+    assert.match(await privacy.locator('[data-i18n="extension.policy.support"]').innerText(),/GitHub/);
     assert.match(await privacy.locator('[data-i18n="extension.policy.limitedUse"]').innerText(),/Chrome Web Store User Data Policy/);
     assert.equal(await privacy.locator('script[src^="http"]').count(),0);
     await privacy.close();
@@ -82,7 +96,7 @@ for(const language of ['en','ja']) {
     assert.equal(await page.locator('#enabled').isChecked(),false);
     assert.deepEqual(errors,[],`${language}: script or CSP errors`);
     assert.deepEqual(violations,[],`${language}: no network requests expected`);
-    console.log(`${language}: extension load, default-off, privacy, save/reload, host-unavailable, narrow layout and color schemes OK`);
+    console.log(`${language}: extension load, default-off, privacy/contact, keyboard and accessible switch state, save/reload, host-unavailable, narrow layout and color schemes OK`);
   } finally {
     await context?.close();
     // mkdtemp returned this exact disposable directory; no user profile is used.

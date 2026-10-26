@@ -12,7 +12,7 @@
     "chrome:listing:build": "node scripts/build-chrome-listing.mjs",
     "chrome:security:check": "node scripts/check-chrome-security.mjs",
     "chrome:store:check": "node scripts/check-chrome-store.mjs",
-    "chrome:release:check": "node scripts/check-chrome-store.mjs --release",
+    "chrome:release:check": "node scripts/check-chrome-store.mjs --release && node scripts/check-release.mjs chrome",
     "chrome:pack": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/pack-chrome.ps1",
     "test:chrome:e2e": "node tests/chrome-e2e.mjs",
     "guidelines:check": "node scripts/check-guidelines.mjs",
@@ -28,15 +28,22 @@
     "check": "npm run locales:check && npm run chrome:check && npm run chrome:store:check && npm run test:unit && npm run typecheck && npm run build && node scripts/check-package.mjs && npm run marketplace:check",
     "link": "streamdeck link ./dev.n7s.media-controls.sdPlugin",
     "restart": "streamdeck restart dev.n7s.media-controls",
-    "validate": "streamdeck validate ./dev.n7s.media-controls.sdPlugin",
-    "pack": "npm run check && streamdeck validate ./dev.n7s.media-controls.sdPlugin && streamdeck pack ./dev.n7s.media-controls.sdPlugin",
+    "validate": "node scripts/validate-plugin.mjs",
+    "pack": "npm run check && npm run dependencies:check && npm run test:native && npm run validate && npm run marketplace:release:check && streamdeck pack ./dev.n7s.media-controls.sdPlugin --force",
     "chrome:check": "node --check chrome-extension/background.js && node --check chrome-extension/page-main.js && node --check chrome-extension/bridge-isolated.js && node --check chrome-extension/options.js && node --check chrome-extension/privacy.js && node --check dev.n7s.media-controls.sdPlugin/ui/settings.js",
     "test:unit": "node --test tests/*.test.mjs",
     "test:native": "cargo test --locked --manifest-path native/media-info/Cargo.toml && cargo test --locked --manifest-path native/media-keys/Cargo.toml",
     "test:smoke": "node tests/native-smoke.mjs",
     "measure:communication": "node scripts/measure-communication.mjs",
     "measure:latency": "node scripts/measure-command-latency.mjs",
-    "measure:native": "node scripts/measure-native-traffic.mjs"
+    "measure:native": "node scripts/measure-native-traffic.mjs",
+    "notices:build": "node scripts/build-notices.mjs",
+    "notices:check": "node scripts/build-notices.mjs --check",
+    "release:status": "node scripts/check-release.mjs",
+    "marketplace:release:check": "npm run marketplace:check && node scripts/check-release.mjs marketplace",
+    "release:check": "npm run check && npm run dependencies:check && npm run test:native && npm run test:chrome:e2e && npm run validate && npm run release:status",
+    "pack:review": "npm run check && npm run validate && streamdeck pack ./dev.n7s.media-controls.sdPlugin --force",
+    "dependencies:check": "npm audit"
   },
   "dependencies": {
     "@elgato/cli": "^1.10.2",
@@ -48,5 +55,11 @@
     "esbuild": "^0.25.0",
     "playwright": "^1.62.1",
     "typescript": "^5.9.0"
+  },
+  "overrides": {
+    "@elgato/utils": {
+      "zod": "4.6.6"
+    },
+    "fast-uri": "3.1.9"
   }
 }

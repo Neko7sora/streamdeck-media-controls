@@ -15,3 +15,5 @@ Sending is off by default. When enabled, media information, page titles and page
 Artwork and site icons are requested from public HTTPS image hosts, which receive your IP address and the requested image URL. There is no account, advertising, analytics or developer-operated media upload service.
 
 Metadata and controls depend on each site. Direct next/previous track commands, Web Audio-only players, closed Shadow DOM and inaccessible frames are not supported. Browser-tab volume control is not provided; the plugin uses Windows audio targets.
+
+Questions and support: https://github.com/Neko7sora/streamdeck-media-controls/issues. Issues are public; do not post personal information, tokens or unreviewed logs.

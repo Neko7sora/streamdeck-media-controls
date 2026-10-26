@@ -1,0 +1,15 @@
+{
+  "version": "0.4.7",
+  "makerOrganization": "Neko7sora",
+  "sourceFingerprint": null,
+  "checks": {
+    "identity": {"reviewedOn": null, "reviewer": null, "evidence": null},
+    "rightsAndHumanContribution": {"reviewedOn": null, "reviewer": null, "evidence": null},
+    "nativeRedistribution": {"reviewedOn": null, "reviewer": null, "evidence": null},
+    "deviceAcceptance": {"reviewedOn": null, "reviewer": null, "evidence": null},
+    "chromeAcceptance": {"reviewedOn": null, "reviewer": null, "evidence": null},
+    "publicLinks": {"reviewedOn": null, "reviewer": null, "evidence": null},
+    "listingPreview": {"reviewedOn": null, "reviewer": null, "evidence": null},
+    "publisherSettings": {"reviewedOn": null, "reviewer": null, "evidence": null}
+  }
+}

@@ -2,7 +2,7 @@
   "sources": {
     "assets/plugin-icon.svg": "d54087585dfbcc81cf2453390448b3b8ed6a51023c8a1b5a0f723153234e7239",
     "dev.n7s.media-controls.sdPlugin/manifest.json": "e086382c93e63644af99ea45543503ebc147cfb09ea5745b40bb0b3b2ba8dbd5",
-    "docs/marketplace/listing.en.json": "83c67752405108e00886feebeceb059077cfc752063ccc8cc58248b4a71172ed",
+    "docs/marketplace/listing.en.json": "9b646c65f010e9691d737f016a621544d2dc54eaadd3420da6579d1262af8db8",
     "scripts/build-marketplace.mjs": "0ae83a34f24c9605108a21c03ed5be1914315909016b3a22364ce149387f446b",
     "src/now-playing-image.ts": "fdd3e4f34dd266b74d7b8fb941a8e6b37225a3c87ca0417d833eb2e2867a3ce5",
     "src/scrolling-text.ts": "0a5ef6d91f3f9e1948a7cbfeeb33ad497a354f278852d981ccb14ae2a31cc294",
@@ -30,5 +30,5 @@
     "artwork": "Original geometric SVG in scripts/build-marketplace.mjs"
   },
   "method": "Plugin nowPlayingImage + ScrollingText; original bundled control icons. Enlarged key previews, no physical device representation.",
-  "aiDisclosure": "AI assistance was used to prepare this listing text, supporting media generation code and compliance checks. Supporting images use plugin assets and code-rendered previews with fictional sample media. Review the product's full development history and disclose any additional AI use before submission."
+  "aiDisclosure": "AI assistance was used in plugin development, review, listing text and supporting media code. Supporting images use plugin assets and code-rendered previews with fictional sample media. The publisher must verify human creative contribution and the full development history before submission."
 }

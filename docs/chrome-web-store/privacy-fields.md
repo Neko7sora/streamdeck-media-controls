@@ -31,7 +31,7 @@ No, I am not using remote code. All executable JavaScript is packaged with the e
 | Web history / Website content に関係する情報 | メディア対象のページ名、認証情報・クエリ・フラグメントを除いたページ URL、曲名・アーティスト・アルバム・画像・再生状態。ユーザーが有効にした場合に限りローカルへ渡す。メディアなしの通知からはページ名・URL・任意フィールドを除く。永続的な閲覧・再生履歴は作らない。 |
 | 識別子・設定 | ランダムなローカル連携 ID と送信設定を storage.local に保存。タブ・フレーム・ドキュメント ID は操作対象の識別用。追跡・広告・販売に使用しない。 |
 | 外部画像要求 | 画像配信元に IP アドレスと画像 URL が伝わる。ページ URL と異なり、画像 URL のサイト指定クエリは削除しない。認証情報・Cookie・リファラーを送らず、転送先を追わない。 |
-| サポート | 公開 Issue はユーザー自身が投稿した内容を GitHub が扱う。非公開情報を投稿しないよう案内する。公開前に非公開の問い合わせ先を別途確定する。 |
+| サポート | 公開 Issue はユーザー自身が投稿した内容を GitHub が扱う。非公開情報を投稿しないよう案内する。問い合わせ先は GitHub Issues。再生情報と設定はPC内で処理・保存され、利用者自身がローカルの削除手順を実施する。 |
 
 データを販売せず、単一目的以外や信用判断・融資に使用しない。認証情報・位置情報・支払い情報・健康情報を要求しない。サイトが曲名等に私的な情報を含める可能性があるため、データを一般に「非機密」と断定しない。最終的なチェックボックスの分類と適合の認証は公開者が確認する。
 
@@ -39,6 +39,8 @@ No, I am not using remote code. All executable JavaScript is packaged with the e
 
 ## Privacy policy URL
 
-同梱の [privacy.html](../../chrome-extension/privacy.html) はオフラインで閲覧できる説明。ストアの公開 URL の代わりにはならない。[プラグインを含むポリシー原稿](../marketplace/privacy.md) を公開し、ログイン不要で読める HTTPS URL と非公開の問い合わせ先を listing.*.json に設定する。内容は同梱説明と一致させる。
+同梱の [privacy.html](../../chrome-extension/privacy.html) はオフラインで閲覧できる説明。ストアの公開 URL の代わりにはならない。[プラグインを含むポリシー原稿](../marketplace/privacy.md) を公開し、ログイン不要で読める HTTPS URL を listing.*.json の privacyPolicyUrl に設定する。supportUrl は利用者指定の GitHub Issues へ統一済み。内容は同梱説明と一致させる。
 
 参考: [Privacy fields](https://developer.chrome.com/docs/webstore/cws-dashboard-privacy)、[User data FAQ](https://developer.chrome.com/docs/webstore/program-policies/user-data-faq)、[Permissions](https://developer.chrome.com/docs/extensions/develop/concepts/permission-warnings)。
+
+2026-10-26 の追加監査・修正・公開条件は [総合監査](../guideline-audit.md) を参照。

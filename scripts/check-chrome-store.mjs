@@ -77,8 +77,8 @@ for(const language of ['en','ja']) {
   const catalog=JSON.parse(await read(`locales/${language}.json`));
   assert.match(catalog['extension.policy.limitedUse'],/Chrome Web Store User Data Policy/);
   assert.match(catalog['extension.policy.limitedUse'],/Limited Use/);
-  const metadata={privacyPolicyUrl:listing.privacyPolicyUrl,privateContact:listing.privateContact};
-  if(publicationMetadata) assert.deepEqual(metadata,publicationMetadata,'Localized listings must use the same policy URL and private contact');
+  const metadata={privacyPolicyUrl:listing.privacyPolicyUrl,supportUrl:listing.supportUrl};
+  if(publicationMetadata) assert.deepEqual(metadata,publicationMetadata,'Localized listings must use the same policy URL and support URL');
   publicationMetadata=metadata;
   assert.equal(listing.name,messages.extensionName.message);
   assert.equal(listing.summary,messages.extensionDescription.message);
@@ -92,7 +92,6 @@ for(const language of ['en','ja']) {
   for(const field of ['supportUrl','homepageUrl']) assert.equal(new URL(listing[field]).protocol,'https:');
   if(!listing.privacyPolicyUrl) pending.add('Public HTTPS privacy policy URL');
   else assert.equal(new URL(listing.privacyPolicyUrl).protocol,'https:');
-  if(typeof listing.privateContact!=='string'||!listing.privateContact.trim()) pending.add('Private support/privacy contact');
   assert.ok(listing.screenshots.length>=1&&listing.screenshots.length<=5);
   for(const path of listing.screenshots) {
     const meta=await sharp(path).metadata();

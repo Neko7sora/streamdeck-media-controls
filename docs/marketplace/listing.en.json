@@ -1,6 +1,6 @@
 {
   "name": "Media Controls",
-  "description": "Control Windows media playback and volume from Stream Deck. See available album artwork, track titles and artists on your keys, and use Stream Deck + dials for volume or seeking. Choose playback and audio targets separately for supported Windows apps.\n\nIncludes play/pause, previous track, next track, stop, mute, volume keys, Volume Dial and Now Playing actions. Customize visible information and text scrolling per action. English and Japanese interfaces are included.\n\nRequires Windows 10 version 1809 or later (x64), or Windows 11 (x64), and Stream Deck 7.1 or later. Dial actions require Stream Deck +. macOS is not supported. Information and controls depend on what each app exposes through Windows media APIs.\n\nOptional Chrome integration requires Chrome 111 or later, manually loading the supplied companion extension, registering the local bridge and enabling sending in its settings. Browser playback control requires an accessible HTML media element; direct previous/next track control is unavailable. No account is required; media information is processed locally. Artwork requests may contact the source website or image host.\n\nAI assistance was used to prepare this listing text, supporting media generation code and compliance checks. Supporting images use plugin assets and code-rendered previews with fictional sample media.",
+  "description": "Control Windows media playback and volume from Stream Deck. See available album artwork, track titles and artists on your keys, and use Stream Deck + dials for volume or seeking. Choose playback and audio targets separately for supported Windows apps.\n\nIncludes play/pause, previous track, next track, stop, mute, volume keys, Volume Dial and Now Playing actions. Customize visible information and text scrolling per action. English and Japanese interfaces are included.\n\nRequires Windows 10 version 1809 or later (x64), or Windows 11 (x64), and Stream Deck 7.1 or later. Dial actions require Stream Deck +. macOS is not supported. Information and controls depend on what each app exposes through Windows media APIs.\n\nOptional Chrome integration requires Chrome 111 or later, manually loading the supplied companion extension, registering the local bridge and enabling sending in its settings. Browser playback control requires an accessible HTML media element; direct previous/next track control is unavailable. No account is required; media information is processed locally. Artwork requests may contact the source website or image host.\n\nAI assistance was used in plugin development, review, listing text and supporting media code. Supporting images use plugin assets and code-rendered previews with fictional sample media.",
   "appIcon": "assets/marketplace/app-icon.png",
   "thumbnail": "assets/marketplace/thumbnail.png",
   "gallery": [
@@ -8,11 +8,13 @@
     "assets/marketplace/gallery-02-controls.png",
     "assets/marketplace/gallery-03-customization.png"
   ],
-  "aiDisclosure": "AI assistance was used to prepare this listing text, supporting media generation code and compliance checks. Supporting images use plugin assets and code-rendered previews with fictional sample media. Review the product's full development history and disclose any additional AI use before submission.",
+  "aiDisclosure": "AI assistance was used in plugin development, review, listing text and supporting media code. Supporting images use plugin assets and code-rendered previews with fictional sample media. The publisher must verify human creative contribution and the full development history before submission.",
   "links": {
     "setup": "https://github.com/Neko7sora/streamdeck-media-controls/blob/main/docs/marketplace/setup.md",
     "support": "https://github.com/Neko7sora/streamdeck-media-controls/issues",
     "privacy": "https://github.com/Neko7sora/streamdeck-media-controls/blob/main/docs/marketplace/privacy.md"
   },
-  "pricing": null
+  "pricing": {
+    "type": "free"
+  }
 }

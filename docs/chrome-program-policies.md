@@ -2,7 +2,7 @@
 
 確認日: 2026-10-25（Asia/Tokyo）。対象: [Program Policies](https://developer.chrome.com/docs/webstore/program-policies/policies)。拡張だけでなく、連携プラグイン、公開ページ、掲載説明、画像、公開者の運用も対象として確認する。Developer Agreement の確認も別途必要。
 
-**公開準備中。ローカルで確認できる実装・説明・検査を整備した段階であり、全要件への適合や審査通過を認証するものではない。** 公開ポリシー URL と問い合わせ先は未設定。実サイト・物理 Stream Deck・公開者アカウント・ダッシュボードの確認も残っている。
+**公開準備中。ローカルで確認できる実装・説明・検査を整備した段階であり、全要件への適合や審査通過を認証するものではない。** 公開ポリシー URL は未設定。問い合わせ先は利用者指定により GitHub Issues に確定（2026-10-26）。実サイト・物理 Stream Deck・公開者アカウント・ダッシュボードの確認も残っている。
 
 ## 要件との照合
 
@@ -33,7 +33,7 @@ Chrome Apps 専用の「ローカル実行ファイルを必要としない」�
 ## 公開までに残ること
 
 1. [ポリシー原稿](marketplace/privacy.md) を公開し、日英 `listing.*.json` の `privacyPolicyUrl` を同じ HTTPS URL で埋める。README の直接リンクが公開先でも到達可能であることを確認する。
-2. プロジェクト運用上の公開条件として、プライバシー相談を公開 Issue に書かせない非公開窓口を決め、ポリシーと `privateContact` に反映する。非公開窓口の要件は本プロジェクトの方針であり、Program Policies にこの欄名の必須規定があるという意味ではない。
+2. 問い合わせ先は、利用者指定で GitHub Issues に統一し、日英原稿の `supportUrl` とポリシーへ反映した。公開Issueであることと、個人情報・トークン・未確認のログを投稿しないこと、PC内のデータは利用者自身が削除する手順を案内する。従来の非公開窓口を必須とする独自条件は撤回した。
 3. [Privacy practices 原稿](chrome-web-store/privacy-fields.md) を実際のダッシュボードへ反映する。ローカル転送だから「データ利用なし」とせず、扱うページ URL・コンテンツ・識別子・画像要求を分類し、Limited Use を認証する。
 4. [審査用手順](chrome-web-store/reviewer-instructions.md) の公開者向け準備を完了し、動作するプラグインの直接配布先と必要環境をテスト指示欄で案内する。実機の [受け入れチェック](chrome-web-store.md#公開前の受け入れチェック) を実施し、未確認を確認済みにしない。
 5. 公開者の2段階認証、連絡先、権利、掲載画像、価格、配布設定を確認する。ストア側に既存版がある場合は manifest の更新番号も確認する。
@@ -44,7 +44,7 @@ npm run chrome:release:check
 npm run chrome:pack -- -Release
 ```
 
-`chrome:store:check` はローカル成果物と Limited Use 開示・README からのリンク・日英の公開情報一致を確認する。`chrome:release:check` はさらに未設定の公開 URL・非公開窓口を拒否する。**入力された URL の到達性、窓口の有効性、実機動作、権利、アカウント、Google の判断は検証しない。** `chrome:pack` の既定は引き続きローカルの提出候補 ZIP 作成である。
+`chrome:store:check` はローカル成果物と Limited Use 開示・README からのリンク・日英の公開情報一致を確認する。`chrome:release:check` はさらに未設定の公開 URL・問い合わせ先 URL と、公開前の確認記録不足を拒否する。**入力された URL の到達性、窓口の有効性、実機動作、権利、アカウント、Google の判断は検証しない。** `chrome:pack` の既定は引き続きローカルの提出候補 ZIP 作成である。
 
 ポリシーは更新され得るため、提出時と機能・通信先・データ用途の変更時に公式原文とこの記録を再照合する。現行の導入・画像・テストの手順は [Chrome Web Store 対応記録](chrome-web-store.md) を参照。
 
@@ -55,3 +55,5 @@ npm run chrome:pack -- -Release
 日英のブラウザテストで初期無効・保存・再読込・ホスト不在・ポリシーと Limited Use 表示・狭幅・明暗を確認し、1280×800 の掲載画像を再生成して目視確認した。Native Messaging は実ホストに接続しないスタブで検査したため、実機の連携成功は未確認。提出候補 ZIP を再生成し、直下の manifest と更新済みポリシーを確認した。
 
 リリース検査は未設定の公開 URL・非公開窓口により期待どおり失敗し、`-Release` の ZIP 作成も同じ理由で停止して既存 ZIP を変更しないことを確認した。
+
+2026-10-26 の追加監査・修正・公開条件は [総合監査](guideline-audit.md) を参照。

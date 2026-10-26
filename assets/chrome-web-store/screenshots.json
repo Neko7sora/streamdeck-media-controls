@@ -5,8 +5,8 @@
     "chrome-extension/options.html": "8d520379e7187b2aa94f95e995a80d78fb9dc59855d99e91812e21ef913c796f",
     "chrome-extension/options.css": "045e2e25feb4d9e3a2eca5cac880c824df55c07e43d0920bebecb91623a6993e",
     "chrome-extension/options.js": "74206e6f0807779cebb8ff5f10bb210ea9c03b568b2384f1be3f0a9420066e37",
-    "chrome-extension/localization.js": "40fd46b40865cc55e7d0d5757c1e8c7bf2c765808efa6bb7f33b201635e48111",
-    "tests/chrome-e2e.mjs": "4d87320357a815556cc2a647d509a35b860d8440cd144fa12ecb85314bbd5a28"
+    "chrome-extension/localization.js": "f2e001b0d7cb64495eba04c2cae79fac93cfde225f1f1f0a0a18b2cace27b9ca",
+    "tests/chrome-e2e.mjs": "f0d97d38b004a46928384121d0be9455f401fe04cd92343ffad0a62773dfa477"
   },
   "images": {
     "setup-en.png": "107cc3192c21e27d5dcd0bebccde7cfde2dfae43fbc62fde7245620f50655c3a",

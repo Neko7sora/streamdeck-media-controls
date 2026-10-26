@@ -22,6 +22,8 @@ export async function checkMarketplace() {
   require(description.includes("Requires Windows")&&description.includes("Stream Deck 7.1")&&description.includes("Chrome 111"),"List the runtime requirements");
   require(typeof listing.aiDisclosure==="string"&&listing.aiDisclosure.includes("AI assistance"),"Missing AI usage disclosure");
   require(description.includes("AI assistance"),"Include AI usage disclosure in the submitted listing description");
+  require(description.includes("plugin development"),"AI disclosure must include known development assistance");
+  require(listing.pricing?.type==="free"||(listing.pricing?.type==="paid"&&Number.isFinite(listing.pricing.amount)&&listing.pricing.amount>0&&/^[A-Z]{3}$/.test(listing.pricing.currency??"")),"Specify free or paid pricing with amount and currency");
   require(read("docs/marketplace/description.en.txt").toString("utf8").trimEnd()===description,"Stale description.en.txt; run npm run marketplace:build");
   require(Array.isArray(listing.gallery)&&listing.gallery.length>=3&&listing.gallery.length<=10,"Provide 3–10 gallery items");
   const images=[listing.appIcon,listing.thumbnail,...listing.gallery];

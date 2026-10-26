@@ -1,6 +1,6 @@
 # Media Controls: data and privacy
 
-Updated: 2026-10-25. This notice describes the code in this repository. The publisher must review it and publish a reachable version before listing the product.
+Updated: 2026-10-26. This notice describes the code in this repository. The publisher must review it and publish a reachable version before listing the product.
 
 Media Controls processes media information on your Windows PC to display it on Stream Deck and control the targets you choose. It has no analytics, advertising, account system or developer-operated media upload service.
 
@@ -33,6 +33,8 @@ Artwork and favicon fetching can contact the original website or an image host o
 1. Disable sending and save in the Chrome extension settings. Remove the extension through `chrome://extensions` to remove its local settings and bridge identifier. Restart Chrome to unload page scripts from existing tabs.
 2. Stop Stream Deck before deleting bridge files. Remove the registry entry `HKEY_CURRENT_USER\Software\Google\Chrome\NativeMessagingHosts\dev.n7s.media_controls` and the directory `%LOCALAPPDATA%\StreamDeckMediaControls` if you no longer use the bridge. The directory contains the token and native host files; the plugin can recreate them if restarted or registered again.
 3. Remove the plugin's actions from Stream Deck profiles and uninstall the plugin through Stream Deck. Local diagnostic logs are in the plugin's `logs` directory. Delete residual plugin files if they remain after uninstalling. Profile backups may retain action settings until you delete those backups.
-4. Exit the plugin and Chrome to clear their in-memory media caches. The plugin has no remote media database from which to request deletion.
+4. Exit the plugin and Chrome to clear their in-memory media caches. The developer does not store a remote copy of this local media data.
 
-For questions, use the repository's [support page](https://github.com/Neko7sora/streamdeck-media-controls/issues). Do not post tokens, private media details or unreviewed logs in a public issue. Before publication, the publisher must also provide a private contact route for privacy or deletion requests involving information voluntarily sent for support. Do not submit personal data through a public issue.
+For questions and support, use [GitHub Issues](https://github.com/Neko7sora/streamdeck-media-controls/issues). Issues are public: do not post personal information, tokens, private media details or unreviewed logs. Media information, settings and caches are removed on your PC using the local steps above. The developer does not store a remote copy of that data. Opening GitHub support is optional and is subject to GitHub's own privacy practices.
+
+お問い合わせは [GitHub Issues](https://github.com/Neko7sora/streamdeck-media-controls/issues) へお願いします。Issue は公開されます。個人情報・トークン・非公開の再生情報・未確認のログを投稿しないでください。再生情報・設定・キャッシュは、上記の手順で利用者自身がPC内から削除できます。開発者はそのコピーをサーバーに保存していません。GitHub への問い合わせは任意で、GitHub 自身のプライバシーポリシーが適用されます。
