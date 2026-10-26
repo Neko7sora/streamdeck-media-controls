@@ -7,6 +7,7 @@ import {buildNotices} from "./build-notices.mjs";
 await buildLocales();
 buildNotices();
 const require=createRequire(import.meta.url),root=resolve("dev.n7s.media-controls.sdPlugin");
+for(const file of ["LICENSE","LICENSE-MIT","LICENSE-APACHE"]) cpSync(resolve(file),resolve(root,file));
 const runtime=resolve(root,"node_modules");
 if(dirname(runtime)!==root) throw new Error("Runtime path escaped the plugin folder");
 rmSync(runtime,{recursive:true,force:true});

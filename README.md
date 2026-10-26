@@ -1,5 +1,15 @@
 # Stream Deck Media Controls v1.0.0 (STABLE)
 
+## ライセンス / License
+
+本プロジェクトは **MIT OR Apache-2.0** のデュアルライセンスです。[MIT](LICENSE-MIT) または [Apache License 2.0](LICENSE-APACHE) のいずれかを選択して利用できます。
+
+This project is dual-licensed under the [MIT License](LICENSE-MIT) or the [Apache License, Version 2.0](LICENSE-APACHE), at your option.
+
+第三者のコンポーネントにはそれぞれのライセンスが適用されます。詳細は [THIRD_PARTY_NOTICES.txt](dev.n7s.media-controls.sdPlugin/THIRD_PARTY_NOTICES.txt) を参照してください。
+
+## 概要 / Overview
+
 表示言語は日本語・英語に対応しています。プラグインの設定画面とキー／ダイヤルの案内は Stream Deck の表示言語、Chrome 拡張の設定・接続表示は Chrome の表示言語に従います。日本語以外の言語では英語を使用します。言語を変更した場合は Stream Deck を再起動し、拡張機能と設定画面を開き直してください。曲名・アーティスト名などの取得情報は翻訳せず、そのまま表示します。
 
 Japanese and English interfaces are supported. Plugin settings and key / dial labels follow the Stream Deck language; extension settings and connection messages follow the Chrome UI language. Languages other than Japanese use English. Restart Stream Deck and reload the extension after changing languages. Media titles and artist names remain unchanged.

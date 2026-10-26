@@ -7,6 +7,9 @@ import {buildNotices} from "./build-notices.mjs";
 const plugin = resolve("dev.n7s.media-controls.sdPlugin");
 await checkGuidelines(plugin);
 buildNotices(true);
+for(const file of ["LICENSE","LICENSE-MIT","LICENSE-APACHE"]) {
+  if(readFileSync(join(plugin,file),'utf8')!==readFileSync(resolve(file),'utf8')) throw new Error(`Stale project license: ${file}`);
+}
 const m = JSON.parse(readFileSync(join(plugin, "manifest.json"), "utf8"));
 const actions = new Set();
 function checkImage(base) {

@@ -1,0 +1,13 @@
+Stream Deck Media Controls
+Copyright (c) 2026 Neko7sora
+
+SPDX-License-Identifier: MIT OR Apache-2.0
+
+This project is licensed under either of the following, at your option:
+
+  * MIT License (see LICENSE-MIT)
+  * Apache License, Version 2.0 (see LICENSE-APACHE)
+
+Third-party components retain their respective licenses. See
+dev.n7s.media-controls.sdPlugin/THIRD_PARTY_NOTICES.txt in the source tree
+or THIRD_PARTY_NOTICES.txt in the packaged Stream Deck plugin.

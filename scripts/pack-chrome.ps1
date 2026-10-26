@@ -12,6 +12,7 @@ try {
   if ($LASTEXITCODE -ne 0) { throw 'Chrome store check failed' }
   $taskVersion = (Get-Content -LiteralPath 'chrome-extension/manifest.json' -Raw | ConvertFrom-Json).version
   $taskFiles = @(Get-ChildItem -LiteralPath (Join-Path $taskRoot 'chrome-extension') -Force | ForEach-Object { $_.FullName })
+  $taskFiles += @('LICENSE', 'LICENSE-MIT', 'LICENSE-APACHE') | ForEach-Object { Join-Path $taskRoot $_ }
   $taskOutput = Join-Path $taskRoot "media-bridge-$taskVersion.zip"
   Compress-Archive -LiteralPath $taskFiles -DestinationPath $taskOutput -Force
   Write-Host "Chrome review ZIP: $taskOutput"
