@@ -1,4 +1,7 @@
 (() => {
+  // Match the MAIN-world guard: opaque sandboxed frames cannot use this bridge.
+  const origin=window.origin;
+  if(!origin || origin==="null" || origin!==location.origin) return;
   const tag="__streamdeck_media_metadata_v1__",pending=new Map();
   let lastSent=-Infinity,latestMedia,updateTimer;
   async function sendLatest() {
@@ -9,11 +12,11 @@
     // sendMessage may throw synchronously, before it returns a Promise.
     try {
       const response=await chrome.runtime.sendMessage({type:"MEDIA_UPDATE",media});
-      window.postMessage?.({kind:tag+"_transport",protocol:response?.protocol===2?2:1},location.origin);
+      window.postMessage?.({kind:tag+"_transport",protocol:response?.protocol===2?2:1},origin);
     } catch {}
   }
   window.addEventListener("message",async event=>{
-    if(event.source!==window||event.origin!==location.origin) return;
+    if(event.source!==window||event.origin!==origin) return;
     if(event.data?.kind===tag+"_result") {
       const done=pending.get(event.data.id);if(done) {pending.delete(event.data.id);done({ok:event.data.ok===true});}
     }
@@ -36,7 +39,7 @@
     if(!c||typeof c.id!=="string") return;
     const timer=setTimeout(()=>{pending.delete(c.id);reply({ok:false});},2000);
     pending.set(c.id,result=>{clearTimeout(timer);reply(result);});
-    window.postMessage({kind:tag+"_command",command:c},location.origin);
+    window.postMessage({kind:tag+"_command",command:c},origin);
     return true;
   });
 })();

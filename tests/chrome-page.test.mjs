@@ -7,7 +7,7 @@ const {playbackPosition}=await load("media-model");
 const source=readFileSync(new URL("../chrome-extension/page-main.js",import.meta.url),"utf8");
 function page(players=[],icons=[],modern=true) {
   const messages=[],events=new Map(),session={metadata:null,playbackState:"none",setPositionState(){}};
-  const window={postMessage(v){messages.push(v);},addEventListener(name,fn){events.set(name,fn);}};
+  const window={origin:"https://example.test",postMessage(v,targetOrigin){assert.equal(targetOrigin,this.origin);messages.push(v);},addEventListener(name,fn){events.set(name,fn);}};
   let tick,now=10000;
   const context={window,navigator:{mediaSession:session},document:{title:"Private page title",querySelectorAll(selector){
     if(selector==='audio,video') return players;

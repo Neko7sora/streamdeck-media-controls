@@ -1,4 +1,9 @@
 (() => {
+  // Sandboxed frames can have an HTTPS URL but an opaque ("null") origin.
+  // Skip them before wrapping APIs or starting timers; exact-origin messaging
+  // cannot address them, and catching postMessage does not hide browser errors.
+  const origin=window.origin;
+  if(!origin || origin==="null" || origin!==location.origin) return;
   // Read only page-provided Media Session metadata and HTML media element state.
   // We do not inspect page text, cookies, credentials, audio/video bytes or DRM streams.
   const TAG = "__streamdeck_media_metadata_v1__";
@@ -94,8 +99,8 @@
     };
   }
   window.addEventListener("message",async event=>{
-    if(event.source===window&&event.origin===location.origin&&event.data?.kind===TAG+"_transport") {resyncInterval=event.data.protocol===2?5000:1000;return;}
-    if(event.source!==window || event.origin!==location.origin || event.data?.kind!==TAG+"_command") return;
+    if(event.source===window&&event.origin===origin&&event.data?.kind===TAG+"_transport") {resyncInterval=event.data.protocol===2?5000:1000;return;}
+    if(event.source!==window || event.origin!==origin || event.data?.kind!==TAG+"_command") return;
     const c=event.data.command;
     if(!c || typeof c.id!=="string") return;
     let ok=false;
@@ -112,7 +117,7 @@
       else throw new Error("Unavailable operation");
       ok=true;send();
     } catch { /* Result is returned to the plugin, without a global-key fallback. */ }
-    window.postMessage({kind:TAG+"_result",id:c.id,ok},location.origin);
+    window.postMessage({kind:TAG+"_result",id:c.id,ok},origin);
   });
   let lastMedia,lastSignature,lastSent=0;
   function send(event) {
@@ -129,7 +134,7 @@
       const important=event&&event.type!=='timeupdate';
       if(signature===lastSignature&&!drift&&!important&&(!active||now-lastSent<resyncInterval)) return;
       lastMedia=media;lastSignature=signature;lastSent=now;
-      window.postMessage({kind:TAG,media}, location.origin);
+      window.postMessage({kind:TAG,media}, origin);
     }
     catch { /* inaccessible site; ignore */ }
   }

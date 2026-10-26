@@ -7,8 +7,8 @@ const source=await readFile(new URL("../chrome-extension/bridge-isolated.js",imp
 function bridge(sendMessage) {
   let listener,now=10000,nextTimer=0;
   const timers=new Map();
-  const window={addEventListener(type,fn){if(type==="message") listener=fn;}};
   const origin="https://media.test";
+  const window={origin,addEventListener(type,fn){if(type==="message") listener=fn;}};
   const chrome={runtime:{sendMessage,onMessage:{addListener(){}}}};
   vm.runInNewContext(source,{window,location:{origin},chrome,Date:{now:()=>now},
     setTimeout(fn,delay){const id=++nextTimer;timers.set(id,{fn,at:now+delay});return id;},
