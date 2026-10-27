@@ -41,4 +41,4 @@
 | 通信・権限・データ用途 | 実装と両 manifest を確認し、README・COMMUNICATION・ポリシー原稿・同梱説明の翻訳元・掲載原稿・Privacy practices を照合する |
 | 公開前の確認状況 | [release-review.json](release-review.json) と [検査スクリプト](../scripts/check-release.mjs)。変更後のソース指紋と確認根拠を揃える |
 
-`description.*.txt`、翻訳 JS、画像の生成記録は編集元から再生成します。Markdown の相対リンク・見出しアンカー・記載した npm コマンドも変更後に確認してください。
+`description.*.txt`、翻訳 JS、画像の生成記録は編集元から再生成します。`npm run consistency:check` は package / lockfile・両 manifest・公開確認記録のバージョンや実行環境、文書の相対リンク先と npm コマンド参照を横断検査します。見出しアンカーや説明の意味が実装と一致していることも変更後に確認してください。

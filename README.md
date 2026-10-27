@@ -38,13 +38,13 @@ Windows + Chrome 向けの Stream Deck プラグインです。v1.0.0 は初回�
 
 ## 取得・表示・操作
 
-アプリやサイトが公開した情報だけを扱います。欠損メタデータは内部で `null`、未知の数値は `null`、UI では `Unavailable` / `--:--` として扱います。ページタイトルを曲名として代用しません。API が返す空文字やゼロ値はネイティブ JSON にそのまま残る場合があります。
+アプリやサイトが公開した情報だけを扱います。欠損メタデータは内部で `null`、未知の数値は `null`、UI では `Unavailable` / `--:--` として扱います。曲名がない場合、キー／ダイヤルの表示には取得済みのページ名を使用し、それもなければ曲名が取得できないことを表示します。この表示用の代替は曲名メタデータや操作対象の照合には使用しません。API が返す空文字やゼロ値はネイティブ JSON にそのまま残る場合があります。
 
 | 情報・機能 | Windows | Chrome | Stream Deck での利用 |
 |---|---|---|---|
 | アートワーク | GSMTC Thumbnail | Media Session artwork、サイズ・MIME 候補 | 通常キー / + に縦横比を維持して表示。Chrome 画像失敗時は Windows 画像、それもない場合は既定アイコン |
 | アプリ / サイトアイコン | AUMID の登録ロゴ / Shell アイコン。実行ファイル名が一致する Audio Session があれば、その実行ファイルも参照 | ページの icon / apple-touch-icon / apple-touch-icon-precomposed と同じオリジンの /favicon.ico | Now Playing の右上 / + の状態表示の横に表示。favicon を優先し、欠損・取得失敗・デコード失敗時は Windows のアプリアイコン |
-| 曲名・アーティスト | GSMTC | Media Session | 通常キー / +。欠損をページ名から推測しない |
+| 曲名・アーティスト | GSMTC | Media Session | 通常キー / +。曲名の表示は欠損時にページ名へフォールバック。曲名メタデータとアーティストは推測しない |
 | アルバム | GSMTC | Media Session | 設定画面の取得情報 |
 | サブタイトル・アルバムアーティスト・ジャンル・トラック番号/総数・メディア種別 | 公開時のみ | 共通 API からは取得しない | 設定画面の取得情報 / native JSON |
 | 再生状態 | GSMTC enum と表示用状態 | Media Session / アクセス可能な HTMLMediaElement | キーの状態記号 / + の状態文字 |
@@ -74,7 +74,7 @@ npm run validate
 npm run pack:review
 ```
 
-`check` は JS 構文、TypeScript の SDK 型、JS テスト、Rust release ビルド、パッケージ資産と同梱画像ランタイムを検証します。`test:native` は Rust テスト（ローカル実行ファイルの Shell アイコン読み取りを含む）、`test:smoke` は実際の Windows API 読み取り・存在しない対象の操作拒否・終了確認です。再生や音量は変更しません。
+`check` はリリース情報・文書リンク・npm コマンド参照の横断検査、JS 構文、TypeScript の SDK 型、JS テスト、Rust release ビルド、パッケージ資産と同梱画像ランタイムを検証します。横断検査だけなら `npm run consistency:check` を使えます。`test:native` は Rust テスト（ローカル実行ファイルの Shell アイコン読み取りを含む）、`test:smoke` は実際の Windows API 読み取り・存在しない対象の操作拒否・終了確認です。再生や音量は変更しません。
 
 Cargo.lock / package-lock.json を固定してビルドします。`link.exe not found` は C++ ツール未導入か開発用シェルの環境設定不備を確認してください。GSMTC が `0x80070005` を返す制限付きシェルでは、通常の対話 Windows ユーザー環境で実行してください。スキーマ取得エラーがある場合、CLI の「成功」表示だけを正式な検証成功と扱わないでください。
 

@@ -15,7 +15,7 @@ Windows media sessions work without the extension. The optional companion adds b
 3. Open the extension's options, enable **Enable sending from the browser**, and save. Confirm the connected state, then reload media pages that were already open.
 4. Choose the browser session in the action settings. You can restrict the extension's site access using Chrome's controls.
 
-Direct Chrome controls support play/pause, stop and seeking when an accessible media element supports them. Direct previous/next track commands, Web Audio-only players, closed Shadow DOM and inaccessible frames are not supported. Volume actions use Windows audio targets, not individual browser tabs. Missing information is displayed as unavailable rather than inferred from the page title.
+Direct Chrome controls support play/pause, stop and seeking when an accessible media element supports them. Direct previous/next track commands, Web Audio-only players, closed Shadow DOM and inaccessible frames are not supported. Volume actions use Windows audio targets, not individual browser tabs. When a track title is missing, keys and dials display the available page title, or an unavailable label if neither exists. This display fallback does not replace track metadata or identify command targets. Other missing information is displayed as unavailable.
 
 If disconnected, start Stream Deck, register the integration again and reload the extension and media page. Reselect a target if it disappeared or a Windows helper restarted. See [data and privacy](privacy.md) for data flow, disabling and removal instructions, and the [project README](../../README.md) for development and troubleshooting details.
 
