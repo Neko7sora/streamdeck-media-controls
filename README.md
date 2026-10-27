@@ -1,6 +1,14 @@
 # Stream Deck Media Controls v1.0.0 (STABLE)
 
-**公開準備中**：1.0.0 は初回公開用のバージョンです。STABLE はリリース区分であり、ストアへの提出・公開や実機検証の完了を示しません。公開前の確認記録は未完了です。文書の用途と更新時の参照元は [ドキュメント一覧](docs/README.md)、残る確認は [ガイドライン総合監査](docs/guideline-audit.md) を参照してください。
+**Elgato Marketplace で公開中**。文書の用途と更新時の参照元は [ドキュメント一覧](docs/README.md)、確認記録と残る確認は [ガイドライン総合監査](docs/guideline-audit.md) を参照してください。
+
+## インストール / Installation
+
+**[Elgato Marketplace からインストール / Install from Elgato Marketplace](https://marketplace.elgato.com/product/media-controls-c3009ed3-da9b-44ea-8edb-81db01b81ecc)**
+
+Windows 11 以降（x64）、Stream Deck 7.1 以降に対応しています。ダイヤル操作には Stream Deck + が必要です。インストール後、Media Controls のアクションをキーまたはダイヤルに追加してください。Chrome 連携は任意です。導入・設定の詳細は [セットアップガイド（英語）](docs/marketplace/setup.md) を参照してください。
+
+Requires Windows 11 or later (x64) and Stream Deck 7.1 or later. Dial actions require Stream Deck +. After installation, add a Media Controls action to a key or dial. Chrome integration is optional. See the [setup guide](docs/marketplace/setup.md) for details.
 
 ## ライセンス / License
 
@@ -30,7 +38,7 @@ Chrome Web Store のベストプラクティスに合わせた掲載原稿・日
 
 Marketplace の商品ガイドラインに合わせた英語説明、288pxアイコン、1920×960pxのサムネイルとギャラリー3点は [商品ガイドライン対応記録](docs/product-guidelines.md) にまとめています。`npm run marketplace:build` で再生成、`npm run marketplace:check` でローカル検査できます。名称の独自性、権利、AI使用履歴、実機確認、公開リンクの到達性は提出前に確認が必要です。無料配布、組織名 Neko7sora、問い合わせ先 GitHub Issues は確定しました。
 
-Windows + Chrome 向けの Stream Deck プラグインです。v1.0.0 は初回の STABLE リリースとして準備しています。再生操作、マスター／アプリ別音量、アートワーク・曲情報の表示、Stream Deck + のダイヤル操作を利用できます。日本語の曲名・アーティスト名の描画、滑らかなスクロール、再生位置のリアルタイム表示、ダイヤルによる巻き戻し・早送りに対応しています。設定画面と Chrome 拡張には実際の接続状態を表示し、再生ページがなくても連携を確認できます。Chrome の拡張ボタンには接続・未接続・送信無効のバッジを表示します。操作指示は状態更新と独立した常設経路で送信し、状態の差分送信、画像キャッシュ、設定画面の変更通知を使用します。通信設計と開発中の測定結果は [COMMUNICATION.md](COMMUNICATION.md) を参照してください。
+Windows + Chrome 向けの Stream Deck プラグインです。v1.0.0 は初回の STABLE リリースです。再生操作、マスター／アプリ別音量、アートワーク・曲情報の表示、Stream Deck + のダイヤル操作を利用できます。日本語の曲名・アーティスト名の描画、滑らかなスクロール、再生位置のリアルタイム表示、ダイヤルによる巻き戻し・早送りに対応しています。設定画面と Chrome 拡張には実際の接続状態を表示し、再生ページがなくても連携を確認できます。Chrome の拡張ボタンには接続・未接続・送信無効のバッジを表示します。操作指示は状態更新と独立した常設経路で送信し、状態の差分送信、画像キャッシュ、設定画面の変更通知を使用します。通信設計と開発中の測定結果は [COMMUNICATION.md](COMMUNICATION.md) を参照してください。
 
 **検証状況：Windows x64 のビルド・API 読み取り・自動テストは確認済みですが、物理 Stream Deck / Stream Deck + と実 Chrome 拡張を通した実サイト操作は未確認です。** 自動テストではセッション選択、Chrome の処理待ち、ヘルパー切断・復旧、シーク、日本語フォント・連続フレームの描画を確認しています。
 
