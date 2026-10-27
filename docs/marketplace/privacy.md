@@ -1,6 +1,6 @@
 # Media Controls: data and privacy
 
-Updated: 2026-10-26. This notice describes the code in this repository. The publisher must review it and publish a reachable version before listing the product.
+Updated: 2026-10-27. This notice describes the code in this repository. The publisher must review it and publish a reachable version before listing the product.
 
 Media Controls processes media information on your Windows PC to display it on Stream Deck and control the targets you choose. It has no analytics, advertising, account system or developer-operated media upload service.
 
@@ -20,7 +20,7 @@ The companion extension is optional. Sending is off by default. You enable it in
 
 Chrome user data is used and transferred only as needed for the extension's single purpose: displaying media and providing supported controls through the local Media Controls plugin. It is not sold, used for advertising, tracking, credit or lending decisions, or repurposed for unrelated features. The developer has no media-data endpoint or access to the live media stream. Support information is read only when the user chooses to submit it for help; do not submit personal data through public issues.
 
-When sending is enabled, the extension transfers available Media Session and accessible HTML media element information, artwork and favicons, page titles, sanitized page URLs, and tab/frame/document identifiers to the local plugin. URL credentials, queries and fragments are removed from page URLs before transfer. A random local bridge identifier distinguishes Chrome instances; it is stored in the extension's local storage with your settings. It is not an analytics identifier. Even with sending disabled, the installed page scripts may observe media API calls within the page; disabling sending prevents forwarding media information and fetching artwork. Remove the extension or restrict its site access to stop those page scripts from running on a site.
+When sending is enabled, the extension transfers available Media Session and accessible HTML media element information, artwork and favicons, page titles, sanitized page URLs, and tab/frame/document identifiers to the local plugin. URL credentials, queries and fragments are removed from page URLs before transfer. A random local bridge identifier distinguishes Chrome instances; it is stored in the extension's local storage with your settings. It is not an analytics identifier. Even with sending disabled, the installed page scripts may observe media API calls within the page; disabling sending prevents forwarding media information and fetching artwork. Remove the extension or restrict its site access, then reload the affected tabs or restart Chrome to unload scripts already running on those pages.
 
 Empty observations clear an earlier media target without sending page titles, page addresses or arbitrary page fields. They do not fetch images.
 

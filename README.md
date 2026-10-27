@@ -1,5 +1,7 @@
 # Stream Deck Media Controls v1.0.0 (STABLE)
 
+**公開準備中**：1.0.0 は初回公開用のバージョンです。STABLE はリリース区分であり、ストアへの提出・公開や実機検証の完了を示しません。公開前の確認記録は未完了です。文書の用途と更新時の参照元は [ドキュメント一覧](docs/README.md)、残る確認は [ガイドライン総合監査](docs/guideline-audit.md) を参照してください。
+
 ## ライセンス / License
 
 本プロジェクトは **MIT OR Apache-2.0** のデュアルライセンスです。[MIT](LICENSE-MIT) または [Apache License 2.0](LICENSE-APACHE) のいずれかを選択して利用できます。
@@ -28,7 +30,7 @@ Chrome Web Store のベストプラクティスに合わせた掲載原稿・日
 
 Marketplace の商品ガイドラインに合わせた英語説明、288pxアイコン、1920×960pxのサムネイルとギャラリー3点は [商品ガイドライン対応記録](docs/product-guidelines.md) にまとめています。`npm run marketplace:build` で再生成、`npm run marketplace:check` でローカル検査できます。名称の独自性、権利、AI使用履歴、実機確認、公開リンクの到達性は提出前に確認が必要です。無料配布、組織名 Neko7sora、問い合わせ先 GitHub Issues は確定しました。
 
-Windows + Chrome 向けの Stream Deck プラグインです。v1.0.0 は初回の STABLE リリースです。再生操作、マスター／アプリ別音量、アートワーク・曲情報の表示、Stream Deck + のダイヤル操作を利用できます。日本語の曲名・アーティスト名の描画、滑らかなスクロール、再生位置のリアルタイム表示、ダイヤルによる巻き戻し・早送りに対応しています。設定画面と Chrome 拡張には実際の接続状態を表示し、再生ページがなくても連携を確認できます。Chrome の拡張ボタンには接続・未接続・送信無効のバッジを表示します。操作指示は状態更新と独立した常設経路で送信し、状態の差分送信、画像キャッシュ、設定画面の変更通知を使用します。通信設計と開発中の測定結果は [COMMUNICATION.md](COMMUNICATION.md) を参照してください。
+Windows + Chrome 向けの Stream Deck プラグインです。v1.0.0 は初回の STABLE リリースとして準備しています。再生操作、マスター／アプリ別音量、アートワーク・曲情報の表示、Stream Deck + のダイヤル操作を利用できます。日本語の曲名・アーティスト名の描画、滑らかなスクロール、再生位置のリアルタイム表示、ダイヤルによる巻き戻し・早送りに対応しています。設定画面と Chrome 拡張には実際の接続状態を表示し、再生ページがなくても連携を確認できます。Chrome の拡張ボタンには接続・未接続・送信無効のバッジを表示します。操作指示は状態更新と独立した常設経路で送信し、状態の差分送信、画像キャッシュ、設定画面の変更通知を使用します。通信設計と開発中の測定結果は [COMMUNICATION.md](COMMUNICATION.md) を参照してください。
 
 **検証状況：Windows x64 のビルド・API 読み取り・自動テストは確認済みですが、物理 Stream Deck / Stream Deck + と実 Chrome 拡張を通した実サイト操作は未確認です。** 自動テストではセッション選択、Chrome の処理待ち、ヘルパー切断・復旧、シーク、日本語フォント・連続フレームの描画を確認しています。
 
@@ -59,7 +61,7 @@ Windows + Chrome 向けの Stream Deck プラグインです。v1.0.0 は初回�
 
 ## Windows x64 ビルド
 
-Windows 11 以降（x64）、Stream Deck 7.1+、Node.js 24、Rust MSVC toolchain と Visual Studio C++ Build Tools / Windows SDK が必要です。CLI はプロジェクト依存に含まれます。
+Windows 11 以降（x64）、Stream Deck 7.1+、Node.js 24 以降、Rust MSVC toolchain と Visual Studio C++ Build Tools / Windows SDK が必要です。プラグインの実行には Stream Deck 同梱の Node.js 24 を使用します。CLI はプロジェクト依存に含まれます。
 
 **Developer PowerShell for Visual Studio（x64）** でリポジトリを開きます。`cargo` / `node` / `npm` が PATH にあることを確認してください。
 
@@ -76,7 +78,7 @@ npm run pack:review
 
 Cargo.lock / package-lock.json を固定してビルドします。`link.exe not found` は C++ ツール未導入か開発用シェルの環境設定不備を確認してください。GSMTC が `0x80070005` を返す制限付きシェルでは、通常の対話 Windows ユーザー環境で実行してください。スキーマ取得エラーがある場合、CLI の「成功」表示だけを正式な検証成功と扱わないでください。
 
-型検査は TypeScript 7 を使用します。Chrome 拡張の構文・コード読み込み検査は Acorn を使用し、TypeScript のコンパイラー API から独立させています。`@types/node` は Stream Deck の Node.js 24 に合わせて 24 系の最新版を使用します。
+型検査は TypeScript 7 を使用します。Chrome 拡張の構文検査は Node.js、コード読み込みの静的検査は Acorn を使用し、TypeScript のコンパイラー API から独立させています。`@types/node` は Stream Deck の Node.js 24 に合わせて 24 系を使用し、実際の依存バージョンは `package-lock.json` で固定します。
 
 `pack:review` はローカル確認用の候補を作成します。正式な `npm run pack` は [総合監査](docs/guideline-audit.md) の確認記録も必要です。スキーマを取得できない場合は `validate` とパッケージ作成を失敗させます。
 
@@ -109,7 +111,7 @@ Now Playing / Now Playing + の「表示する項目」で、曲名・タイト�
 - 設定画面の接続待ち・切断中は設定項目を無効にし、保存できない変更を防ぎます。切断時は設定画面を開き直してください。
 - 自動表示は再生中のセッションを優先し、同じ再生状態の候補が複数あっても現在の対象を維持します。定期受信・再生位置の更新・Windows 現在セッションの変動だけでは切り替えません。初回や対象の切断時は、再生中の候補（なければ全候補）から Windows 現在セッション、更新時刻の順で選びます。現在の対象が一時停止・停止して別の対象が再生中なら切り替えます。表示・操作したい対象を固定する場合は明示選択できます。
 - Chrome 補完には「Chrome の Windows セッション」「空でない同じ曲名・アーティスト」「アルバムが競合しない」「一致候補が1個」の条件が必要です。タイトルだけの一致では補完しません。
-- 選択対象が消えた場合やヘルパー再起動後には、別セッションへ自動で切り替えません。設定画面で再選択してください。GSMTC の ID はヘルパー存続期間内だけ有効です。
+- 明示選択した対象が消えた場合やヘルパー再起動後には、別セッションへ自動で切り替えません。設定画面で再選択してください。GSMTC の ID はヘルパー存続期間内だけ有効です。自動選択では、前述の選択規則に従って残る候補を選びます。
 - Chrome は拡張機能のローカル設定に接続元 ID を保存し、タブ ID が重なる別の Chrome 実行環境の表示・操作・差分更新を区別します。worker や Native Messaging ホストが再起動しても、接続元 ID は維持します。
 - Now Playing はアートワーク・曲名・アーティスト・状態を表示し、押すと表示用に最後に送信したセッションへ再生/一時停止を要求します。
 - アプリ / サイトアイコンはアートワークと別に表示します。favicon を取得するには、Chrome 拡張を読み込んだ後に再生ページを再読み込みしてください。PNG / JPEG / WebP / ICO の favicon を32pxの PNG に変換して扱い、SVG は対象外です。Windows セッションへの favicon の補完は、曲名・アーティスト・アルバムの既存の一致条件を満たす一意の Chrome セッションから行います。TVerなどで両者のアーティスト・アルバムが空の場合は、同じタイトル、またはメディアを持つ最上位フレームのページタイトルと Windows タイトルが一致し、両側の候補が一意ならアイコンだけを補完します。曲情報・アートワーク・操作対象の照合条件は従来どおりです。Chrome セッションを直接選んだ場合の Windows アイコンも同じアイコン照合条件で取得します。どちらのアイコンも取得できない場合、アイコン欄は空になります。未登録の Win32 アプリでは実行ファイルを解決できず、アイコンが取得できないことがあります。
@@ -132,9 +134,9 @@ Chrome 公式のセキュリティ要件との対応と自動検査は [Chrome �
 
 1. プラグインを起動します。Native Messaging ホストからの中継を受けるため、`127.0.0.1:39761` にだけ待ち受けます。
 2. `chrome://extensions` の開発者モードで `chrome-extension` を「パッケージ化されていない拡張機能」として読み込みます。
-3. Stream Deck アプリで Media Controls のアクションを選択し、設定画面で確認した拡張機能 ID を入力して「Chrome 連携を登録」をクリックします。入力した拡張機能 ID のみを許可し、現在のユーザーの HKCU に Native Messaging ホストを登録します。起動時や定期的な登録は行わず、ボタンを押したときだけ実行します。未導入の場合は Chrome で拡張を読み込んでから再度クリックしてください。Stream Deck に同梱された Node.js 24 を使い、ホストを LOCALAPPDATA にコピーします。管理者権限や別途 Node.js のインストールは不要です。拡張のオプションで送信を有効にしてください。トークンの貼り付けは不要です。
+3. Stream Deck アプリで Media Controls のアクションを選択し、`chrome://extensions` で確認した対象拡張機能の ID を入力して「Chrome 連携を登録」をクリックします。入力した拡張機能 ID のみを許可し、現在のユーザーの HKCU に Native Messaging ホストを登録します。起動時や定期的な登録は行わず、ボタンを押したときだけ実行します。未導入の場合は Chrome で拡張を読み込んでから再度クリックしてください。Stream Deck に同梱された Node.js 24 を使い、ホストを LOCALAPPDATA にコピーします。管理者権限や別途 Node.js のインストールは不要です。拡張のオプションで送信を有効にしてください。トークンの貼り付けは不要です。
 
-   手動で登録・修復したい場合は、リポジトリで次を実行できます（Node.js 24 が必要）。chrome://extensions で、このリポジトリから読み込んだ拡張機能の ID を確認してください。名前だけでは識別できないため、自動検出は行いません。
+   手動で登録・修復したい場合は、リポジトリで次を実行できます（Node.js 24 以降が必要）。chrome://extensions で、このリポジトリから読み込んだ拡張機能の ID を確認してください。名前だけでは識別できないため、自動検出は行いません。
 
    ```powershell
    powershell -NoProfile -ExecutionPolicy Bypass -File scripts/register-chrome-native-host.ps1 -ExtensionId <確認した拡張機能ID>

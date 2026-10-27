@@ -19,7 +19,7 @@ Chrome 公式の Improve extension security の項目別対応と、任意文字
 | セキュリティ | 同梱 JS のみ、明示的 CSP、公開 HTTPS 画像の取得制限、文書と操作対象の照合、認証付きローカル接続、TRUSTED_CONTEXTS の設定保存 | Native Messaging の登録・切断・再接続を実機確認。アカウントの2段階認証等の公開者設定 |
 | プライバシー | 送信は初期無効。トグルに隣接する転送項目と外部画像通信の説明、同梱の日英ポリシー、停止・削除手順。メディアなしの通知はページ名・URL・任意データを除去 | ポリシーの公開 HTTPS URL を確定し、GitHub Issues の到達性を確認して、Privacy practices でデータ分類・Limited use を最終申告 |
 | 性能・機能 | 状態差分、画像共有・容量制限、送信レート制限。content script に unload / WebSocket / WebRTC 接続なし | 実サイトの戻る／進むキャッシュ、低速回線、バックグラウンドタブ、複数フレーム、Stream Deck 実機の操作・復旧 |
-| UX / onboarding | 接続バッジ、設定読込・保存・エラー表示、必要な Windows / プラグイン / Node.js と拡張 ID 登録の案内、再生タブの再読込手順 | 初回ユーザーが掲載説明から最後まで設定できることを確認 |
+| UX / onboarding | 接続バッジ、設定読込・保存・エラー表示、必要な Windows / プラグインと拡張 ID 登録の案内、再生タブの再読込手順。通常登録は Stream Deck 同梱 runtime を使用し、手動スクリプトでの登録だけ別途 Node.js 24 以降が必要 | 初回ユーザーが掲載説明から最後まで設定できることを確認 |
 | 掲載情報 | [英語原稿](chrome-web-store/listing.en.json)、[日本語原稿](chrome-web-store/listing.ja.json)、貼り付け用説明、実拡張設定画面の1280×800スクリーンショット、440×280プロモーション・1400×560マーキー画像、Tools カテゴリ案、サポートリンク | プラグイン配布先と必要環境の到達性、名称・商標・画像の権利、価格と配布地域を確認。実機操作の画像や動画の追加も推奨 |
 
 HTTP のページ情報は既存のメディアページ対応のために観測する。画像取得は HTTPS のみ。Native Messaging ホストからプラグインへの HTTP は認証付きの `127.0.0.1` 固定で、外部ネットワークへ送らない。拡張は loopback に直接接続せず、トークンを保持しない。
@@ -37,13 +37,16 @@ npm run chrome:icons
 npm run locales:build
 npm run chrome:listing:build
 npx playwright install chromium
-npm run test:chrome:e2e -- --screenshots
+node tests/chrome-e2e.mjs --screenshots
+node tests/chrome-frame-e2e.mjs
 npm run chrome:store:check
 npm run check
 npm run chrome:pack
 ```
 
-`test:chrome:e2e` は専用の一時プロファイルを使う。通常の Chrome プロファイルや Native Messaging のレジストリを変更しない。ホストの登録は Windows ユーザー単位で共有されるため、テスト中の Native Messaging API は接続失敗を返すスタブに置き換え、実ホストへの接続を防ぐ。日英、初期無効、接続失敗時の表示、保存・再読み込み、ポリシー表示、320/420/1280px と明暗の表示を検査する。物理 Stream Deck と実サイトでの end-to-end 操作の確認には代わらない。
+画像を更新せず両ブラウザテストを実行する場合は `npm run test:chrome:e2e` を使う。画像の再生成は上記のように撮影スクリプトへ直接 `--screenshots` を渡す。現行の npm スクリプトは2つのコマンドを連結しており、npm 経由で末尾に追加した引数は撮影スクリプトに届かない。
+
+ブラウザテストは専用の一時プロファイルを使う。通常の Chrome プロファイルや Native Messaging のレジストリを変更しない。ホストの登録は Windows ユーザー単位で共有されるため、テスト中の Native Messaging API は接続失敗を返すスタブに置き換え、実ホストへの接続を防ぐ。日英、初期無効、接続失敗時の表示、保存・再読み込み、ポリシー表示、320/420/1280px と明暗の表示を検査する。物理 Stream Deck と実サイトでの end-to-end 操作の確認には代わらない。
 
 画像は [assets/chrome-web-store](../assets/chrome-web-store/) に保存する。スクリーンショットは無効状態の実拡張設定ページのキャプチャであり、接続成功や物理デバイスの動作を装わない。画像生成 AI や架空の接続状態は使用しない。再生成した画像は目視確認してから提出する。
 
