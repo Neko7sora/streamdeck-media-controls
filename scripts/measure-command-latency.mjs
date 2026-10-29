@@ -1,4 +1,4 @@
-// Real local HTTP + Native Messaging, with a paused page's 1Hz legacy updates.
+// Real local HTTPS + Native Messaging, with a plaintext historical baseline.
 import {execFileSync,spawn} from 'node:child_process';
 import {once} from 'node:events';
 import {mkdir,mkdtemp,readFile,writeFile,rm} from 'node:fs/promises';
@@ -6,16 +6,18 @@ import {join} from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {setTimeout as delay} from 'node:timers/promises';
 import {load} from '../tests/load.mjs';
+import {tls} from '../tests/tls-fixture.mjs';
 const baseline=process.argv.find(x=>x.startsWith('--baseline='))?.slice(11);
 if(!baseline||!/^[a-f0-9]{40}$/.test(baseline)) throw Error('Use --baseline=<40-character Git commit>');
 const old=file=>execFileSync('git',['show',`${baseline}:${file}`],{encoding:'utf8'});
 async function measure(before) {
   const plugin={name:'baseline-server',setup(build){build.onLoad({filter:/chrome-server\.ts$/},()=>({contents:old('src/chrome-server.ts'),loader:'ts'}));}};
   const bridge=await load('chrome-server',before?[plugin]:[]),token='d'.repeat(64);
-  const server=bridge.startChromeServer(()=>{},{token,port:0});await once(server,'listening');
+  const server=bridge.startChromeServer(()=>{},{token,...(before?{}:{tls}),port:0});await once(server,'listening');
   await mkdir(new URL('../tests/.generated/',import.meta.url),{recursive:true});
   const root=await mkdtemp(fileURLToPath(new URL('../tests/.generated/latency-',import.meta.url)));
   await mkdir(join(root,'StreamDeckMediaControls'));await writeFile(join(root,'StreamDeckMediaControls/chrome-token.txt'),token);
+  if(!before) await writeFile(join(root,'StreamDeckMediaControls/chrome-server.pem'),tls.cert);
   const script=join(root,'host.mjs');
   const host=before?old('scripts/chrome-native-host.mjs'):await readFile(new URL('chrome-native-host.mjs',import.meta.url),'utf8');
   await writeFile(script,host.replaceAll('39761',String(server.address().port)));

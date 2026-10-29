@@ -14,14 +14,14 @@
                                                      │
                                                      ↓
                                                Node.js host
-                                                     │ 認証付き HTTP POST
+                                                     │ 証明書検証付き HTTPS POST
                                                      ↓
                                                Stream Deck plugin
                                                      │
 操作指示 ← 同じ document / target ID で検証 ← Native Messaging ← 常設 HTTP 受信ストリーム
 ```
 
-- **操作**: `GET /chrome/events` の認証付き NDJSON ストリームで即時配信します。状態の送信、画像の取得、画像転送の応答を待ちません。タブ・フレーム・document IDで配信し、ページ内のtarget ID・曲名も従来どおり検証します。操作はdocument単位で直列化し、全体32件に制限します。HTTP応答に操作が戻る互換経路も同じ待ち行列を使い、切断・復旧で経路が混在しても受信順に実行します。トグルなどの実行結果が不明な操作は自動再送しません。
+- **操作**: `GET /chrome/events` の認証付き NDJSON ストリームで即時配信します。状態の送信、画像の取得、画像転送の応答を待ちません。タブ・フレーム・document IDで配信し、ページ内のtarget ID・曲名も従来どおり検証します。操作はdocument単位で直列化し、全体32件に制限します。HTTPS応答に操作が戻る互換経路も同じ待ち行列を使い、切断・復旧で経路が混在しても受信順に実行します。トグルなどの実行結果が不明な操作は自動再送しません。
 - **状態**: ページイベントで変化を通知します。Media Sessionのメタデータなど変更イベントがない値を発見するため、ページ内の1秒観測は維持します。通常再生はローカル補間し、5秒ごとの位置補正と、0.25秒を超える位置のずれ・状態変更で再同期します。無メディアのページは初回と変化時だけ通知します。isolated bridgeの250msの合流処理も維持します。
 - **差分**: documentごとのbase sequenceを確認し、変更したトップレベルフィールドだけを送ります。ネストしたtimeline等は1フィールドとして置換します。baseが失われた場合は全状態で復旧します。画像以外の状態は64KB、保持するフレームは256件までです。
 - **画像**: 同じ曲情報とURL候補の取得を共有し、取得済み内容のSHA-256を画像参照に使います。曲が変わった場合は同じURLでも再取得し、可変URLの画像を古いまま表示しません。同じ内容の画像はタブ・曲・favicon/アートワークをまたいで重複転送しません。同時転送も合流します。他フレームが画像を転送中でもメタデータを先に送り、完了後に画像参照を追加します。受信側はハッシュと従来の画像形式制限を検証します。受信キャッシュは128件・16MBまでで、未保持の参照が来た場合は不足画像だけ再送します。外部画像の5分キャッシュと失敗時の短い再試行期限は維持します。
@@ -127,7 +127,7 @@ node --test tests/*.test.mjs
 | 範囲 | ファイル |
 |---|---|
 | ページ・拡張・popup | `chrome-extension/page-main.js`, `bridge-isolated.js`, `background.js`, `options.js` |
-| HTTP・Native Messaging | `src/chrome-server.ts`, `src/chrome-wire.ts`, `scripts/chrome-native-host.mjs` |
+| HTTPS・Native Messaging | `src/chrome-server.ts`, `src/chrome-wire.ts`, `scripts/chrome-native-host.mjs` |
 | Windows IPC | `native/media-info/src/main.rs`, `wire.rs`, `src/native-client.ts`, `src/native-wire.ts` |
 | 設定の通知 | `src/plugin.ts`, `src/media-state.ts`, `src/inspector-updates.ts`, `dev.n7s.media-controls.sdPlugin/ui/settings.js` |
 | 回帰検証・測定 | `tests/communication.test.mjs`, `chrome-transport.test.mjs`, ページ・worker・settingsの既存テスト、共有harness、`scripts/measure-*.mjs` |

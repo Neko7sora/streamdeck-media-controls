@@ -1,5 +1,6 @@
-import {createServer,type IncomingMessage,type Server} from "node:http";
-import {randomBytes,timingSafeEqual} from "node:crypto";
+import type {IncomingMessage} from "node:http";
+import {createServer,type Server,type ServerOptions} from "node:https";
+import {randomBytes,timingSafeEqual,X509Certificate} from "node:crypto";
 import {mkdirSync,readFileSync,writeFileSync} from "node:fs";
 import {join} from "node:path";
 import {execFileSync} from "node:child_process";
@@ -14,9 +15,10 @@ export function chromeConnectionStatus(now=Date.now()) {
   const connected=bridgeListening&&lastChromeContact!==null&&now-lastChromeContact<15000;
   return {state:!bridgeListening?"unavailable":connected?"connected":"disconnected",lastSeen:lastChromeContact,sessions:connected?chromeSessions(now).length:0};
 }
-function loadToken():string {
+function loadCredentials():{token:string;tls:ServerOptions} {
   if(!process.env.LOCALAPPDATA) throw new Error("LOCALAPPDATA is required for private token storage");
   const dir=join(process.env.LOCALAPPDATA,"StreamDeckMediaControls"), path=join(dir,"chrome-token.txt");
+  const pfx=join(dir,"chrome-server.pfx"),cert=join(dir,"chrome-server.pem");
   mkdirSync(dir,{recursive:true});
   if(process.platform==="win32") {
     // mode:0600 does not set a Windows DACL. Restrict both existing and new tokens.
@@ -26,17 +28,35 @@ function loadToken():string {
       $acl.SetAccessRuleProtection($true,$false);
       foreach($identity in @($sid,$system)) {$acl.AddAccessRule((New-Object Security.AccessControl.FileSystemAccessRule($identity,'FullControl','ContainerInherit,ObjectInherit','None','Allow')))};
       [IO.Directory]::SetAccessControl($env:SDMC_TOKEN_DIR,$acl);
-      if([IO.File]::Exists($env:SDMC_TOKEN_FILE)) {
+      foreach($file in @($env:SDMC_TOKEN_FILE,$env:SDMC_TLS_PFX,$env:SDMC_TLS_CERT)) {if([IO.File]::Exists($file)) {
         $fileAcl=New-Object Security.AccessControl.FileSecurity; $fileAcl.SetAccessRuleProtection($true,$false);
         foreach($identity in @($sid,$system)) {$fileAcl.AddAccessRule((New-Object Security.AccessControl.FileSystemAccessRule($identity,'FullControl','Allow')))};
-        [IO.File]::SetAccessControl($env:SDMC_TOKEN_FILE,$fileAcl);
+        [IO.File]::SetAccessControl($file,$fileAcl);
+      }};
+      if(-not [IO.File]::Exists($env:SDMC_TLS_PFX) -and -not [IO.File]::Exists($env:SDMC_TLS_CERT)) {
+        $rsa=[Security.Cryptography.RSA]::Create(2048);
+        try {
+          $request=[Security.Cryptography.X509Certificates.CertificateRequest]::new('CN=Stream Deck Media Controls',$rsa,[Security.Cryptography.HashAlgorithmName]::SHA256,[Security.Cryptography.RSASignaturePadding]::Pkcs1);
+          $san=[Security.Cryptography.X509Certificates.SubjectAlternativeNameBuilder]::new();
+          $san.AddIpAddress([Net.IPAddress]::Parse('127.0.0.1')); $request.CertificateExtensions.Add($san.Build());
+          $certificate=$request.CreateSelfSigned([DateTimeOffset]::UtcNow.AddMinutes(-5),[DateTimeOffset]::UtcNow.AddYears(10));
+          try {
+            [IO.File]::WriteAllBytes($env:SDMC_TLS_PFX,$certificate.Export([Security.Cryptography.X509Certificates.X509ContentType]::Pfx));
+            $base64=[Convert]::ToBase64String($certificate.Export([Security.Cryptography.X509Certificates.X509ContentType]::Cert),[Base64FormattingOptions]::InsertLineBreaks);
+            [IO.File]::WriteAllText($env:SDMC_TLS_CERT,"-----BEGIN CERTIFICATE-----\n"+$base64+"\n-----END CERTIFICATE-----\n",[Text.Encoding]::ASCII);
+          } finally {$certificate.Dispose()}
+        } finally {$rsa.Dispose()}
       }`;
-    execFileSync(join(process.env.SystemRoot??"C:\\Windows","System32/WindowsPowerShell/v1.0/powershell.exe"),["-NoProfile","-NonInteractive","-Command",script],{windowsHide:true,timeout:10000,env:{...process.env,SDMC_TOKEN_DIR:dir,SDMC_TOKEN_FILE:path},stdio:"pipe"});
+    execFileSync(join(process.env.SystemRoot??"C:\\Windows","System32/WindowsPowerShell/v1.0/powershell.exe"),["-NoProfile","-NonInteractive","-Command",script],{windowsHide:true,timeout:10000,env:{...process.env,SDMC_TOKEN_DIR:dir,SDMC_TOKEN_FILE:path,SDMC_TLS_PFX:pfx,SDMC_TLS_CERT:cert},stdio:"pipe"});
   }
-  try {const found=readFileSync(path,"utf8").trim();if(/^[0-9a-f]{64}$/.test(found)) return found;} catch(e) {if((e as NodeJS.ErrnoException).code!=="ENOENT") throw e;}
+  // Never regenerate a partial identity or silently fall back to plaintext.
+  const tls={pfx:readFileSync(pfx),passphrase:""};
+  const identity=new X509Certificate(readFileSync(cert));
+  if(!identity.checkIP("127.0.0.1")||Date.parse(identity.validFrom)>Date.now()||Date.parse(identity.validTo)<=Date.now()) throw new Error("Invalid or expired Chrome bridge certificate");
+  try {const found=readFileSync(path,"utf8").trim();if(/^[0-9a-f]{64}$/.test(found)) return {token:found,tls};} catch(e) {if((e as NodeJS.ErrnoException).code!=="ENOENT") throw e;}
   const token=randomBytes(32).toString("hex");
   writeFileSync(path,token+"\n",{flag:"wx",mode:0o600});
-  return token;
+  return {token,tls};
 }
 function authorized(req:IncomingMessage,token:string):boolean {
   const v=req.headers.authorization;
@@ -74,11 +94,13 @@ export function chromeCommand(tab_id:number,frame_id:number,document_id:string,t
     dispatch();
   });
 }
-export function startChromeServer(log:(s:string)=>void,options:{token?:string;port?:number}={}):Server {
-  const token=options.token??loadToken();
+export function startChromeServer(log:(s:string)=>void,options:{token?:string;port?:number;tls?:ServerOptions}={}):Server {
+  const credentials=options.token===undefined&&options.tls===undefined?loadCredentials():options;
+  if(!credentials.token||!credentials.tls) throw new Error("Chrome bridge requires token and TLS credentials");
+  const {token,tls}=credentials;
   bridgeListening=false;lastChromeContact=null;
   epoch=randomBytes(16).toString("hex");wire.clear();owners.clear();sequences.clear();
-  const server=createServer((req,res)=>{
+  const server=createServer({...tls,minVersion:"TLSv1.2"},(req,res)=>{
     res.setHeader("Cache-Control","no-store");res.setHeader("Content-Type","application/json");
     const reply=(status:number,value:unknown)=>{if(!res.writableEnded) res.writeHead(status).end(JSON.stringify(value));};
     const eventRequest=req.method==="GET"&&req.url==="/chrome/events";

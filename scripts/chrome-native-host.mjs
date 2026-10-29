@@ -1,13 +1,26 @@
 import {readFileSync} from 'node:fs';
 import {join} from 'node:path';
 import {randomUUID} from 'node:crypto';
+import {request} from 'node:https';
 
 const client=randomUUID();
 let streaming=false,streamController,streamGeneration=0,touchStream;
-function tokenHeaders() {
-  const token=readFileSync(join(process.env.LOCALAPPDATA,'StreamDeckMediaControls','chrome-token.txt'),'utf8').trim();
+function localRequest(path,{method='GET',body,signal}={}) {
+  const directory=join(process.env.LOCALAPPDATA,'StreamDeckMediaControls');
+  const token=readFileSync(join(directory,'chrome-token.txt'),'utf8').trim();
   if(!/^[a-f0-9]{64}$/.test(token)) throw new Error('Invalid token');
-  return {'content-type':'application/json',authorization:`Bearer ${token}`,'x-sdmc-client':client};
+  // Trust only this user's companion identity. TLS authenticates the receiver
+  // before any bearer or media bytes leave the client, including on reconnect.
+  const ca=readFileSync(join(directory,'chrome-server.pem'));
+  return new Promise((resolve,reject)=>{
+    const req=request({hostname:'127.0.0.1',port:39761,path:'/chrome'+path,method,ca,
+      rejectUnauthorized:true,minVersion:'TLSv1.2',agent:false,signal,
+      headers:{'content-type':'application/json',authorization:`Bearer ${token}`,'x-sdmc-client':client}},response=>{
+      if(response.statusCode<200||response.statusCode>=300) {response.destroy();reject(Error('Bridge rejected request'));return;}
+      resolve(response);
+    });
+    req.on('error',reject);req.end(body);
+  });
 }
 // A single authenticated receive stream carries commands independently of updates.
 // Its retry loop also rereads the token after plugin restart or token replacement.
@@ -20,10 +33,9 @@ async function events() {
     const touch=()=>{clearTimeout(watchdog);watchdog=setTimeout(()=>controller.abort(),12000);};
     try {
       touch();
-      const response=await fetch('http://127.0.0.1:39761/chrome/events',{headers:tokenHeaders(),redirect:'error',signal:controller.signal});
-      if(!response.ok||!response.body) throw Error('Stream unavailable');
+      const response=await localRequest('/events',{signal:controller.signal});
       let pending='';const decoder=new TextDecoder();
-      for await(const chunk of response.body) {
+      for await(const chunk of response) {
         touch();pending+=decoder.decode(chunk,{stream:true});
         if(pending.length>65536) throw Error('Oversized stream');
         let end;
@@ -58,13 +70,17 @@ async function handle(message) {
     if(!Number.isSafeInteger(id)||!['','/result','/status','/events','/unsubscribe'].includes(message.path)||!message.body) throw new Error('Invalid request');
     if(message.path==='/events') {void events();reply({id,body:{ok:true}});return;}
     if(message.path==='/unsubscribe') {streaming=false;streamGeneration++;streamController?.abort();reply({id,body:{ok:true}});return;}
-    const response=await fetch('http://127.0.0.1:39761/chrome'+message.path,{
-      method:'POST',headers:tokenHeaders(),
-      body:JSON.stringify(message.body),redirect:'error',signal:AbortSignal.timeout(2000)
+    const response=await localRequest(message.path,{
+      method:'POST',body:JSON.stringify(message.body),signal:AbortSignal.timeout(2000)
     });
-    if(!response.ok) throw new Error('Bridge rejected request');
+    const chunks=[];let size=0;
+    for await(const chunk of response) {
+      size+=chunk.length;
+      if(size>1024*1024) {response.destroy();throw Error('Oversized response');}
+      chunks.push(chunk);
+    }
     touchStream?.();
-    reply({id,body:await response.json()});
+    reply({id,body:JSON.parse(Buffer.concat(chunks).toString('utf8'))});
   } catch {reply({id,error:'Local bridge unavailable; start the Stream Deck plugin.'});}
   finally {active--;}
 }

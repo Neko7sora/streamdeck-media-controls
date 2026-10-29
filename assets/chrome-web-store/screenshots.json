@@ -1,11 +1,11 @@
 {
-  "method": "Playwright Chromium; real extension first-run options page; sending disabled; native host calls stubbed to fail so no user host is contacted; pre-release development manifest version-only update from 0.4.7 to the initial release 1.0.0 verified by structural comparison; UI sources and screenshot images unchanged",
+  "method": "Playwright Chromium; real extension first-run options page; sending disabled; native host calls stubbed to fail so no user host is contacted",
   "sources": {
     "chrome-extension/manifest.json": "b9d7d1af2c144c8f10b018598b9a1fba94bf78329d740bd6d4b030142d524723",
     "chrome-extension/options.html": "aaca91e90d88479b28828995e42aec898721fe25e6439ccc05bf913623978998",
     "chrome-extension/options.css": "045e2e25feb4d9e3a2eca5cac880c824df55c07e43d0920bebecb91623a6993e",
     "chrome-extension/options.js": "74206e6f0807779cebb8ff5f10bb210ea9c03b568b2384f1be3f0a9420066e37",
-    "chrome-extension/localization.js": "cdfa0bffd6c89ea5d9ee1e39d0cc9f9c6b2a2131b51ef0d3c478f96456e4e961",
+    "chrome-extension/localization.js": "46b76af1b0b97d634abc480c4fc46bede125f86f19d7da8761d530cc455b92e6",
     "tests/chrome-e2e.mjs": "f0d97d38b004a46928384121d0be9455f401fe04cd92343ffad0a62773dfa477"
   },
   "images": {
