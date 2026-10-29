@@ -40,6 +40,21 @@ test('release failures explain local packaging and how to complete the release r
   }
 });
 
+test('release failures explain local packaging and how to complete the release review',()=>{
+  for(const [target,commands] of [
+    ['marketplace',['npm run pack:review']],
+    ['chrome',['npm run chrome:pack']],
+    ['all',['npm run pack:review','npm run chrome:pack']]
+  ]) {
+    const message=releaseFailureMessage(['Review evidence required: deviceAcceptance'],target);
+    assert.match(message,/Review evidence required: deviceAcceptance/);
+    for(const command of ['npm run pack:review','npm run chrome:pack']) assert.equal(message.includes(command),commands.includes(command));
+    assert.match(message,/docs\/release-review\.json/);
+    assert.match(message,/--fingerprint/);
+    assert.match(message,/reviewer, review date and evidence/);
+  }
+});
+
 test('license collection preserves bundled SDK and native image runtime notices',()=>{
   assert.ok(noticeFiles('node_modules/@elgato/streamdeck').includes('LICENSE'));
   assert.ok(noticeFiles(`node_modules/@img/sharp-${process.platform}-${process.arch}`).includes('LICENSE'));
