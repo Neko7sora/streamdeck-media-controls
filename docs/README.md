@@ -4,6 +4,8 @@
 
 Media Controls は [Elgato Marketplace](https://marketplace.elgato.com/product/media-controls-c3009ed3-da9b-44ea-8edb-81db01b81ecc)、任意の Chrome 拡張は [Chrome Web Store](https://chromewebstore.google.com/detail/stream-deck-media-metadat/iagfcpchjohmpnnlcgppdcadehinhdpa) で公開中です。掲載資料と検査手順は、公開中の製品の保守・更新に使用します。
 
+Chrome 拡張は [Chrome Web Store](https://chromewebstore.google.com/detail/stream-deck-media-metadat/iagfcpchjohmpnnlcgppdcadehinhdpa) で公開中です（2026-10-29、利用者からの公開連絡を反映）。各監査文書の公開前チェックは当時の確認記録として保持しています。
+
 ## 用途別の参照先
 
 | 用途 | 文書 |
