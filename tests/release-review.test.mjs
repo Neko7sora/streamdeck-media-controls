@@ -1,6 +1,6 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
-import {reviewRequirements,releaseProblems} from '../scripts/check-release.mjs';
+import {reviewRequirements,releaseProblems,releaseFailureMessage} from '../scripts/check-release.mjs';
 import {noticeFiles} from '../scripts/build-notices.mjs';
 
 const complete=()=>({version:'0.4.7',sourceFingerprint:'current',checks:Object.fromEntries(
@@ -25,6 +25,21 @@ test('each store requires its own applicable reviews',()=>{
   assert.deepEqual(releaseProblems(review,'0.4.7','current','marketplace'),[]);
   assert.ok(releaseProblems(review,'0.4.7','current','chrome').some(message=>message.includes('chromeAcceptance')));
   assert.throws(()=>releaseProblems(review,'0.4.7','current','typo'),/Unknown release target/);
+});
+
+test('release failures explain local packaging and how to complete the release review',()=>{
+  for(const [target,commands] of [
+    ['marketplace',['npm run pack:review']],
+    ['chrome',['npm run chrome:pack']],
+    ['all',['npm run pack:review','npm run chrome:pack']]
+  ]) {
+    const message=releaseFailureMessage(['Review evidence required: deviceAcceptance'],target);
+    assert.match(message,/Review evidence required: deviceAcceptance/);
+    for(const command of ['npm run pack:review','npm run chrome:pack']) assert.equal(message.includes(command),commands.includes(command));
+    assert.match(message,/docs\/release-review\.json/);
+    assert.match(message,/--fingerprint/);
+    assert.match(message,/reviewer, review date and evidence/);
+  }
 });
 
 test('license collection preserves bundled SDK and native image runtime notices',()=>{

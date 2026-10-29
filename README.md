@@ -82,7 +82,11 @@ Cargo.lock / package-lock.json を固定してビルドします。`link.exe not
 
 型検査は TypeScript 7 を使用します。Chrome 拡張の構文検査は Node.js、コード読み込みの静的検査は Acorn を使用し、TypeScript のコンパイラー API から独立させています。`@types/node` は Stream Deck の Node.js 24 に合わせて 24 系を使用し、実際の依存バージョンは `package-lock.json` で固定します。
 
+Chrome の実ブラウザテストには Playwright 用 Chromium が別途必要です。初回セットアップ時と Playwright 更新後に `npm run test:chrome:install` を実行し、その後 `npm run test:chrome:e2e` で検査してください。`npm ci` だけではブラウザはインストールされません。
+
 `pack:review` はローカル確認用の候補を作成します。正式な `npm run pack` は [総合監査](docs/guideline-audit.md) の確認記録も必要です。スキーマを取得できない場合は `validate` とパッケージ作成を失敗させます。
+
+`Release is not ready` や `Review evidence required` は、[release-review.json](docs/release-review.json) の公開前確認記録が未記入、または確認対象のソースと一致しないことを示します。ローカルにインストールして動作確認するパッケージは `npm run pack:review` で作成してください。正式リリースでは各項目の確認者・日付・根拠を記録し、最終ソースを確認した後に `node scripts/check-release.mjs --fingerprint` の出力を `sourceFingerprint` へ記録します。
 
 生成した `.streamDeckPlugin` をダブルクリックして導入できます。開発中は次も使用できます。
 
