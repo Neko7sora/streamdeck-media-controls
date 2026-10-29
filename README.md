@@ -1,4 +1,4 @@
-# Stream Deck Media Controls v1.0.0 (STABLE)
+# Stream Deck Media Controls v1.0.1 (STABLE)
 
 Windows のメディア再生、音量調整、曲情報の表示を Stream Deck から操作できるプラグインです。**Elgato Marketplace で無料公開中**。任意の Chrome 拡張も **Chrome Web Store で公開中**です。
 
@@ -36,7 +36,7 @@ v1.0.0 は初回の STABLE リリースです。再生操作、マスター／�
 
 **検証状況：Windows x64 のビルド・API 読み取り・自動テストは確認済みですが、物理 Stream Deck / Stream Deck + と実 Chrome 拡張を通した実サイト操作は未確認です。** 自動テストではセッション選択、Chrome の処理待ち、ヘルパー切断・復旧、シーク、日本語フォント・連続フレームの描画を確認しています。
 
-初回リリースの機能と制限は [リリース履歴](docs/version-history.md) にまとめています。
+v1.0.1 では、ダイヤルを連続して回した際のシーク取りこぼしを修正し、Chrome 連携の接続先を TLS で認証するようにしました。更新内容と初回リリースの機能・制限は [リリース履歴](docs/version-history.md) にまとめています。
 
 ## 取得・表示・操作
 

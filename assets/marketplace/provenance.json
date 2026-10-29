@@ -1,7 +1,7 @@
 {
   "sources": {
     "assets/plugin-icon.svg": "d54087585dfbcc81cf2453390448b3b8ed6a51023c8a1b5a0f723153234e7239",
-    "dev.n7s.media-controls.sdPlugin/manifest.json": "9db6916b795ddbb05f7eb3644208370dbf6c2409bbe6a9dd94c2bfb4c8255a6e",
+    "dev.n7s.media-controls.sdPlugin/manifest.json": "8151a9be513646f081878abbf454854113727874698bac98c82ca7b11e61bb14",
     "docs/marketplace/listing.en.json": "6135d0f5e52ae17e7769cff862d458c49041025b8e9882284126c1cb5a25f5a9",
     "scripts/build-marketplace.mjs": "0ae83a34f24c9605108a21c03ed5be1914315909016b3a22364ce149387f446b",
     "src/now-playing-image.ts": "fdd3e4f34dd266b74d7b8fb941a8e6b37225a3c87ca0417d833eb2e2867a3ce5",

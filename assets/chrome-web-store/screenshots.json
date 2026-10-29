@@ -1,7 +1,7 @@
 {
   "method": "Playwright Chromium; real extension first-run options page; sending disabled; native host calls stubbed to fail so no user host is contacted",
   "sources": {
-    "chrome-extension/manifest.json": "b9d7d1af2c144c8f10b018598b9a1fba94bf78329d740bd6d4b030142d524723",
+    "chrome-extension/manifest.json": "3574492266848432f8e2dbb09ce5d77c424a9f6b19f9543920d4f35847570c02",
     "chrome-extension/options.html": "aaca91e90d88479b28828995e42aec898721fe25e6439ccc05bf913623978998",
     "chrome-extension/options.css": "045e2e25feb4d9e3a2eca5cac880c824df55c07e43d0920bebecb91623a6993e",
     "chrome-extension/options.js": "74206e6f0807779cebb8ff5f10bb210ea9c03b568b2384f1be3f0a9420066e37",

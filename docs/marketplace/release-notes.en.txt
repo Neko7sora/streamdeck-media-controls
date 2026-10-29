@@ -1,9 +1,11 @@
-Media Controls 1.0.0 (STABLE)
+Media Controls 1.0.1 (STABLE)
 
-Initial release.
+Patch release.
 
-Control Windows media playback and master or per-app volume from Stream Deck. Display artwork and track information on keys, and use Stream Deck + dials for volume or seeking. Includes English and Japanese interfaces, smooth text scrolling and per-action display customization.
+Fixed a missed seek step when turning a Stream Deck + dial repeatedly.
 
-Optional Chrome integration provides browser media information, supported playback controls and connection status in the plugin settings and companion extension. Playback commands use a separate channel from state updates, with incremental updates, image caching and settings change notifications.
+Chrome integration now authenticates the local bridge over HTTPS using a per-user certificate. After updating, register the local bridge again by following the setup guide.
+
+Improved development checks, packaging workflows and guidance for incomplete release reviews.
 
 Chrome integration is optional and requires installing the companion extension from the Chrome Web Store, local bridge registration and enabling sending. Available media information and controls depend on the selected app or browser page. Direct browser previous/next track control is unavailable.

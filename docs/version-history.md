@@ -1,5 +1,13 @@
 # リリース履歴
 
+## 1.0.1（公開準備中）
+
+- ダイヤルを連続して回した際、早送り・巻き戻しが1回分反映されない不具合を修正。
+- Chrome 連携のローカル通信を、ユーザー専用証明書で接続先を検証する HTTPS に変更。
+- npm の検査・パッケージ作成手順を修正し、公開前の確認が未完了の場合の案内を改善。
+
+Chrome 連携を利用している場合は、更新後に [セットアップガイド](marketplace/setup.md) に従ってローカル連携を再登録してください。
+
 ## 1.0.0 (STABLE)
 
 Media Controls の初回 STABLE リリースです。プラグインは [Elgato Marketplace](https://marketplace.elgato.com/product/media-controls-c3009ed3-da9b-44ea-8edb-81db01b81ecc) で無料公開中、任意の Chrome 拡張は [Chrome Web Store](https://chromewebstore.google.com/detail/stream-deck-media-metadat/iagfcpchjohmpnnlcgppdcadehinhdpa) で公開中です。Windows 11 以降（x64）、Stream Deck 7.1 以降に対応します。

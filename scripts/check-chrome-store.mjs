@@ -69,7 +69,7 @@ for(const [path,width,height] of [['assets/chrome-web-store/promo-small.png',440
 }
 for(const path of ['chrome-extension/manifest.json','chrome-extension/options.html','chrome-extension/options.css','chrome-extension/options.js','chrome-extension/localization.js','tests/chrome-e2e.mjs']) {
   const hash=createHash('sha256').update((await read(path)).replaceAll('\r\n','\n')).digest('hex');
-  assert.equal(records.sources?.[path],hash,`Stale screenshot source: ${path}. Run npm run test:chrome:e2e -- --screenshots and review images.`);
+  assert.equal(records.sources?.[path],hash,`Stale screenshot source: ${path}. Run node tests/chrome-e2e.mjs --screenshots and review images.`);
 }
 for(const language of ['en','ja']) {
   const listing=JSON.parse(await read(`docs/chrome-web-store/listing.${language}.json`));
