@@ -6,4 +6,4 @@ Control Windows media playback and master or per-app volume from Stream Deck. Di
 
 Optional Chrome integration provides browser media information, supported playback controls and connection status in the plugin settings and companion extension. Playback commands use a separate channel from state updates, with incremental updates, image caching and settings change notifications.
 
-Chrome integration is optional and requires manual installation of the companion extension, local bridge registration and enabling sending. Available media information and controls depend on the selected app or browser page. Direct browser previous/next track control is unavailable.
+Chrome integration is optional and requires installing the companion extension from the Chrome Web Store, local bridge registration and enabling sending. Available media information and controls depend on the selected app or browser page. Direct browser previous/next track control is unavailable.

@@ -2,6 +2,8 @@
 
 導入・操作・対応環境は [プロジェクト README](../README.md)、公開前の残作業は [ガイドライン総合監査](guideline-audit.md)、項目別の確認状況は [release-review.json](release-review.json) を参照してください。リポジトリの公開と、ストアへの提出・製品の公開は別の状態です。
 
+Chrome 拡張は [Chrome Web Store](https://chromewebstore.google.com/detail/stream-deck-media-metadat/iagfcpchjohmpnnlcgppdcadehinhdpa) で公開中です（2026-10-29、利用者からの公開連絡を反映）。各監査文書の公開前チェックは当時の確認記録として保持しています。
+
 ## 用途別の参照先
 
 | 用途 | 文書 |

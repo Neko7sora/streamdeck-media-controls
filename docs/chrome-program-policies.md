@@ -2,7 +2,7 @@
 
 確認日: 2026-10-25（Asia/Tokyo）。対象: [Program Policies](https://developer.chrome.com/docs/webstore/program-policies/policies)。拡張だけでなく、連携プラグイン、公開ページ、掲載説明、画像、公開者の運用も対象として確認する。Developer Agreement の確認も別途必要。
 
-**公開準備中。ローカルで確認できる実装・説明・検査を整備した段階であり、全要件への適合や審査通過を認証するものではない。** 公開ポリシー URL は未設定。問い合わせ先は利用者指定により GitHub Issues に確定（2026-10-26）。実サイト・物理 Stream Deck・公開者アカウント・ダッシュボードの確認も残っている。
+**[Chrome Web Store で公開中](https://chromewebstore.google.com/detail/stream-deck-media-metadat/iagfcpchjohmpnnlcgppdcadehinhdpa)**（2026-10-29、利用者からの公開連絡を反映）。以下は確認日時点のローカル対応記録であり、全要件への適合を認証するものではない。掲載原稿の公開ポリシー URL は未設定。問い合わせ先は利用者指定により GitHub Issues に確定（2026-10-26）。実サイト・物理 Stream Deck・公開者アカウント・ダッシュボードの確認記録は未完了のまま保持する。
 
 ## 要件との照合
 
