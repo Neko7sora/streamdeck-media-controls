@@ -6,16 +6,18 @@ import {mkdir,mkdtemp,readFile,writeFile,rm} from 'node:fs/promises';
 import {fileURLToPath} from 'node:url';
 import {join} from 'node:path';
 import {load} from './load.mjs';
+import {tls,httpsFetch as fetch} from './tls-fixture.mjs';
 const bridge=await load('chrome-server');
 const hostSource=await readFile(new URL('../scripts/chrome-native-host.mjs',import.meta.url),'utf8');
 
-test('real Native Messaging + authenticated HTTP stream pushes commands, reconnects, and resynchronizes after restart',async t=>{
-  const token='b'.repeat(64);let server=bridge.startChromeServer(()=>{},{token,port:0});await once(server,'listening');
+test('real Native Messaging + pinned HTTPS stream pushes commands, reconnects, and resynchronizes after restart',async t=>{
+  const token='b'.repeat(64);let server=bridge.startChromeServer(()=>{},{token,tls,port:0});await once(server,'listening');
   const port=server.address().port;
   await mkdir(new URL('.generated/',import.meta.url),{recursive:true});
   const root=await mkdtemp(fileURLToPath(new URL('.generated/transport-',import.meta.url)));
   await mkdir(join(root,'StreamDeckMediaControls'));
   await writeFile(join(root,'StreamDeckMediaControls/chrome-token.txt'),token);
+  await writeFile(join(root,'StreamDeckMediaControls/chrome-server.pem'),tls.cert);
   const script=join(root,'host.mjs');await writeFile(script,hostSource.replaceAll('39761',String(port)));
   const child=spawn(process.execPath,[script],{windowsHide:true,env:{...process.env,LOCALAPPDATA:root},stdio:['pipe','pipe','pipe']});
   const messages=[],waiters=[];let buffer=Buffer.alloc(0),id=0,stderr='';
@@ -35,7 +37,7 @@ test('real Native Messaging + authenticated HTTP stream pushes commands, reconne
     child.stdin.write(Buffer.concat([header,data]));const result=await reply;assert.equal(result.error,undefined);return result.body;
   };
   t.after(async()=>{child.kill();server.closeAllConnections();await new Promise(resolve=>server.close(resolve));await rm(root,{recursive:true,force:true});});
-  assert.equal((await fetch(`http://127.0.0.1:${port}/chrome/events`)).status,401);
+  assert.equal((await fetch(`https://127.0.0.1:${port}/chrome/events`)).status,401);
   assert.equal((await request('/status',{})).protocol,2);
   const contact=bridge.chromeConnectionStatus().lastSeen;
   let ready=waitFor(m=>m.event==='ready');await request('/events',{});const first=await ready;
@@ -55,7 +57,7 @@ test('real Native Messaging + authenticated HTTP stream pushes commands, reconne
   ready=waitFor(m=>m.event==='ready');server.closeAllConnections();await ready;
   ready=waitFor(m=>m.event==='ready'&&m.epoch!==first.epoch);
   server.closeAllConnections();await new Promise(resolve=>server.close(resolve));
-  server=bridge.startChromeServer(()=>{},{token,port});await once(server,'listening');await ready;
+  server=bridge.startChromeServer(()=>{},{token,tls,port});await once(server,'listening');await ready;
   const lost=await request('',{...media,base:media.sequence,sequence:media.sequence+1,media:{playback_state:'paused'}});assert.equal(lost.resync,true);
   assert.equal((await request('',{...media,sequence:Date.now()})).ok,true);
   const pushed=waitFor(m=>m.event==='command'),done=bridge.chromeCommand(5,2,'doc','Track','stop',undefined,'media-1');

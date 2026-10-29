@@ -6,13 +6,14 @@ import {join} from "node:path";
 import {execFileSync} from "node:child_process";
 import {fileURLToPath} from "node:url";
 import {load} from "./load.mjs";
+import {tls,httpsFetch as fetch} from './tls-fixture.mjs';
 const bridge=await load("chrome-server");
 test("loopback bridge authenticates, validates, routes exact-frame commands and acknowledges errors",async t=>{
-  const token="a".repeat(64),server=bridge.startChromeServer(()=>{},{token,port:0});
+  const token="a".repeat(64),server=bridge.startChromeServer(()=>{},{token,tls,port:0});
   await once(server,"listening");
   t.after(()=>{server.closeAllConnections();server.close();});
   const address=server.address();assert.equal(address.address,"127.0.0.1");
-  const base=`http://127.0.0.1:${address.port}`;
+  const base=`https://127.0.0.1:${address.port}`;
   const post=(path,body,auth=token)=>fetch(base+path,{method:"POST",headers:{"content-type":"application/json","authorization":`Bearer ${auth}`},body:typeof body==="string"?body:JSON.stringify(body)});
   assert.equal(bridge.chromeConnectionStatus().state,'disconnected');
   assert.equal((await post('/chrome/status',{},'wrong')).status,401);
@@ -46,17 +47,19 @@ test("Windows pairing token has a restricted DACL and survives bridge restart",{
   for(let i=0;i<2;i++){
     const server=bridge.startChromeServer(()=>{},{port:0});await once(server,"listening");
     const token=(await readFile(path,"utf8")).trim();assert.match(token,/^[a-f0-9]{64}$/);
+    const directory=join(root,'StreamDeckMediaControls'),certificate=await readFile(join(directory,'chrome-server.pem'));
+    assert.equal((await fetch(`https://127.0.0.1:${server.address().port}/chrome/status`,{ca:certificate,method:'POST',headers:{'content-type':'application/json',authorization:`Bearer ${token}`},body:'{}'})).status,200);
     const script=`$ErrorActionPreference='Stop';$a=[IO.File]::GetAccessControl($env:SDMC_TEST_FILE); $s=[Security.Principal.WindowsIdentity]::GetCurrent().User.Value; if(-not $a.AreAccessRulesProtected -and -not $a.Access[0].IsInherited){exit 1}; foreach($r in $a.Access){$id=$r.IdentityReference.Translate([Security.Principal.SecurityIdentifier]).Value; if($id -ne $s -and $id -ne 'S-1-5-18'){exit 2}}`;
-    execFileSync(join(process.env.SystemRoot,"System32/WindowsPowerShell/v1.0/powershell.exe"),["-NoProfile","-NonInteractive","-Command",script],{windowsHide:true,env:{...process.env,SDMC_TEST_FILE:path}});
+    for(const file of [path,join(directory,'chrome-server.pem'),join(directory,'chrome-server.pfx')]) execFileSync(join(process.env.SystemRoot,"System32/WindowsPowerShell/v1.0/powershell.exe"),["-NoProfile","-NonInteractive","-Command",script],{windowsHide:true,env:{...process.env,SDMC_TEST_FILE:file}});
     server.closeAllConnections();await new Promise(resolve=>server.close(resolve));
-    if(i===0) t.token=token;else assert.equal(token,t.token);
+    if(i===0) {t.token=token;t.certificate=certificate;} else {assert.equal(token,t.token);assert.deepEqual(certificate,t.certificate);}
   }
 });
 
 test('profile namespaces isolate polling, acknowledgements and reconnected command streams',{timeout:10000},async t=>{
-  const token='c'.repeat(64),server=bridge.startChromeServer(()=>{},{token,port:0});
+  const token='c'.repeat(64),server=bridge.startChromeServer(()=>{},{token,tls,port:0});
   await once(server,'listening');
-  const base=`http://127.0.0.1:${server.address().port}`;
+  const base=`https://127.0.0.1:${server.address().port}`;
   const a='aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',b='bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb';
   const oldHost='11111111-1111-4111-8111-111111111111',newHost='22222222-2222-4222-8222-222222222222';
   const controllers=[];

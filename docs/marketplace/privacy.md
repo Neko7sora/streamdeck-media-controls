@@ -24,14 +24,14 @@ When sending is enabled, the extension transfers available Media Session and acc
 
 Empty observations clear an earlier media target without sending page titles, page addresses or arbitrary page fields. They do not fetch images.
 
-Communication uses Chrome Native Messaging and authenticated HTTP bound to `127.0.0.1:39761`. A random bridge token and native host files are stored under `%LOCALAPPDATA%\StreamDeckMediaControls`. Registration requires the user to verify and enter the extension ID from `chrome://extensions`, and adds a per-user native host registry entry for that one ID. It does not select extensions by reading Chrome profile settings. The token is not sent to web pages or stored in the extension.
+Communication uses Chrome Native Messaging and certificate-pinned HTTPS with bearer authentication bound to `127.0.0.1:39761`. A random bridge token, per-user TLS certificate/private key and native host files are stored under `%LOCALAPPDATA%\StreamDeckMediaControls`. Registration requires the user to verify and enter the extension ID from `chrome://extensions`, and adds a per-user native host registry entry for that one ID. It does not select extensions by reading Chrome profile settings. The token is not sent to web pages or stored in the extension.
 
 Artwork and favicon fetching can contact the original website or an image host over HTTPS. These servers receive ordinary request information, such as your IP address and the requested image URL. Unlike page addresses, image URLs may retain site-provided query parameters. Requests omit credentials, do not follow redirects and send no referrer. This is separate from the local transfer of media information. The plugin does not collect audio/video streams or DRM data.
 
 ## Stopping use and deleting local data
 
 1. Disable sending and save in the Chrome extension settings. Remove the extension through `chrome://extensions` to remove its local settings and bridge identifier. Restart Chrome to unload page scripts from existing tabs.
-2. Stop Stream Deck before deleting bridge files. Remove the registry entry `HKEY_CURRENT_USER\Software\Google\Chrome\NativeMessagingHosts\dev.n7s.media_controls` and the directory `%LOCALAPPDATA%\StreamDeckMediaControls` if you no longer use the bridge. The directory contains the token and native host files; the plugin can recreate them if restarted or registered again.
+2. Stop Stream Deck before deleting bridge files. Remove the registry entry `HKEY_CURRENT_USER\Software\Google\Chrome\NativeMessagingHosts\dev.n7s.media_controls` and the directory `%LOCALAPPDATA%\StreamDeckMediaControls` if you no longer use the bridge. The directory contains the token, TLS identity and native host files; the plugin can recreate them if restarted or registered again.
 3. Remove the plugin's actions from Stream Deck profiles and uninstall the plugin through Stream Deck. Local diagnostic logs are in the plugin's `logs` directory. Delete residual plugin files if they remain after uninstalling. Profile backups may retain action settings until you delete those backups.
 4. Exit the plugin and Chrome to clear their in-memory media caches. The developer does not store a remote copy of this local media data.
 

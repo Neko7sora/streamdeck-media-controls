@@ -18,11 +18,11 @@
     </section>
     <section aria-labelledby="policy-network">
       <h2 id="policy-network" data-i18n="extension.policy.network.title">Where it goes</h2>
-      <p data-i18n="extension.policy.network">Media data travels through Chrome Native Messaging to a local host, then authenticated HTTP on 127.0.0.1:39761 to the plugin. Artwork and favicons are fetched separately from public HTTPS image hosts without credentials or referrers; those hosts receive your IP address and requested image URL. Image URLs can contain site-provided query parameters. No media is sent to the developer.</p>
+      <p data-i18n="extension.policy.network">Media data travels through Chrome Native Messaging to a local host, then certificate-pinned HTTPS on 127.0.0.1:39761 to the plugin. Artwork and favicons are fetched separately from public HTTPS image hosts without credentials or referrers; those hosts receive your IP address and requested image URL. Image URLs can contain site-provided query parameters. No media is sent to the developer.</p>
     </section>
     <section aria-labelledby="policy-storage">
       <h2 id="policy-storage" data-i18n="extension.policy.storage.title">Storage and retention</h2>
-      <p data-i18n="extension.policy.storage">Sending preferences and a random local bridge identifier are stored in extension local storage, not Chrome sync. Live media and bounded image caches stay in memory, not a saved browsing or listening history. The companion plugin stores action settings and local diagnostic logs; review logs before sharing. Native host files and a secret token are stored under %LOCALAPPDATA%\StreamDeckMediaControls. The token is not exposed to pages or stored in the extension.</p>
+      <p data-i18n="extension.policy.storage">Sending preferences and a random local bridge identifier are stored in extension local storage, not Chrome sync. Live media and bounded image caches stay in memory, not a saved browsing or listening history. The companion plugin stores action settings and local diagnostic logs; review logs before sharing. Native host files, a secret token and the private TLS identity are stored under %LOCALAPPDATA%\StreamDeckMediaControls. The token is not exposed to pages or stored in the extension.</p>
     </section>
     <section aria-labelledby="policy-control">
       <h2 id="policy-control" data-i18n="extension.policy.control.title">Control and deletion</h2>
