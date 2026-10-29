@@ -63,6 +63,9 @@ export class DialSeeking {
     const requested = relative ? state.target + value : value;
     const destination = seekPosition(media, requested);
     this.pending.set(id, state);
+    // A sample already seen during this gesture must not reset the accumulated
+    // target after the in-flight command completes.
+    state.sample = sample;
     state.destination = destination;
     // Keep accumulated time inside a gap so small ticks can reach the next range.
     // Only the outer bounds discard overshoot, allowing an immediate reversal.

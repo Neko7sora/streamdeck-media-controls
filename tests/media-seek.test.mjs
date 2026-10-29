@@ -23,6 +23,22 @@ test('rapid ticks accumulate and coalesce while one seek is pending',async()=>{
  assert.equal(sent.at(-1),85);
 });
 
+test('position samples observed while seeking do not discard later accumulated ticks',async()=>{
+ const dial=new DialSeeking(),sent=[];let release;
+ const send=async position=>{sent.push(position);if(sent.length===1) await new Promise(resolve=>{release=resolve;});};
+ const first=dial.rotate('dial',media,5,send,10000);
+ // The provider reports the first seek before the next queued seek finishes.
+ const acknowledged={...media,timeline:{...media.timeline,updated_at:10001,position_sec:55}};
+ const second=dial.rotate('dial',acknowledged,5,send,10001);
+ release();await Promise.all([first,second]);
+ await dial.rotate('dial',acknowledged,5,send,10002);
+ assert.deepEqual(sent,[55,60,65],'an already-observed sample must not rewind the accumulated target');
+ // An external position change after the queue drains still replaces the base.
+ const moved={...media,timeline:{...media.timeline,updated_at:10003,position_sec:80}};
+ await dial.rotate('dial',moved,5,send,10003);
+ assert.equal(sent.at(-1),85);
+});
+
 test('seek bounds respect nonzero starts, browser gaps and unsupported sessions',()=>{
  assert.equal(seekPosition(media,-100),10);
  assert.equal(seekPosition(media,500),110);
