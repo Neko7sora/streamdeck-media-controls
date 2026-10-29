@@ -2,20 +2,20 @@
 
 確認日: 2026-10-23（Asia/Tokyo）。対象は [Product Guidelines](https://docs.elgato.com/guidelines/products/)、関連する [Branding Guidelines](https://docs.elgato.com/guidelines/branding/) と [提出手順](https://docs.elgato.com/maker-console/submitting-products/)。プラグイン本体の確認は [既存の記録](plugin-guidelines.md) を参照してください。
 
-本変更で掲載用の原稿・画像・機械検査を用意しました。**公開準備中**です。下の手動項目は未確認で、審査適合や採用を確約するものではありません。
+Media Controls は **[Elgato Marketplace で無料公開中](https://marketplace.elgato.com/product/media-controls-c3009ed3-da9b-44ea-8edb-81db01b81ecc)** です。この文書は掲載原稿・画像・機械検査と、更新時の確認手順をまとめています。確認日と検証結果は当時の記録です。
 
 ## 掲載用ファイル
 
 | 用途 | ファイル | 内容 |
 |---|---|---|
-| 商品情報の原稿 | [listing.en.json](marketplace/listing.en.json) | `Media Controls`、英語説明、画像パス、追加リンク案、AI使用の開示。無料（`pricing.type: free`） |
+| 商品情報の原稿 | [listing.en.json](marketplace/listing.en.json) | `Media Controls`、英語説明、画像パス、追加リンク、AI使用の開示。無料（`pricing.type: free`） |
 | 貼り付け用説明 | [description.en.txt](marketplace/description.en.txt) | JSON から生成した、250～1,500文字の英語プレーンテキスト。最初の250文字に機能と対象を記載 |
 | Marketplace app icon | [app-icon.png](../assets/marketplace/app-icon.png) | 288 × 288 の静止 PNG。既存の製品マークから生成 |
 | サムネイル | [thumbnail.png](../assets/marketplace/thumbnail.png) | 1920 × 960 PNG |
 | ギャラリー1 | [gallery-01-now-playing.png](../assets/marketplace/gallery-01-now-playing.png) | 1920 × 960 PNG。再生中／一時停止のキー表示 |
 | ギャラリー2 | [gallery-02-controls.png](../assets/marketplace/gallery-02-controls.png) | 1920 × 960 PNG。同梱の再生・音量操作アイコン |
 | ギャラリー3 | [gallery-03-customization.png](../assets/marketplace/gallery-03-customization.png) | 1920 × 960 PNG。全情報／アートワークのみ／文字のみ |
-| セットアップ | [setup.md](marketplace/setup.md) | Windows・Stream Deck・Chrome の要件、手動の拡張導入、操作と制限を英語で説明 |
+| セットアップ | [setup.md](marketplace/setup.md) | Windows・Stream Deck・Chrome の要件、ストアからの導入とローカル連携登録、操作と制限を英語で説明 |
 | リリースノート原稿 | [release-notes.en.txt](marketplace/release-notes.en.txt) | 初回リリース v1.0.0（STABLE）の機能と制限を英語で記載 |
 | データの取り扱い | [privacy.md](marketplace/privacy.md) | ローカル処理、画像取得の外部通信、Chrome の opt-in、設定・トークン・ログ・削除手順を英語で説明 |
 | 生成記録 | [provenance.json](../assets/marketplace/provenance.json) | 原稿・描画ソース・画像の SHA-256、架空データの由来、AI使用の開示 |
@@ -24,7 +24,7 @@ Marketplace 用の288pxアイコンは、プラグイン設定用の256 / 512px�
 
 ## 要件と対応範囲
 
-| ガイドライン | ローカルで用意・確認すること | 公開前に必要な判断 |
+| ガイドライン | ローカルで用意・確認すること | 更新時に確認すること |
 |---|---|---|
 | Name | 英語・先頭大文字・30文字以下。manifest と名称を一致させ、作者名や宣伝文句を加えない | `Media Controls` の独自性・他商品や商標との混同。汎用的な名称なので現行の掲載と Maker Console で確認する。既存商品の改名は Elgato への連絡が必要 |
 | Description | 250～1,500文字、先頭250文字は装飾なし。機能・必要環境・Chrome の手動設定・操作制限を明記 | 実機確認を踏まえて正確さを確認。掲載時も全文を使用する |
@@ -55,7 +55,9 @@ npm run validate
 
 2026-10-23 の検証では、商品検査（説明1,341文字、PNG 5点）、プラグイン画像・レイアウト検査、翻訳生成物・JS構文・TypeScript型チェック、Windowsネイティブとプラグインのビルド、パッケージ資産・画像ランタイム検査、Elgato CLI の `Validation successful` を確認しました。既存JSテスト181件のうち178件はサンドボックス内で成功、localhostへの接続が `EACCES` になった3件は該当ファイルを制限外で再実行して成功しました。追加の実機操作は行っていません。画像5点も目視確認済みです。
 
-## Maker Console に提出する前に
+## 掲載内容・パッケージの更新時に
+
+以下はリポジトリ内の確認記録と更新時のチェック項目です。未記録の項目は、公開中の商品の掲載状態を示すものではありません。
 
 - [x] 利用者指定により無料配布、組織名 Neko7sora（manifest の Author と一致）、問い合わせ先 GitHub Issues を確定（2026-10-26）。
 - [ ] 商品名の独自性、Maker Console の実際の組織表示、他所での配布価格との一致を確認する。
@@ -64,9 +66,9 @@ npm run validate
 - [ ] 実機でキー・ダイヤル・設定画面・失敗時の動作を検証し、掲載内容と照合する。受け入れ項目は README を参照。
 - [ ] setup / privacy 文書の公開内容が最新の原稿と一致することを確認し、JSON の `links` がログインなしで到達することを確認する。現在の参照先はリポジトリの `main` ブランチ。リポジトリの公開化だけでは文書の反映・到達性を確認済みとしない。support の到達性も確認する。
 - [ ] 更新済みのプライバシー説明と GitHub Issues の問い合わせ手順が公開されていることを確認する。公開Issueに個人情報やトークンを投稿させない。
-- [ ] CLI 検証後にパッケージを作成し、Maker Console に商品ファイル、英語説明、288pxアイコン、サムネイル、ギャラリー3点、追加リンク、リリースノートを入力する。
-- [ ] 掲載プレビューで文字の読みやすさと機能の正確さを確認して提出する。
+- [ ] 公開済みバージョンを確認して更新番号を変更し、CLI 検証後にパッケージを作成する。Maker Console の商品ファイル、英語説明、288pxアイコン、サムネイル、ギャラリー3点、追加リンク、リリースノートを更新する。
+- [ ] 掲載プレビューで文字の読みやすさと機能の正確さを確認して更新版を提出する。
 
-この作業はローカルでの公開準備です。Maker Console への登録、提出、公開、価格変更は行っていません。
+掲載原稿や画像のローカル更新後は、Maker Console の掲載内容にも反映します。生成・検査コマンドはストアへのアップロードや掲載変更を行いません。
 
-2026-10-26 の追加監査・修正・公開条件は [総合監査](guideline-audit.md) を参照。
+2026-10-26 の追加監査・修正記録と更新時の確認手順は [総合監査](guideline-audit.md) を参照。

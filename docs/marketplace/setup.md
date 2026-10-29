@@ -2,7 +2,7 @@
 
 Requires Windows 11 or later (x64), and Stream Deck 7.1 or later. Dial actions require Stream Deck +. macOS is not supported.
 
-Install the plugin and add a Media Controls action to a key or dial. Start a media app and choose a playback target in the action settings, or leave automatic selection enabled. Choose the system output or an available app as the separate audio target for volume actions. Artwork, metadata and playback controls depend on what the selected app exposes to Windows. Unsupported operations show an alert.
+Install the free plugin from the [Elgato Marketplace](https://marketplace.elgato.com/product/media-controls-c3009ed3-da9b-44ea-8edb-81db01b81ecc) and add a Media Controls action to a key or dial. Start a media app and choose a playback target in the action settings, or leave automatic selection enabled. Choose the system output or an available app as the separate audio target for volume actions. Artwork, metadata and playback controls depend on what the selected app exposes to Windows. Unsupported operations show an alert.
 
 Now Playing displays artwork, track title, artist and playback state. Now Playing + also displays available playback time and progress. Rotate its dial to seek (default: five seconds per tick), or choose volume mode in settings. Press to play/pause, tap the progress bar to seek when supported, or hold the touch strip to cycle sessions. Volume Dial rotates for volume and uses press/tap for mute. Display customization and scrolling settings apply to each action independently.
 

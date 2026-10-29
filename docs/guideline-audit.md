@@ -2,17 +2,17 @@
 
 確認日: 2026-10-26（Asia/Tokyo）。対象は Elgato の [Plugin Guidelines](https://docs.elgato.com/guidelines/stream-deck/plugins/)、[Product Guidelines](https://docs.elgato.com/guidelines/products/)、[Branding Guidelines](https://docs.elgato.com/guidelines/branding/)、[提出手順](https://docs.elgato.com/maker-console/submitting-products/)、Chrome の [Program Policies](https://developer.chrome.com/docs/webstore/program-policies/policies)、[Best practices](https://developer.chrome.com/docs/webstore/best-practices)、[掲載指針](https://developer.chrome.com/docs/webstore/best-listing)、[拡張セキュリティ](https://developer.chrome.com/docs/extensions/develop/migrate/improve-security)。必須条件と推奨事項を区別し、既存の項目別記録も照合した。
 
-**ローカルの修正と検査を実施。公開適合の最終確認は未完了。** 物理デバイス、公開者アカウント、権利や人による制作への関与を、自動テストの結果で代用しない。
+**Media Controls と任意の Chrome 拡張は両ストアで公開中。** この文書は監査時点の修正・検査結果と、今後の更新で使用する確認記録をまとめたもの。物理デバイス、公開者アカウント、権利や人による制作への関与の根拠は、項目ごとに記録する。
 
 この文書の実行結果・依存バージョンは上記確認日の記録。以後の依存更新については `package.json` / `package-lock.json` を参照し、過去の監査結果を現在の全変更の検証済み記録として扱わない。各文書の役割と更新時の照合先は [ドキュメント一覧](README.md) にまとめた。
 
 ## 確定した公開情報
 
-Chrome 拡張は [Chrome Web Store](https://chromewebstore.google.com/detail/stream-deck-media-metadat/iagfcpchjohmpnnlcgppdcadehinhdpa) で公開済み（2026-10-29、利用者からの公開連絡）。ストア版の拡張 ID は `iagfcpchjohmpnnlcgppdcadehinhdpa`。README・セットアップ・リリース履歴へ反映した。公開の連絡を受けた事実と、以下の実機・公開リンク・ダッシュボード設定の確認記録は区別し、未確認項目を自動的に完了にはしない。
+Media Controls は [Elgato Marketplace](https://marketplace.elgato.com/product/media-controls-c3009ed3-da9b-44ea-8edb-81db01b81ecc)、Chrome 拡張は [Chrome Web Store](https://chromewebstore.google.com/detail/stream-deck-media-metadat/iagfcpchjohmpnnlcgppdcadehinhdpa) で公開中。ストア版の拡張 ID は `iagfcpchjohmpnnlcgppdcadehinhdpa`。2026-10-29 に、両ストアで公開済みの前提へ文書を更新した。
 
 利用者の指定により、Marketplace は無料、組織名は `Neko7sora`、一般的な問い合わせ先は [GitHub Issues](https://github.com/Neko7sora/streamdeck-media-controls/issues)。日英の掲載原稿、同梱ポリシー、公開用原稿、検査を統一した。再生情報・設定・キャッシュはPC内で利用者自身が削除する手順を案内する。開発者はそのコピーをサーバーに保存しない。Issue に個人情報やトークンを投稿させない。問い合わせ先の確定と公開到達性の検証は別の項目として扱う。
 
-利用者がコードと履歴を含む公開を明示的に指定したため、リポジトリを **public** に変更し、GitHub API で `isPrivate: false`、Issues 有効を確認した。その後の設定は利用者の指定で保留中。更新した原稿の公開内容との一致やリンクの到達性の検証は未完了で、`publicLinks` は未完了、`privacyPolicyUrl` は未設定として維持する。
+リポジトリは **public**、Issues は有効。リポジトリ内では `publicLinks` の確認根拠と掲載原稿の `privacyPolicyUrl` が未記録のため、更新時にダッシュボードの設定・公開ページと照合して補完する。これらはローカルの記録状況であり、ストアの公開状況を示す項目ではない。
 
 ## 修正した問題
 
@@ -28,6 +28,8 @@ Chrome 拡張は [Chrome Web Store](https://chromewebstore.google.com/detail/str
 ## 残る確認と証拠の記録
 
 `release-review.json` の各項目に `reviewedOn`（YYYY-MM-DD）、`reviewer`、`evidence`（環境・手順・結果、または記録への参照）を記入する。未検証の項目を成功として記録しない。
+
+現在の確認記録には未記入の項目がある。公開済みという状態から検証結果を補完せず、更新対象のソースに対して確認した根拠を記録する。
 
 | キー | 記録する根拠 |
 |---|---|
@@ -51,13 +53,13 @@ npm run validate
 npm run release:status
 ```
 
-`npm run pack` は総合検査と公開前記録の検査後に正式パッケージを作る。ローカルで確認する候補は `npm run pack:review`、Chrome は `npm run chrome:pack`。Chrome の提出用は `npm run chrome:pack -- -Release`。候補パッケージの作成は公開可の判定ではない。
+`npm run pack` は総合検査と更新対象の確認記録の検査後に正式パッケージを作る。ローカルで確認する候補は `npm run pack:review`、Chrome は `npm run chrome:pack`。Chrome の更新提出用は `npm run chrome:pack -- -Release`。これらのコマンドはストアへのアップロードや公開を行わない。
 
 正式なプラグイン作成では Marketplace の確認記録を要求し、`release:check` は両ストアの確認記録を要求する。依存の最新監査には `dependencies:check`（`npm audit`、ネットワーク接続が必要）を使用する。ローカルの `check` は監査APIへの接続を要求しない。
 
 Zod の override は `@elgato/utils` が既に使っている `zod/v4-mini` を修正版へ置き換えるもの。元の宣言は `^3.25.24` だが、このパッケージには初期版の v4 も同梱されるため、宣言だけでは修正版へ更新されない。[Zod の告知](https://github.com/advisories/GHSA-mrhx-c7xc-m3w5) と [fast-uri の告知](https://github.com/advisories/GHSA-w74x-v6f9-j3xg) を確認した。SDK または utils の将来更新時は override の必要性と実 SDK 互換性テストを再評価する。npm が提案する SDK 1.x への強制ダウングレードは適用していない。
 
-## 今回の実行結果
+## 2026-10-26 の実行結果
 
 | 検査 | 結果 |
 |---|---|
@@ -72,4 +74,4 @@ Zod の override は `@elgato/utils` が既に使っている `zod/v4-mini` を�
 
 最初のlocalhost検査はサンドボックスの `EACCES`、ブラウザ起動も実行環境の制限を受けた。許可された実行環境で再検査して成功した。Webガイダンス用の外部最新版npm実行は自動承認レビューが拒否したため、実行せず公式資料を直接参照した。
 
-ストアへの公開・提出・インストール・物理デバイス操作は実施していない。総合確認記録は未完了のまま維持している。
+この監査作業ではローカルの修正と検査を実施し、ストア操作や物理デバイス操作は行わなかった。上記は監査当時の実行範囲であり、現在の両ストアの公開状況は「確定した公開情報」を参照。
