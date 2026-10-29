@@ -49,6 +49,16 @@ export function releaseProblems(review,version,fingerprint,target='all') {
   return problems;
 }
 
+export function releaseFailureMessage(problems,target='all') {
+  const commands=target==='chrome'?['npm run chrome:pack']:target==='marketplace'?['npm run pack:review']:['npm run pack:review','npm run chrome:pack'];
+  return 'Release is not ready:\n- '+problems.join('\n- ')+
+    '\n\nTo create a local package for testing, use:\n  '+commands.join('\n  ')+
+    '\n\nFor release packaging, complete the applicable reviews in docs/release-review.json.'+
+    '\nRecord the reviewer, review date and evidence for each required check.'+
+    '\nAfter reviewing the final source, record the output of node scripts/check-release.mjs --fingerprint as sourceFingerprint.'+
+    '\nSee docs/guideline-audit.md for the review requirements.';
+}
+
 export function checkRelease(target='all') {
   const read=path=>JSON.parse(readFileSync(path,'utf8'));
   const version=read('package.json').version,review=read('docs/release-review.json');
@@ -66,10 +76,15 @@ export function checkRelease(target='all') {
     if(!https(listing.privacyPolicyUrl)) problems.push(`${language}: public HTTPS privacy policy URL required`);
     if(!https(listing.supportUrl)) problems.push(`${language}: support URL required`);
   }
-  if(problems.length) throw new Error('Release is not ready:\n- '+problems.join('\n- '));
+  if(problems.length) throw new Error(releaseFailureMessage(problems,target));
   console.log(`Release review: ${target} ready for publisher submission (store approval is separate)`);
 }
 if(process.argv[1]&&import.meta.url===pathToFileURL(resolve(process.argv[1])).href) {
-  if(process.argv.includes('--fingerprint')) console.log(sourceFingerprint());
-  else checkRelease(process.argv[2]??'all');
+  try {
+    if(process.argv.includes('--fingerprint')) console.log(sourceFingerprint());
+    else checkRelease(process.argv[2]??'all');
+  } catch(error) {
+    console.error(error.message);
+    process.exitCode=1;
+  }
 }

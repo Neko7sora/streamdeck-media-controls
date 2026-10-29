@@ -24,7 +24,7 @@ export async function checkMarketplace() {
   require(description.includes("AI assistance"),"Include AI usage disclosure in the submitted listing description");
   require(description.includes("plugin development"),"AI disclosure must include known development assistance");
   require(listing.pricing?.type==="free"||(listing.pricing?.type==="paid"&&Number.isFinite(listing.pricing.amount)&&listing.pricing.amount>0&&/^[A-Z]{3}$/.test(listing.pricing.currency??"")),"Specify free or paid pricing with amount and currency");
-  require(read("docs/marketplace/description.en.txt").toString("utf8").trimEnd()===description,"Stale description.en.txt; run npm run marketplace:build");
+  require(read("docs/marketplace/description.en.txt").toString("utf8").replaceAll("\r\n","\n").trimEnd()===description,"Stale description.en.txt; run npm run marketplace:build");
   require(Array.isArray(listing.gallery)&&listing.gallery.length>=3&&listing.gallery.length<=10,"Provide 3–10 gallery items");
   const images=[listing.appIcon,listing.thumbnail,...listing.gallery];
   require(new Set(images).size===images.length,"Provide separate app icon, thumbnail and gallery files");

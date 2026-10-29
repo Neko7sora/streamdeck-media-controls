@@ -15,6 +15,7 @@
     "chrome:store:check": "node scripts/check-chrome-store.mjs",
     "chrome:release:check": "node scripts/check-chrome-store.mjs --release && node scripts/check-release.mjs chrome",
     "chrome:pack": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/pack-chrome.ps1",
+    "test:chrome:install": "playwright install chromium",
     "test:chrome:e2e": "node tests/chrome-e2e.mjs && node tests/chrome-frame-e2e.mjs",
     "guidelines:check": "node scripts/check-guidelines.mjs",
     "marketplace:build": "node scripts/build-marketplace.mjs",

@@ -36,7 +36,7 @@ HTTP のページ情報は既存のメディアページ対応のために観測
 npm run chrome:icons
 npm run locales:build
 npm run chrome:listing:build
-npx playwright install chromium
+npm run test:chrome:install
 node tests/chrome-e2e.mjs --screenshots
 node tests/chrome-frame-e2e.mjs
 npm run chrome:store:check
