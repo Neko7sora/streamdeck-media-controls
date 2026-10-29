@@ -1,6 +1,6 @@
 # Stream Deck Media Controls v1.0.0 (STABLE)
 
-**Elgato Marketplace と Chrome Web Store で公開中**。文書の用途と更新時の参照元は [ドキュメント一覧](docs/README.md)、確認記録と残る確認は [ガイドライン総合監査](docs/guideline-audit.md) を参照してください。
+Windows のメディア再生、音量調整、曲情報の表示を Stream Deck から操作できるプラグインです。**Elgato Marketplace で無料公開中**。任意の Chrome 拡張も **Chrome Web Store で公開中**です。
 
 ## インストール / Installation
 
@@ -28,19 +28,11 @@ Japanese and English interfaces are supported. Plugin settings and key / dial la
 
 翻訳は `locales/*.json` で管理しています。他言語の追加方法は [翻訳ガイド](locales/README.md) を参照してください。
 
-横断的な監査結果・修正・公開前の残作業は [ガイドライン総合監査](docs/guideline-audit.md) を参照してください。
+v1.0.0 は初回の STABLE リリースです。再生操作、マスター／アプリ別音量、アートワーク・曲情報の表示、Stream Deck + のダイヤル操作を利用できます。日本語の曲名・アーティスト名の描画、滑らかなスクロール、再生位置のリアルタイム表示、ダイヤルによる巻き戻し・早送りに対応しています。設定画面と Chrome 拡張には実際の接続状態を表示し、再生ページがなくても連携を確認できます。Chrome の拡張ボタンには接続・未接続・送信無効のバッジを表示します。操作指示は状態更新と独立した常設経路で送信し、状態の差分送信、画像キャッシュ、設定画面の変更通知を使用します。通信設計と開発中の測定結果は [COMMUNICATION.md](COMMUNICATION.md) を参照してください。
 
-Elgato のプラグインガイドラインへの対応状況・自動検査・公開前の確認事項は [ガイドライン対応記録](docs/plugin-guidelines.md) を参照してください。
+[データとプライバシー / Privacy policy](docs/marketplace/privacy.md) に、情報の用途・通信先・停止と削除の手順をまとめています。お問い合わせは [GitHub Issues](https://github.com/Neko7sora/streamdeck-media-controls/issues) へお願いします。
 
-Chrome Web Store のベストプラクティスに合わせた掲載原稿・日英のプライバシー説明・アイコン・ブラウザテスト・ZIP 作成手順は [Chrome Web Store 対応記録](docs/chrome-web-store.md) を参照してください。拡張の公開は2026-10-29に利用者から連絡を受けました。公開ポリシー URL、GitHub Issues の到達性、実サイトと物理 Stream Deck での受け入れ確認について、リポジトリ内の確認記録は未完了です。
-
-掲載ページの概要・説明文、スクリーンショット、プロモーション画像と提出ファイルは [掲載ページの準備](docs/chrome-web-store/best-listing.md) にまとめています。
-
-[データとプライバシー / Privacy policy](docs/marketplace/privacy.md)（Limited Use 表明・情報の用途・通信先・削除手順）。[Program Policies 対応記録](docs/chrome-program-policies.md) に、必須ポリシーとの照合結果と公開前の残作業をまとめています。
-
-Marketplace の商品ガイドラインに合わせた英語説明、288pxアイコン、1920×960pxのサムネイルとギャラリー3点は [商品ガイドライン対応記録](docs/product-guidelines.md) にまとめています。`npm run marketplace:build` で再生成、`npm run marketplace:check` でローカル検査できます。名称の独自性、権利、AI使用履歴、実機確認、公開リンクの到達性は提出前に確認が必要です。無料配布、組織名 Neko7sora、問い合わせ先 GitHub Issues は確定しました。
-
-Windows + Chrome 向けの Stream Deck プラグインです。v1.0.0 は初回の STABLE リリースです。再生操作、マスター／アプリ別音量、アートワーク・曲情報の表示、Stream Deck + のダイヤル操作を利用できます。日本語の曲名・アーティスト名の描画、滑らかなスクロール、再生位置のリアルタイム表示、ダイヤルによる巻き戻し・早送りに対応しています。設定画面と Chrome 拡張には実際の接続状態を表示し、再生ページがなくても連携を確認できます。Chrome の拡張ボタンには接続・未接続・送信無効のバッジを表示します。操作指示は状態更新と独立した常設経路で送信し、状態の差分送信、画像キャッシュ、設定画面の変更通知を使用します。通信設計と開発中の測定結果は [COMMUNICATION.md](COMMUNICATION.md) を参照してください。
+開発・保守向けの掲載資料、ガイドライン対応、検査手順は [ドキュメント一覧](docs/README.md) を参照してください。監査時点の検証結果と更新時の確認記録は [ガイドライン総合監査](docs/guideline-audit.md) にまとめています。
 
 **検証状況：Windows x64 のビルド・API 読み取り・自動テストは確認済みですが、物理 Stream Deck / Stream Deck + と実 Chrome 拡張を通した実サイト操作は未確認です。** 自動テストではセッション選択、Chrome の処理待ち、ヘルパー切断・復旧、シーク、日本語フォント・連続フレームの描画を確認しています。
 

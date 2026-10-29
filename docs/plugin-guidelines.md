@@ -2,13 +2,13 @@
 
 確認日: 2026-10-23（Asia/Tokyo）
 
-対象: [Elgato Plugin Guidelines](https://docs.elgato.com/guidelines/stream-deck/plugins/)。このページの Requirements と Recommendations を区別して確認しています。実装と自動検査の適合は、Marketplace の審査通過を保証するものではありません。商品名・英語説明・掲載画像・AI開示・データの取り扱いなど、Product Guidelines への対応は [商品ガイドライン対応記録](product-guidelines.md) を参照してください。
+Media Controls は **[Elgato Marketplace で公開中](https://marketplace.elgato.com/product/media-controls-c3009ed3-da9b-44ea-8edb-81db01b81ecc)** です。この文書は [Elgato Plugin Guidelines](https://docs.elgato.com/guidelines/stream-deck/plugins/) の Requirements と Recommendations に対する実装・検査の記録です。商品名・英語説明・掲載画像・AI開示・データの取り扱いなど、Product Guidelines への対応は [商品ガイドライン対応記録](product-guidelines.md) を参照してください。
 
 | 項目 | 実装・確認内容 |
 |---|---|
 | UUID | `dev.n7s.media-controls` とその接頭辞を持つ既存のアクション UUID を維持。フォルダー名との一致・重複も検査 |
 | Name / Category | `Media Controls` で統一。作者名をカテゴリに付けず、各アクションには説明的な名前と Tooltip を設定 |
-| Author | 現在は `Neko7sora`。Marketplace の組織名との一致は公開前に確認が必要 |
+| Author | `Neko7sora`。更新時も manifest と Marketplace の組織名を揃える |
 | Plugin icon | 256 × 256 / 512 × 512 PNG。元の再生マークを SVG 原稿から再生成 |
 | Action list icons | カテゴリ 28 / 56、アクション 20 / 40 px。白 `#FFFFFF`、背景透過の PNG を画素検査 |
 | Key icons | 72 / 144 px の PNG を検査。動的なキー画像は 144 px。Now Playing は状態表示を更新し、基本の Play / Pause も再生中は一時停止アイコンへ更新 |
@@ -33,10 +33,10 @@ npm run validate
 
 2026-10-23 の検証では、JS 181 件、翻訳の生成物整合性、Chrome / 設定画面の構文、TypeScript 型チェック、Windows ネイティブヘルパーの release ビルド、プラグインのビルド、同梱画像ランタイムと資産の検査、Elgato CLI `validate` が成功しました。JS のうちローカル HTTP 通信を使う3件はサンドボックスの接続拒否により制限外で再実行して成功しています。フォント描画の検証には作業フォルダー内の一時キャッシュを使用しました。
 
-## 公開前に残る確認
+## 更新時の確認
 
 - Marketplace 上で `Media Controls` の名称が重複しないこと。公開検索だけでは名称の利用可否を確定できないため、Maker Console と現行の掲載内容で確認する。
 - `Author` が Marketplace の組織名と一致し、名称・画像の使用権があること。
 - 実機でキーとダイヤルの表示、失敗アラート、スクロール、下部35pxのシーク、上部タップと長押しを確認する。
 - 実際の Stream Deck 設定画面で日本語／英語の初期表示、自動保存、対象切断の警告、ヘルプの起動を確認する。
-- 提出する最終ソースに対して CLI の manifest 検証を再実行し、用意済みの [Marketplace 原稿・素材](product-guidelines.md) と公開前の [確認記録](guideline-audit.md) を完成させる。本記録は指定ページのプラグインガイドラインに限定しており、他の商品・ブランド・提出ガイドラインの審査完了を意味しない。
+- 更新する最終ソースに対して CLI の manifest 検証を再実行し、[Marketplace 原稿・素材](product-guidelines.md) と [確認記録](guideline-audit.md) を更新する。本記録はプラグインガイドラインを対象としており、商品・ブランド・提出に関する確認はそれぞれの対応記録も参照する。

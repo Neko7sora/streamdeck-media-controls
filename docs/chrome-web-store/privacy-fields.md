@@ -1,6 +1,6 @@
-# Chrome Web Store Privacy practices 入力原稿
+# Chrome Web Store Privacy practices 管理資料
 
-2026-10-25。提出前にダッシュボードの現行項目と実装を確認する。**未提出の原稿**。
+原稿確認日: 2026-10-25。拡張は [Chrome Web Store](https://chromewebstore.google.com/detail/stream-deck-media-metadat/iagfcpchjohmpnnlcgppdcadehinhdpa) で公開中。この文書はデータ用途・権限理由の管理資料。更新時は実装とダッシュボードの現行項目を照合し、申告内容を揃える。
 
 ## Single purpose description
 
@@ -24,7 +24,7 @@ No, I am not using remote code. All executable JavaScript is packaged with the e
 
 ## User data / Limited use
 
-「開発者のサーバーに送らない」だけを理由に全項目を未選択にしない。以下を実装と照合し、現行の分類・ヘルプに従って最終申告する。
+更新時は以下を実装と照合し、現行の分類・ヘルプに従って申告内容を確認する。PC内だけで処理する情報も照合対象に含める。
 
 | データ | 実装の用途と開示内容 |
 |---|---|
@@ -35,12 +35,12 @@ No, I am not using remote code. All executable JavaScript is packaged with the e
 
 データを販売せず、単一目的以外や信用判断・融資に使用しない。認証情報・位置情報・支払い情報・健康情報を要求しない。サイトが曲名等に私的な情報を含める可能性があるため、データを一般に「非機密」と断定しない。最終的なチェックボックスの分類と適合の認証は公開者が確認する。
 
-同梱ポリシーと公開用原稿には「Chrome Web Store User Data Policy の Limited Use 要件に準拠する」と明記している。README から公開用原稿へ直接リンクする。公開後もホームページから1クリック以内にこの表明へ到達できることを確認する。これはダッシュボードの認証の代わりにはならない。
+同梱ポリシーと公開ポリシーには「Chrome Web Store User Data Policy の Limited Use 要件に準拠する」と明記している。README から直接リンクする。更新時もホームページから1クリック以内にこの表明へ到達できることと、ダッシュボードの認証内容を確認する。
 
 ## Privacy policy URL
 
-同梱の [privacy.html](../../chrome-extension/privacy.html) はオフラインで閲覧できる説明。ストアの公開 URL の代わりにはならない。[プラグインを含むポリシー原稿](../marketplace/privacy.md) を公開し、ログイン不要で読める HTTPS URL を listing.*.json の privacyPolicyUrl に設定する。supportUrl は利用者指定の GitHub Issues へ統一済み。内容は同梱説明と一致させる。
+同梱の [privacy.html](../../chrome-extension/privacy.html) はオフラインで閲覧できる説明。[プラグインを含むプライバシーポリシー](../marketplace/privacy.md) の公開内容とダッシュボードの URL を照合し、ログイン不要で読める HTTPS URL を listing.*.json の privacyPolicyUrl に反映する。ローカル原稿ではこの欄が未設定のため、更新時に補完する。supportUrl は GitHub Issues へ統一済み。公開ポリシーと同梱説明の内容も揃える。
 
 参考: [Privacy fields](https://developer.chrome.com/docs/webstore/cws-dashboard-privacy)、[User data FAQ](https://developer.chrome.com/docs/webstore/program-policies/user-data-faq)、[Permissions](https://developer.chrome.com/docs/extensions/develop/concepts/permission-warnings)。
 
-2026-10-26 の追加監査・修正・公開条件は [総合監査](../guideline-audit.md) を参照。
+2026-10-26 の追加監査・修正記録と更新時の確認手順は [総合監査](../guideline-audit.md) を参照。

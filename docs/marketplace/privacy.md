@@ -1,6 +1,6 @@
 # Media Controls: data and privacy
 
-Updated: 2026-10-27. This notice describes the code in this repository. The publisher must review it and publish a reachable version before listing the product.
+Updated: 2026-10-29. This notice describes data handling by Media Controls, available on the Elgato Marketplace, and its optional companion extension, available on the Chrome Web Store.
 
 Media Controls processes media information on your Windows PC to display it on Stream Deck and control the targets you choose. It has no analytics, advertising, account system or developer-operated media upload service.
 
