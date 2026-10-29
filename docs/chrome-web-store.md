@@ -2,7 +2,7 @@
 
 確認日: 2026-10-25（Asia/Tokyo）。対象: [Best practices](https://developer.chrome.com/docs/webstore/best-practices)。
 
-コード、掲載原稿、提出用画像、ローカル検査を整備した段階。**公開準備中**。ストアの申告・公開 URL・実機での受け入れ確認・Google の審査は別途必要。
+**[Chrome Web Store で公開中](https://chromewebstore.google.com/detail/stream-deck-media-metadat/iagfcpchjohmpnnlcgppdcadehinhdpa)**。拡張 ID は `iagfcpchjohmpnnlcgppdcadehinhdpa`。2026-10-29に利用者から公開の連絡を受け、導入案内をストア版に更新した。以下の確認日・受け入れチェックは公開前のローカル記録であり、実機確認やダッシュボード設定の記録は引き続き未完了として保持する。
 
 必須の [Program Policies 対応記録](chrome-program-policies.md) に、Limited Use・権限・同意・安全な取り扱い・最小機能・掲載内容・公開者設定との照合をまとめた。外部プラグインが必要な構成の [審査用手順](chrome-web-store/reviewer-instructions.md) も用意している。
 
@@ -52,7 +52,7 @@ npm run chrome:pack
 
 `chrome:store:check` は manifest、許可する同梱ファイル、権限、CSP、言語原稿と貼り付け用説明の一致、スクリーンショット・プロモーション画像の寸法とハッシュ、Limited Use 開示と README のポリシーリンクを検査する。`npm run chrome:release:check` は公開 URL・問い合わせ先 URL が未設定、または公開前の確認記録が不足すると失敗する。外部 URL の到達性、申告の正しさ、審査適合を保証する検査ではない。
 
-`chrome:pack` は検査後に `media-bridge-<version>.zip` を作成する。ZIP の直下に manifest があり、Windows の実行ファイル、node_modules、秘密トークン、ストア用原稿は含めない。まだ公開されていない提出候補なので、既存の公開済みバージョンがある場合は更新番号も先に確認する。
+`chrome:pack` は検査後に `media-bridge-<version>.zip` を作成する。ZIP の直下に manifest があり、Windows の実行ファイル、node_modules、秘密トークン、ストア用原稿は含めない。生成物はローカルの提出候補であり、公開済みパッケージそのものの検証記録ではない。更新を提出する場合は、ストアの公開済みバージョンを確認し、更新番号を先に変更する。
 
 公開情報の設定後は `npm run chrome:pack -- -Release` でリリース検査を通してから ZIP を作成する。実機確認・ダッシュボード・公開者設定は別途必要。
 

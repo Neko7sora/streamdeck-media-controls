@@ -2,7 +2,7 @@
 
 ## 1.0.0 (STABLE)
 
-Media Controls の初回公開用リリースです。現在は公開準備中で、公開日は未確定です。STABLE はリリース区分であり、ストア公開や実機検証の完了を示しません。Windows 11 以降（x64）、Stream Deck 7.1 以降に対応します。
+Media Controls の初回リリースです。プラグインは [Elgato Marketplace](https://marketplace.elgato.com/product/media-controls-c3009ed3-da9b-44ea-8edb-81db01b81ecc)、任意の Chrome 拡張は [Chrome Web Store](https://chromewebstore.google.com/detail/stream-deck-media-metadat/iagfcpchjohmpnnlcgppdcadehinhdpa) で公開中です。Chrome 拡張の公開は2026-10-29に利用者から連絡を受けました。STABLE はリリース区分であり、実機検証の完了を示しません。Windows 11 以降（x64）、Stream Deck 7.1 以降に対応します。
 
 - 再生／一時停止、停止、前／次の曲の操作と、再生対象の選択。
 - PC全体または選択したアプリの音量・ミュート操作。
@@ -14,7 +14,7 @@ Media Controls の初回公開用リリースです。現在は公開準備中�
 
 ### 導入と制限
 
-Chrome 連携には、Chrome 111 以降、拡張機能の手動導入、拡張機能 ID を指定したローカル連携登録、送信の有効化が必要です。利用できる情報・操作は対象アプリやページに依存します。Chrome の前／次の曲への直接操作には対応していません。
+Chrome 連携には、Chrome 111 以降、Chrome Web Store からの拡張機能のインストール、拡張機能 ID を指定したローカル連携登録、送信の有効化が必要です。ストア版の拡張 ID は `iagfcpchjohmpnnlcgppdcadehinhdpa` です。利用できる情報・操作は対象アプリやページに依存します。Chrome の前／次の曲への直接操作には対応していません。
 
 Windows x64 のビルド・API 読み取り・自動テストは確認済みです。物理 Stream Deck / Stream Deck + と実 Chrome 拡張を通した実サイト操作は未確認です。ストアへの提出・公開前の確認事項は [ガイドライン総合監査](guideline-audit.md) を参照してください。
 

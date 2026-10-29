@@ -2,7 +2,7 @@
 
 確認日: 2026-10-25（Asia/Tokyo）。対象は Chrome 公式の [優れたリスティング ページの作成](https://developer.chrome.com/docs/webstore/best-listing?hl=ja) と [画像の提供](https://developer.chrome.com/docs/webstore/images?hl=ja)。
 
-原稿と素材はリポジトリに用意済み。ダッシュボードへの登録と掲載プレビューは未実施。公開までの全体の残作業は [対応記録](../chrome-web-store.md) を参照。
+**[Chrome Web Store で公開中](https://chromewebstore.google.com/detail/stream-deck-media-metadat/iagfcpchjohmpnnlcgppdcadehinhdpa)**（2026-10-29、利用者からの公開連絡を反映）。以下は確認日時点の掲載原稿・素材の準備記録。掲載プレビューやダッシュボード設定の詳細は未記録。公開情報と残る確認記録は [対応記録](../chrome-web-store.md) を参照。
 
 ## 項目別の対応
 

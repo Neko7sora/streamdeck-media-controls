@@ -1,10 +1,12 @@
 # Stream Deck Media Controls v1.0.0 (STABLE)
 
-**Elgato Marketplace で公開中**。文書の用途と更新時の参照元は [ドキュメント一覧](docs/README.md)、確認記録と残る確認は [ガイドライン総合監査](docs/guideline-audit.md) を参照してください。
+**Elgato Marketplace と Chrome Web Store で公開中**。文書の用途と更新時の参照元は [ドキュメント一覧](docs/README.md)、確認記録と残る確認は [ガイドライン総合監査](docs/guideline-audit.md) を参照してください。
 
 ## インストール / Installation
 
 **[Elgato Marketplace からインストール / Install from Elgato Marketplace](https://marketplace.elgato.com/product/media-controls-c3009ed3-da9b-44ea-8edb-81db01b81ecc)**
+
+**[任意の Chrome 拡張を Chrome Web Store からインストール / Install the optional Chrome extension](https://chromewebstore.google.com/detail/stream-deck-media-metadat/iagfcpchjohmpnnlcgppdcadehinhdpa)**
 
 Windows 11 以降（x64）、Stream Deck 7.1 以降に対応しています。ダイヤル操作には Stream Deck + が必要です。インストール後、Media Controls のアクションをキーまたはダイヤルに追加してください。Chrome 連携は任意です。導入・設定の詳細は [セットアップガイド（英語）](docs/marketplace/setup.md) を参照してください。
 
@@ -30,7 +32,7 @@ Japanese and English interfaces are supported. Plugin settings and key / dial la
 
 Elgato のプラグインガイドラインへの対応状況・自動検査・公開前の確認事項は [ガイドライン対応記録](docs/plugin-guidelines.md) を参照してください。
 
-Chrome Web Store のベストプラクティスに合わせた掲載原稿・日英のプライバシー説明・アイコン・ブラウザテスト・ZIP 作成手順は [Chrome Web Store 対応記録](docs/chrome-web-store.md) を参照してください。公開ポリシー URL、GitHub Issues の到達性、実サイトと物理 Stream Deck での受け入れ確認は提出前に必要です。
+Chrome Web Store のベストプラクティスに合わせた掲載原稿・日英のプライバシー説明・アイコン・ブラウザテスト・ZIP 作成手順は [Chrome Web Store 対応記録](docs/chrome-web-store.md) を参照してください。拡張の公開は2026-10-29に利用者から連絡を受けました。公開ポリシー URL、GitHub Issues の到達性、実サイトと物理 Stream Deck での受け入れ確認について、リポジトリ内の確認記録は未完了です。
 
 掲載ページの概要・説明文、スクリーンショット、プロモーション画像と提出ファイルは [掲載ページの準備](docs/chrome-web-store/best-listing.md) にまとめています。
 
@@ -141,10 +143,10 @@ Now Playing / Now Playing + の「表示する項目」で、曲名・タイト�
 Chrome 公式のセキュリティ要件との対応と自動検査は [Chrome 拡張のセキュリティ要件への対応](docs/chrome-extension-security.md) を参照してください。
 
 1. プラグインを起動します。Native Messaging ホストからの中継を受けるため、`127.0.0.1:39761` にだけ待ち受けます。
-2. `chrome://extensions` の開発者モードで `chrome-extension` を「パッケージ化されていない拡張機能」として読み込みます。
-3. Stream Deck アプリで Media Controls のアクションを選択し、`chrome://extensions` で確認した対象拡張機能の ID を入力して「Chrome 連携を登録」をクリックします。入力した拡張機能 ID のみを許可し、現在のユーザーの HKCU に Native Messaging ホストを登録します。起動時や定期的な登録は行わず、ボタンを押したときだけ実行します。未導入の場合は Chrome で拡張を読み込んでから再度クリックしてください。Stream Deck に同梱された Node.js 24 を使い、ホストを LOCALAPPDATA にコピーします。管理者権限や別途 Node.js のインストールは不要です。拡張のオプションで送信を有効にしてください。トークンの貼り付けは不要です。
+2. [Chrome Web Store](https://chromewebstore.google.com/detail/stream-deck-media-metadat/iagfcpchjohmpnnlcgppdcadehinhdpa) から拡張をインストールします。ストア版の拡張 ID は `iagfcpchjohmpnnlcgppdcadehinhdpa` です。開発時は、代わりに `chrome://extensions` の開発者モードで、このリポジトリの `chrome-extension` を「パッケージ化されていない拡張機能」として読み込めます。その場合の ID はストア版と異なることがあるため、実際に読み込んだ拡張の ID を確認してください。
+3. Stream Deck アプリで Media Controls のアクションを選択し、「Chrome 連携の設定」を開きます。`chrome://extensions` で導入元と ID を確認し、ストア版なら `iagfcpchjohmpnnlcgppdcadehinhdpa` を入力して「Chrome 連携を登録」をクリックします。入力した拡張機能 ID のみを許可し、現在のユーザーの HKCU に Native Messaging ホストを登録します。起動時や定期的な登録は行わず、ボタンを押したときだけ実行します。未導入の場合は Chrome で拡張をインストールしてから再度クリックしてください。Stream Deck に同梱された Node.js 24 を使い、ホストを LOCALAPPDATA にコピーします。管理者権限や別途 Node.js のインストールは不要です。拡張のオプションで送信を有効にして保存してください。トークンの貼り付けは不要です。
 
-   手動で登録・修復したい場合は、リポジトリで次を実行できます（Node.js 24 以降が必要）。chrome://extensions で、このリポジトリから読み込んだ拡張機能の ID を確認してください。名前だけでは識別できないため、自動検出は行いません。
+   手動で登録・修復したい場合は、リポジトリで次を実行できます（Node.js 24 以降が必要）。`chrome://extensions` で、ストアからインストールした拡張、またはこのリポジトリから読み込んだ拡張の ID を確認してください。名前だけでは識別できないため、自動検出は行いません。
 
    ```powershell
    powershell -NoProfile -ExecutionPolicy Bypass -File scripts/register-chrome-native-host.ps1 -ExtensionId <確認した拡張機能ID>

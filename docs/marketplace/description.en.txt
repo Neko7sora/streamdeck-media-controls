@@ -4,6 +4,6 @@ Includes play/pause, previous track, next track, stop, mute, volume keys, Volume
 
 Requires Windows 11 or later (x64), and Stream Deck 7.1 or later. Dial actions require Stream Deck +. macOS is not supported. Information and controls depend on what each app exposes through Windows media APIs.
 
-Optional Chrome integration requires Chrome 111 or later, manually loading the supplied companion extension, registering the local bridge and enabling sending in its settings. Browser playback control requires an accessible HTML media element; direct previous/next track control is unavailable. No account is required; media information is processed locally. Artwork requests may contact the source website or image host.
+Optional Chrome integration requires Chrome 111 or later, installing the companion extension from the Chrome Web Store, registering the local bridge and enabling sending in its settings. Browser playback control requires an accessible HTML media element; direct previous/next track control is unavailable. No account is required; media information is processed locally. Artwork requests may contact the source website or image host.
 
 AI assistance was used in plugin development, review, listing text and supporting media code. Supporting images use plugin assets and code-rendered previews with fictional sample media.

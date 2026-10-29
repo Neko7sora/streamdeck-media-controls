@@ -8,6 +8,8 @@
 
 ## 確定した公開情報
 
+Chrome 拡張は [Chrome Web Store](https://chromewebstore.google.com/detail/stream-deck-media-metadat/iagfcpchjohmpnnlcgppdcadehinhdpa) で公開済み（2026-10-29、利用者からの公開連絡）。ストア版の拡張 ID は `iagfcpchjohmpnnlcgppdcadehinhdpa`。README・セットアップ・リリース履歴へ反映した。公開の連絡を受けた事実と、以下の実機・公開リンク・ダッシュボード設定の確認記録は区別し、未確認項目を自動的に完了にはしない。
+
 利用者の指定により、Marketplace は無料、組織名は `Neko7sora`、一般的な問い合わせ先は [GitHub Issues](https://github.com/Neko7sora/streamdeck-media-controls/issues)。日英の掲載原稿、同梱ポリシー、公開用原稿、検査を統一した。再生情報・設定・キャッシュはPC内で利用者自身が削除する手順を案内する。開発者はそのコピーをサーバーに保存しない。Issue に個人情報やトークンを投稿させない。問い合わせ先の確定と公開到達性の検証は別の項目として扱う。
 
 利用者がコードと履歴を含む公開を明示的に指定したため、リポジトリを **public** に変更し、GitHub API で `isPrivate: false`、Issues 有効を確認した。その後の設定は利用者の指定で保留中。更新した原稿の公開内容との一致やリンクの到達性の検証は未完了で、`publicLinks` は未完了、`privacyPolicyUrl` は未設定として維持する。
