@@ -25,7 +25,7 @@ export async function buildLocales({check=false}={}) {
     catalogs[language]=catalog;
   }
   validateCatalogs(catalogs);
-  const sources=['src/plugin.ts','src/control-display.ts','src/chrome-registration.ts','src/media-model.ts','dev.n7s.media-controls.sdPlugin/ui/settings.js','dev.n7s.media-controls.sdPlugin/ui/settings.html','chrome-extension/options.js','chrome-extension/options.html','chrome-extension/privacy.html','chrome-extension/background.js'];
+  const sources=[...readdirSync(new URL('src/',root),{recursive:true}).filter(file=>file.endsWith('.ts')&&!file.endsWith('.generated.ts')).map(file=>'src/'+file.replaceAll('\\','/')),'dev.n7s.media-controls.sdPlugin/ui/settings.js','dev.n7s.media-controls.sdPlugin/ui/settings.html','chrome-extension/options.js','chrome-extension/options.html','chrome-extension/privacy.html','chrome-extension/background.js'];
   for(const path of sources) for(const match of read(path).matchAll(/\bt\("([^"]+)"|data-i18n="([^"]+)"/g)) {
     const key=match[1]??match[2];
     if(!Object.hasOwn(catalogs.en,key)) throw Error(`Missing English translation: ${path}: ${key}`);

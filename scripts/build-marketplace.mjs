@@ -13,6 +13,7 @@ export const mediaSources=[
   "docs/marketplace/listing.en.json", "scripts/build-marketplace.mjs",
   "src/now-playing-image.ts", "src/scrolling-text.ts", "src/display-font.ts",
   "src/display-guidelines.ts", "src/plugin.ts",
+  "src/configured-action.ts", "src/control-actions.ts", "src/now-playing-actions.ts", "src/action-settings.ts",
   ...["play-pause","previous","next","stop","mute","volume-down","volume-up"].map(name=>`dev.n7s.media-controls.sdPlugin/imgs/actions/${name}@2x.png`)
 ];
 export const digest=bytes=>createHash("sha256").update(bytes).digest("hex");
