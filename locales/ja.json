@@ -20,7 +20,7 @@
   "chrome.disconnected": "Chrome：未接続",
   "chrome.integration": "Chrome 連携",
   "chrome.registration.failed": "登録に失敗しました。プラグインのログを確認し、もう一度お試しください。",
-  "chrome.registration.help": "chrome://extensions で、このリポジトリから読み込んだ拡張機能を確認し、その ID を下に入力してください。名前だけで判断しないでください。",
+  "chrome.registration.help": "連携する拡張機能の導入元を確認し、拡張の「はじめての設定」に自動表示される ID をコピーして下に貼り付けてください。名前だけで判断しないでください。",
   "chrome.registration.notFound": "拡張機能が見つかりません。Chrome で chrome-extension フォルダーを読み込んでから、もう一度ボタンを押してください。",
   "chrome.registration.success": "Chrome 連携を登録しました。拡張機能のオプションで送信を有効にしてください。接続できない場合は拡張機能を再読み込みしてください。",
   "chrome.registration.timeout": "応答を確認できませんでした。もう一度お試しください。",
@@ -78,7 +78,7 @@
   "extension.settings.unsaved": "未保存の変更があります",
   "extension.setup.help": "初回は Stream Deck の Media Controls 設定で「Chrome 連携を登録」を押してから、下の送信設定を有効にして保存してください。",
   "extension.setup.step1": "Stream Deck の Media Controls 設定で「Chrome 連携の設定」を開きます。",
-  "extension.setup.step2": "chrome://extensions で確認したこの拡張の ID を入力し、「Chrome 連携を登録」を押します。",
+  "extension.setup.step2": "上に表示された拡張機能 ID をコピーしてプラグイン設定に貼り付け、「Chrome 連携を登録」を押します。",
   "extension.setup.step3": "上の送信設定を有効にして保存します。",
   "extension.setup.step4": "メディアのタブを再読み込みして再生し、「Stream Deck に接続済み」と表示されることを確認します。",
   "extension.setup.title": "はじめての設定",
@@ -168,6 +168,12 @@
   "waiting.for.the.plugin.to.respond": "プラグインからの応答を待っています。",
   "windows.media": "Windows メディア",
   "chrome.registration.extensionId": "Chrome 拡張機能 ID",
-  "chrome.registration.invalidId": "chrome://extensions で確認した32文字（a〜p）の拡張機能 ID を入力してください。",
-  "chrome.registration.busy": "登録処理中です。完了してから、もう一度お試しください。"
+  "chrome.registration.invalidId": "拡張の「はじめての設定」に表示される32文字（a〜p）の拡張機能 ID を入力してください。",
+  "chrome.registration.busy": "登録処理中です。完了してから、もう一度お試しください。",
+  "extension.info.name": "拡張機能名",
+  "extension.info.version": "バージョン",
+  "extension.info.help": "この拡張機能から自動取得した情報です。Stream Deck の Chrome 連携登録には、この ID を使ってください。",
+  "extension.info.copyId": "ID をコピー",
+  "extension.info.copied": "拡張機能 ID をコピーしました。",
+  "extension.info.copyFailed": "コピーできませんでした。選択された ID を手動でコピーしてください。"
 }

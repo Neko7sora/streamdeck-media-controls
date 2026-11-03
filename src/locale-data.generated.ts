@@ -22,7 +22,7 @@ export default {
     "chrome.disconnected": "Chrome: Disconnected",
     "chrome.integration": "Chrome integration",
     "chrome.registration.failed": "Registration failed. Check the plugin logs and try again.",
-    "chrome.registration.help": "In chrome://extensions, verify the extension you loaded from this repository and copy its ID below. Names alone do not identify the intended extension.",
+    "chrome.registration.help": "Verify the companion extension’s source, then open its “First-time setup” and copy the automatically displayed ID below. Names alone do not identify the intended extension.",
     "chrome.registration.notFound": "Extension not found. Load the chrome-extension folder in Chrome, then try again.",
     "chrome.registration.success": "Chrome integration registered. Enable sending in the extension options. If it cannot connect, reload the extension.",
     "chrome.registration.timeout": "No response received. Please try again.",
@@ -84,7 +84,7 @@ export default {
     "extension.settings.unsaved": "Unsaved changes",
     "extension.setup.help": "For first-time setup, click “Register Chrome integration” in the Stream Deck Media Controls settings, then enable sending below and save.",
     "extension.setup.step1": "In Stream Deck’s Media Controls settings, open “Setup Chrome integration”.",
-    "extension.setup.step2": "Enter this extension’s ID from chrome://extensions, then click “Register Chrome integration”.",
+    "extension.setup.step2": "Copy the extension ID shown above, paste it into the plugin settings, then click “Register Chrome integration”.",
     "extension.setup.step3": "Enable sending above, then save.",
     "extension.setup.step4": "Reload your media tabs and start playback. Check that the connection reads “Connected to Stream Deck”.",
     "extension.setup.title": "First-time setup",
@@ -184,8 +184,14 @@ export default {
     "waiting.for.the.plugin.to.respond": "Waiting for the plugin to respond.",
     "windows.media": "Windows media",
     "chrome.registration.extensionId": "Chrome extension ID",
-    "chrome.registration.invalidId": "Enter the verified 32-character extension ID (a–p) from chrome://extensions.",
-    "chrome.registration.busy": "Registration is in progress. Wait for it to finish, then try again."
+    "chrome.registration.invalidId": "Enter the 32-character extension ID (a–p) shown in the companion extension’s “First-time setup”.",
+    "chrome.registration.busy": "Registration is in progress. Wait for it to finish, then try again.",
+    "extension.info.name": "Extension name",
+    "extension.info.version": "Version",
+    "extension.info.help": "Read automatically from this extension. Use this ID to register Chrome integration in Stream Deck.",
+    "extension.info.copyId": "Copy ID",
+    "extension.info.copied": "Extension ID copied.",
+    "extension.info.copyFailed": "Could not copy. The ID is selected; copy it manually."
   },
   "ja": {
     "1.s": "1秒",
@@ -209,7 +215,7 @@ export default {
     "chrome.disconnected": "Chrome：未接続",
     "chrome.integration": "Chrome 連携",
     "chrome.registration.failed": "登録に失敗しました。プラグインのログを確認し、もう一度お試しください。",
-    "chrome.registration.help": "chrome://extensions で、このリポジトリから読み込んだ拡張機能を確認し、その ID を下に入力してください。名前だけで判断しないでください。",
+    "chrome.registration.help": "連携する拡張機能の導入元を確認し、拡張の「はじめての設定」に自動表示される ID をコピーして下に貼り付けてください。名前だけで判断しないでください。",
     "chrome.registration.notFound": "拡張機能が見つかりません。Chrome で chrome-extension フォルダーを読み込んでから、もう一度ボタンを押してください。",
     "chrome.registration.success": "Chrome 連携を登録しました。拡張機能のオプションで送信を有効にしてください。接続できない場合は拡張機能を再読み込みしてください。",
     "chrome.registration.timeout": "応答を確認できませんでした。もう一度お試しください。",
@@ -267,7 +273,7 @@ export default {
     "extension.settings.unsaved": "未保存の変更があります",
     "extension.setup.help": "初回は Stream Deck の Media Controls 設定で「Chrome 連携を登録」を押してから、下の送信設定を有効にして保存してください。",
     "extension.setup.step1": "Stream Deck の Media Controls 設定で「Chrome 連携の設定」を開きます。",
-    "extension.setup.step2": "chrome://extensions で確認したこの拡張の ID を入力し、「Chrome 連携を登録」を押します。",
+    "extension.setup.step2": "上に表示された拡張機能 ID をコピーしてプラグイン設定に貼り付け、「Chrome 連携を登録」を押します。",
     "extension.setup.step3": "上の送信設定を有効にして保存します。",
     "extension.setup.step4": "メディアのタブを再読み込みして再生し、「Stream Deck に接続済み」と表示されることを確認します。",
     "extension.setup.title": "はじめての設定",
@@ -357,7 +363,13 @@ export default {
     "waiting.for.the.plugin.to.respond": "プラグインからの応答を待っています。",
     "windows.media": "Windows メディア",
     "chrome.registration.extensionId": "Chrome 拡張機能 ID",
-    "chrome.registration.invalidId": "chrome://extensions で確認した32文字（a〜p）の拡張機能 ID を入力してください。",
-    "chrome.registration.busy": "登録処理中です。完了してから、もう一度お試しください。"
+    "chrome.registration.invalidId": "拡張の「はじめての設定」に表示される32文字（a〜p）の拡張機能 ID を入力してください。",
+    "chrome.registration.busy": "登録処理中です。完了してから、もう一度お試しください。",
+    "extension.info.name": "拡張機能名",
+    "extension.info.version": "バージョン",
+    "extension.info.help": "この拡張機能から自動取得した情報です。Stream Deck の Chrome 連携登録には、この ID を使ってください。",
+    "extension.info.copyId": "ID をコピー",
+    "extension.info.copied": "拡張機能 ID をコピーしました。",
+    "extension.info.copyFailed": "コピーできませんでした。選択された ID を手動でコピーしてください。"
   }
 };

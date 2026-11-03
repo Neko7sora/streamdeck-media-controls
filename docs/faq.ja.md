@@ -83,7 +83,7 @@ Chrome 拡張は任意です。拡張がなくても、Windows が公開する�
 ### Q13. Chrome 連携はどう設定しますか？
 
 1. README の [Chrome 拡張の案内](../README.md#chrome-拡張任意オプトイン) から拡張を導入します。
-2. `chrome://extensions` で、導入した拡張の提供元と ID を確認します。ストア版の ID は `iagfcpchjohmpnnlcgppdcadehinhdpa` です。
+2. 導入した拡張の提供元を確認し、拡張の設定の「はじめての設定」を開きます。ID・拡張機能名・バージョンは自動表示されるので、「ID をコピー」を押します。ストア版の ID は `iagfcpchjohmpnnlcgppdcadehinhdpa` です。
 3. Stream Deck の Media Controls アクションで「Chrome 連携の設定」を開き、確認した ID を入力して「Chrome 連携を登録」を押します。
 4. 拡張の設定で「ブラウザからの送信を有効化」をオンにし、「保存」を押します。送信は初期状態では無効です。
 5. 既に開いていたメディアページを再読み込みし、再生を開始します。

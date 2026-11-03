@@ -3,6 +3,29 @@ setLanguage(chrome.i18n.getUILanguage());
 localizePage(document);
 const enable=document.getElementById("enabled"), status=document.getElementById("status"), save=document.getElementById("save");
 const retryConnection=document.getElementById("retry-connection"),setup=document.getElementById("setup");
+const extensionId=document.getElementById("extension-id"),copyId=document.getElementById("copy-extension-id"),copyStatus=document.getElementById("copy-id-status");
+let installedExtensionId="";
+try {
+  const manifest=chrome.runtime.getManifest();
+  document.getElementById("extension-name").textContent=manifest.name||t("unavailable");
+  document.getElementById("extension-version").textContent=manifest.version||t("unavailable");
+  if(/^[a-p]{32}$/.test(chrome.runtime.id)) installedExtensionId=chrome.runtime.id;
+} catch {
+  for(const id of ["extension-name","extension-version"]) document.getElementById(id).textContent=t("unavailable");
+}
+extensionId.value=installedExtensionId||t("unavailable");
+copyId.disabled=!installedExtensionId;
+copyId.addEventListener("click",async()=>{
+  if(!installedExtensionId||copyId.disabled) return;
+  copyId.disabled=true;copyStatus.textContent="";
+  try {
+    await navigator.clipboard.writeText(installedExtensionId);
+    copyStatus.textContent=t("extension.info.copied");
+  } catch {
+    extensionId.focus();extensionId.select();
+    copyStatus.textContent=t("extension.info.copyFailed");
+  } finally {copyId.disabled=false;}
+});
 let loaded=false,saving=false,savedEnabled=false;
 let setupChosen=false;
 let connectionRequest=0,connectionPending=false,connectionTimeout;
