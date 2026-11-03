@@ -7,7 +7,7 @@ function report(ok, label, advice) {
   if (!ok) failures++;
 }
 report(Number(process.versions.node.split('.')[0]) >= 24, `Node ${process.versions.node}`, 'Install Node.js 24 or later.');
-for (const name of ['typescript', 'esbuild', 'sharp']) {
+for (const name of ['typescript', 'esbuild', 'sharp', 'icuewidget-cli']) {
   report(existsSync(new URL(`../node_modules/${name}/package.json`, import.meta.url)), name, 'Run npm ci from the repository root.');
 }
 const git = spawnSync('git', ['--version'], { encoding: 'utf8', windowsHide: true });

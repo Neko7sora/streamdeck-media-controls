@@ -11,6 +11,9 @@
     "doctor": "node scripts/doctor.mjs",
     "test": "node --test tests/*.test.mjs",
     "check:fast": "node scripts/check-fast.mjs",
+    "icue:check": "node node_modules/icuewidget-cli/node-bin/icuewidget.js validate icue-widget",
+    "icue:pack": "node scripts/pack-icue.mjs",
+    "test:icue:e2e": "node tests/icue-e2e.mjs",
     "icons:build": "node scripts/build-icons.mjs",
     "chrome:icons": "node scripts/build-chrome-icons.mjs",
     "chrome:listing:build": "node scripts/build-chrome-listing.mjs",
@@ -60,6 +63,7 @@
     "@types/node": "^24.19.2",
     "acorn": "^8.19.0",
     "esbuild": "^0.28.2",
+    "icuewidget-cli": "0.5.1",
     "playwright": "^1.64.1",
     "typescript": "^7.0.2"
   },

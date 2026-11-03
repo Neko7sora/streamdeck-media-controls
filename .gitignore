@@ -8,3 +8,4 @@ node_modules/
 .DS_Store
 tests/.generated/
 media-bridge-*.zip
+*.icuewidget

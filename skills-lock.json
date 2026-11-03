@@ -1,0 +1,11 @@
+{
+  "version": 1,
+  "skills": {
+    "icue-widget-builder": {
+      "source": "Corsair-Labs/icue-widget-builder",
+      "sourceType": "github",
+      "skillPath": "skills/icue-widget-builder/SKILL.md",
+      "computedHash": "0da400cf9af91a168a957d821822f725258f39015b61e8bb07f12637fd7f73c9"
+    }
+  }
+}

@@ -2,6 +2,8 @@
 
 Windows のメディア再生、音量調整、曲情報の表示を Stream Deck から操作できるプラグインです。**Elgato Marketplace で無料公開中**。任意の Chrome 拡張も **Chrome Web Store で公開中**です。
 
+XENEON EDGE 用の iCUE ウィジェットは [Edge Media Deck](icue-widget/README.md) を参照してください。曲情報・アルバムアートと前へ／再生・一時停止／次へのタッチ操作に対応し、`npm run icue:pack` でインポート用ファイルを生成できます。
+
 ## インストール / Installation
 
 **[Elgato Marketplace からインストール / Install from Elgato Marketplace](https://marketplace.elgato.com/product/media-controls-c3009ed3-da9b-44ea-8edb-81db01b81ecc)**

@@ -46,7 +46,7 @@ export function checkConsistency() {
   checkMetadata(pkg,json('package-lock.json'),json('dev.n7s.media-controls.sdPlugin/manifest.json'),
     json('chrome-extension/manifest.json'),json('docs/release-review.json'));
   const documents=readdirSync(root).filter(file=>file.endsWith('.md'));
-  for(const directory of ['docs','locales']) {
+  for(const directory of ['docs','locales','icue-widget']) {
     for(const file of readdirSync(join(root,directory),{recursive:true})) {
       if(file.endsWith('.md')) documents.push(join(directory,file));
     }

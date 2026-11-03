@@ -1,0 +1,21 @@
+{
+  "author": "Neko7sora",
+  "id": "dev.n7s.icue-widget",
+  "name": "Edge Media Deck",
+  "description": "A responsive now-playing and media-control widget for CORSAIR XENEON EDGE.",
+  "version": "1.0.0",
+  "preview_icon": "resources/icon.png",
+  "min_app_version": "5.52",
+  "min_framework_version": "1.9.0",
+  "os": [
+    { "platform": "windows" }
+  ],
+  "supported_devices": [
+    { "type": "dashboard_lcd" }
+  ],
+  "interactive": true,
+  "required_plugins": [
+    "widgetbuilder.mediadataprovider:Media:1.1"
+  ],
+  "permissions": []
+}

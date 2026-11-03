@@ -1,0 +1,82 @@
+:root {
+  color-scheme: dark;
+  --accent: #66e6ce;
+  --base: #111827;
+  --ink: #f7f8fc;
+  --muted: rgba(240, 245, 253, 0.58);
+  font-family: "Segoe UI Variable", "Segoe UI", "Noto Sans JP", sans-serif;
+}
+* { box-sizing: border-box; }
+html, body { width: 100%; height: 100%; margin: 0; overflow: hidden; }
+body { color: var(--ink); background: var(--base); }
+button { font: inherit; }
+.deck {
+  position: relative; isolation: isolate; width: 100%; height: 100%; overflow: hidden;
+  padding: clamp(12px, 3.4dvh, 40px) clamp(14px, 3.4dvw, 62px);
+  background: radial-gradient(ellipse at 20% 55%, rgba(255,255,255,.065), transparent 55%), var(--base);
+}
+.ambient { pointer-events: none; position: absolute; z-index: -1; border-radius: 50%; filter: blur(70px); }
+.ambient-one { width: 30dvw; height: 75dvh; background: var(--accent); opacity: .09; left: -5dvw; bottom: -20dvh; }
+.ambient-two { width: 25dvw; height: 90dvh; background: #7b80ff; opacity: .09; right: 0; top: -45dvh; }
+.player { width: 100%; max-width: 1540px; margin: 0 auto; height: 100%; display: flex; align-items: center; justify-content: flex-start; gap: clamp(12px, 3.1dvw, 54px); min-width: 0; }
+.cover { aspect-ratio: 1; width: min(55dvh, 27dvw, 450px); height: min(55dvh, 27dvw, 450px); flex: 0 0 auto; max-height: 100%; min-width: 0; min-height: 0; position: relative; overflow: hidden; border-radius: clamp(12px, 2.8dvh, 24px); box-shadow: 0 24px 65px rgba(0,0,0,.40); background: linear-gradient(135deg,#223041,#151821 65%,#292b42); }
+.cover img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.cover img[hidden] { display: none; }
+.cover-empty { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; color: var(--accent); background: radial-gradient(circle at 60% 35%, rgba(255,255,255,.07), transparent 65%); }
+.cover-empty[hidden] { display: none; }
+.cover-empty svg { width: 48%; max-width: 180px; }
+.cover-stroke { position: absolute; inset: 0; border: 1px solid rgba(255,255,255,.12); border-radius: inherit; pointer-events: none; }
+.content { flex: 1 1 auto; align-self: stretch; min-width: 0; display: flex; flex-direction: column; justify-content: space-between; padding: clamp(2px, 1.5dvh, 16px) 0; gap: 8px; }
+.topline { display: flex; align-items: center; justify-content: space-between; gap: 20px; min-width: 0; }
+.now-label { display: inline-flex; align-items: center; min-width: 0; gap: 9px; color: var(--accent); letter-spacing: .16em; font-size: clamp(10px, 1.65dvh, 16px); font-weight: 650; white-space: nowrap; }
+.dot { width: 7px; height: 7px; border-radius: 50%; flex: 0 0 auto; background: var(--accent); box-shadow: 0 0 16px var(--accent); }
+.deck[data-status="idle"] .dot, .deck[data-status="waiting"] .dot { background: #8d96a8; box-shadow: none; }
+.deck[data-status="paused"] .dot { background: #f7c76a; box-shadow: none; }
+.brand { color: rgba(250,252,255,.43); letter-spacing: .2em; font-size: clamp(9px, 1.4dvh, 13px); white-space: nowrap; font-weight: 700; }
+.brand-sep { color: var(--accent); }
+.metadata { min-width: 0; width: 100%; }
+.metadata h1 { margin: 0 0 clamp(5px, 1dvh, 12px); font-size: clamp(18px, min(5.5dvh, 3.3dvw), 65px); line-height: 1.18; letter-spacing: -.03em; font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.artist { font-size: clamp(12px, min(3.1dvh, 2dvw), 28px); color: rgba(247,248,252,.80); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.album-line { margin-top: clamp(5px, 1dvh, 11px); font-size: clamp(10px, min(2.2dvh, 1.25dvw), 17px); color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.bottomline { display: flex; justify-content: space-between; align-items: end; gap: 12px; min-width: 0; }
+.controls { display: flex; align-items: center; gap: clamp(5px, 1.8dvw, 22px); }
+.control { display: grid; place-items: center; width: clamp(42px, min(8dvh, 5.0dvw), 78px); height: clamp(42px, min(8dvh, 5.0dvw), 78px); padding: 0; background: rgba(255,255,255,.055); border: 1px solid rgba(255,255,255,.12); border-radius: 50%; color: var(--ink); cursor: pointer; transition: background .15s ease, transform .15s ease, opacity .15s ease; }
+.control svg { width: 41%; height: 41%; }
+.control:hover:not(:disabled) { background: rgba(255,255,255,.14); }
+.control:active:not(:disabled) { transform: scale(.94); }
+.control:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+.control:disabled { cursor: default; opacity: .35; }
+.control-primary { color: #0b1722; background: var(--accent); border-color: transparent; box-shadow: 0 6px 28px rgba(0,0,0,.2); width: clamp(48px, min(10dvh, 6.1dvw), 94px); height: clamp(48px, min(10dvh, 6.1dvw), 94px); }
+.control-primary:hover:not(:disabled) { background: var(--accent); filter: brightness(1.09); }
+.control-primary .icon-pause[hidden], .control-primary .icon-play[hidden] { display: none; }
+.hint { font-weight: 600; font-size: clamp(9px, 1.4dvh, 12px); letter-spacing: .12em; color: rgba(240,245,253,.3); white-space: nowrap; }
+.hint-separator { color: var(--accent); padding: 0 5px; }
+@media (max-width: 680px) {
+  .deck { padding: clamp(8px, 2.7dvh, 18px) clamp(10px, 3dvw, 24px); }
+  .player { gap: clamp(10px, 3dvw, 20px); }
+  .cover { width: min(56dvh, 33dvw); height: min(56dvh, 33dvw); }
+  .brand, .hint { display: none; }
+}
+@media (max-width: 380px) {
+  .cover { width: min(46dvh, 29dvw); height: min(46dvh, 29dvw); }
+  .metadata h1 { font-size: clamp(16px, 4.4dvw, 24px); }
+  .controls { gap: 5px; }
+}
+@media (max-height: 180px) {
+  .deck { padding-top: 8px; padding-bottom: 8px; }
+  .content { padding: 0; }
+  .album-line, .hint, .brand { display: none; }
+  .cover { width: min(72dvh, 25dvw); height: min(72dvh, 25dvw); }
+  .now-label { font-size: 10px; }
+  .artist { font-size: 12px; }
+  .control { width: 44px; height: 44px; }
+  .control-primary { width: 48px; height: 48px; }
+}
+@media (max-width: 300px) and (min-height: 220px) {
+  .player { flex-direction: column; justify-content: space-around; gap: 4px; }
+  .cover { width: min(27dvh, 28dvw); height: min(27dvh, 28dvw); }
+  .content { align-self: stretch; justify-content: space-around; align-items: center; text-align: center; }
+  .metadata h1 { font-size: 17px; }
+  .album-line { display: none; }
+}
+@media (prefers-reduced-motion: reduce) { .control { transition: none; } }

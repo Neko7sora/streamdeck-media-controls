@@ -1,0 +1,39 @@
+import {copyFile, mkdir, mkdtemp, readFile, rm, writeFile} from 'node:fs/promises';
+import {dirname, isAbsolute, join, relative, resolve} from 'node:path';
+import {fileURLToPath} from 'node:url';
+import {spawnSync} from 'node:child_process';
+
+const root = fileURLToPath(new URL('../', import.meta.url));
+const source = join(root, 'icue-widget');
+const generated = join(root, 'tests', '.generated');
+const manifest = JSON.parse(await readFile(join(source, 'manifest.json'), 'utf8'));
+if (!/^\d+\.\d+\.\d+$/.test(manifest.version)) throw new Error('Invalid widget version');
+const output = join(root, `icue-widget-${manifest.version}.icuewidget`);
+await mkdir(generated, {recursive:true});
+const staging = await mkdtemp(join(generated, 'icue-package-'));
+try {
+  // Ship only runtime files. In particular, the demo provider must never enter iCUE.
+  for (const file of ['manifest.json', 'translation.json', 'scripts/widget.js', 'styles/style.css',
+    'resources/icon.svg', 'resources/icon.png', 'resources/preview.png']) {
+    const destination = join(staging, file);
+    await mkdir(dirname(destination), {recursive:true});
+    await copyFile(join(source, file), destination);
+  }
+  const html = (await readFile(join(source, 'index.html'), 'utf8'))
+    .replace(/  <script src="scripts\/demo-provider\.js"><\/script>\r?\n/, '');
+  if (html.includes('demo-provider.js')) throw new Error('Demo script still referenced in package');
+  await writeFile(join(staging, 'index.html'), html);
+  for (const file of ['LICENSE-MIT', 'LICENSE-APACHE']) await copyFile(join(root, file), join(staging, file));
+  const result = spawnSync(process.execPath, [join(root, 'node_modules/icuewidget-cli/node-bin/icuewidget.js'),
+    'package', staging, '--output', output], {
+    cwd:root, stdio:'inherit', windowsHide:true,
+    env:{...process.env, ICUEWIDGET_NO_UPDATE_CHECK:'1'},
+  });
+  if (result.error || result.status !== 0) throw result.error ?? new Error(`iCUE packaging failed (${result.status})`);
+  console.log(`iCUE package: ${output}`);
+} finally {
+  // Verify the absolute deletion target stays inside this checkout's generated test output.
+  const inside = relative(resolve(generated), resolve(staging));
+  if (!inside || inside.startsWith('..') || isAbsolute(inside)) throw new Error('Unsafe staging cleanup path');
+  await rm(staging, {recursive:true, force:true});
+}

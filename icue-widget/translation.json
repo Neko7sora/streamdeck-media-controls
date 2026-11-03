@@ -1,0 +1,18 @@
+{
+  "en": {
+    "translation": {
+      "Edge Media Deck": "Edge Media Deck",
+      "Accent Color": "Accent Color",
+      "Background Color": "Background Color",
+      "Appearance": "Appearance"
+    }
+  },
+  "ja": {
+    "translation": {
+      "Edge Media Deck": "Edge Media Deck",
+      "Accent Color": "アクセント色",
+      "Background Color": "背景色",
+      "Appearance": "外観"
+    }
+  }
+}

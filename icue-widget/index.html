@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>tr('Edge Media Deck')</title>
+  <link rel="icon" type="image/svg+xml" href="resources/icon.svg" />
+  <meta name="x-icue-widget-preview" content="resources/preview.png" />
+  <meta name="x-icue-property" content="accentColor" data-label="tr('Accent Color')" data-type="color" data-default="'#66E6CE'" />
+  <meta name="x-icue-property" content="backgroundColor" data-label="tr('Background Color')" data-type="color" data-default="'#111827'" />
+  <script type="application/json" id="x-icue-groups">
+  [{"title":"tr('Appearance')","properties":["accentColor","backgroundColor"]}]
+  </script>
+  <link rel="stylesheet" href="styles/style.css" />
+</head>
+<body>
+  <main class="deck" id="deck" aria-label="メディアプレーヤー">
+    <div class="ambient ambient-one" aria-hidden="true"></div>
+    <div class="ambient ambient-two" aria-hidden="true"></div>
+
+    <section class="player" aria-label="再生中のメディア">
+      <div class="cover" id="cover">
+        <img id="albumArt" alt="アルバムアート" width="420" height="420" hidden />
+        <div class="cover-empty" id="coverPlaceholder" aria-hidden="true">
+          <svg viewBox="0 0 80 80" fill="none" aria-hidden="true">
+            <circle cx="40" cy="40" r="35" stroke="currentColor" stroke-width="1.5" opacity=".22" />
+            <path d="M49 19v32.5a10 10 0 1 1-5-8.7V27l20-4v23.5a10 10 0 1 1-5-8.7V17l-10 2Z" fill="currentColor" />
+          </svg>
+        </div>
+        <div class="cover-stroke" aria-hidden="true"></div>
+      </div>
+
+      <div class="content">
+        <div class="topline">
+          <span class="now-label" role="status"><span class="dot" id="statusDot" aria-hidden="true"></span> <span id="statusText">iCUEに接続しています</span></span>
+          <span class="brand">EDGE <span class="brand-sep">/</span> MEDIA</span>
+        </div>
+
+        <div class="metadata" aria-live="polite" aria-atomic="true">
+          <h1 id="songName" title="">メディアを待機中</h1>
+          <div class="artist" id="artist" title="">再生中のメディア情報を表示します</div>
+          <div class="album-line" id="album" title=""></div>
+        </div>
+
+        <div class="bottomline">
+          <div class="controls" role="group" aria-label="再生操作">
+            <button class="control" id="previousButton" type="button" aria-label="前の曲" title="前の曲" disabled>
+              <svg viewBox="0 0 32 32" fill="currentColor" aria-hidden="true"><path d="M6 7h3v18H6zM25 8.3v15.4c0 1.05-1.15 1.69-2.04 1.13L11 17.13a1.35 1.35 0 0 1 0-2.26l11.96-7.7c.89-.57 2.04.07 2.04 1.13Z" /></svg>
+            </button>
+            <button class="control control-primary" id="playPauseButton" type="button" aria-label="再生" title="再生" disabled>
+              <svg class="icon-play" viewBox="0 0 32 32" fill="currentColor" aria-hidden="true"><path d="M10 6.7v18.6c0 1.2 1.31 1.93 2.32 1.29l14.1-9.3a1.53 1.53 0 0 0 0-2.58l-14.1-9.3A1.53 1.53 0 0 0 10 6.7Z" /></svg>
+              <svg class="icon-pause" viewBox="0 0 32 32" fill="currentColor" aria-hidden="true" hidden><rect x="9" y="7" width="5.4" height="18" rx="1.5" /><rect x="18" y="7" width="5.4" height="18" rx="1.5" /></svg>
+            </button>
+            <button class="control" id="nextButton" type="button" aria-label="次の曲" title="次の曲" disabled>
+              <svg viewBox="0 0 32 32" fill="currentColor" aria-hidden="true"><path d="M23 7h3v18h-3zM7 8.3v15.4c0 1.05 1.15 1.69 2.04 1.13L21 17.13a1.35 1.35 0 0 0 0-2.26L9.04 7.17C8.15 6.6 7 7.24 7 8.3Z" /></svg>
+            </button>
+          </div>
+          <div class="hint">CORSAIR iCUE <span class="hint-separator">•</span> MEDIA CONTROLS</div>
+        </div>
+      </div>
+    </section>
+  </main>
+  <script src="scripts/demo-provider.js"></script>
+  <script src="scripts/widget.js"></script>
+</body>
+</html>
