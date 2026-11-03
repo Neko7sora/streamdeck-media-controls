@@ -1,8 +1,8 @@
 # Edge Media Deck — XENEON EDGE iCUE ウィジェット
 
-Stream Deck Media Controls の曲情報・アート・アプリアイコン表示、再生操作、シーク、プレーヤー選択、マスター／アプリ別音量を、XENEON EDGE のタッチ画面へ移植したウィジェットです。**Windows 11 x64、iCUE 5.52 以降（Widget API 1.9.0）、Node.js 24 以降**を使用します。Stream Deck アプリ・物理デバイスは不要です。
+Stream Deck Media Controls の曲情報・アート・アプリアイコン表示、再生操作、シーク、プレーヤー選択、マスター／アプリ別音量を、XENEON EDGE のタッチ画面へ移植したウィジェットです。**Windows 11 x64、iCUE 5.52 以降（Widget API 1.9.0）**を使用します。ブリッジはStream Deckプラグイン内で自動起動できます。Stream Deckを使わない場合は、Node.js 24以降で独立ブリッジを起動します。
 
-既存の Windows Rust ヘルパーとメディア選択・Chrome 通信処理を使う、独立した Node.js ブリッジを常駐させます。Chrome 拡張は任意です。個人利用向けの実装で、CORSAIR 公式製品ではありません。iCUE / XENEON EDGE 実機でのインポートと操作は未検証です。
+既存のWindows Rustヘルパーとメディア選択・Chrome通信処理を使います。Stream Deckプラグイン内では同じメディア状態とChrome接続を共有し、別のブリッジプロセスは起動しません。Chrome拡張は任意です。個人利用向けの実装で、CORSAIR公式製品ではありません。iCUE / XENEON EDGE実機でのインポートと操作は未検証です。
 
 ## 対応機能
 
@@ -44,7 +44,9 @@ npm run icue:bridge:pack
 
 ウィジェットのバージョンは独立した1.0.0を維持しています。Stream Deck / Chrome版のリリース番号は変更しません。ブリッジのビルドにはRustとWindows x64向けVisual Studio C++ビルドツールが必要です。ZIPを使う側にはRustは不要ですが、Node.js 24以降が必要です。
 
-1. ZIPをローカルフォルダーに展開し、`run-bridge.cmd`を開きます。コンソールを開いたまま使用し、停止するにはCtrl+Cを押します。ログイン時の自動起動は登録しません。
+1. **Stream Deckを使う場合:** この変更を含むMedia Controlsプラグインをビルド・導入し、プラグインを再起動します（開発時は `npm run build`、リンク済みなら `npm run restart`）。プラグイン起動時にiCUE用ブリッジも自動起動し、終了時に停止します。`run-bridge.cmd`、独立ブリッジZIP、別途のNode.jsインストールは不要です。iCUEのStream Deck Provider、仮想デバイス、専用キーの配置も不要です。
+   **Stream Deckを使わない場合:** ZIPをローカルフォルダーに展開し、`run-bridge.cmd`を開きます。コンソールを開いたまま使用し、停止するにはCtrl+Cを押します。ログイン時の自動起動は登録しません。
+   **独立ブリッジから切り替える場合:** 先にCtrl+Cで独立ブリッジを停止し、その後プラグインを再起動してください。既存の接続トークンとウィジェット設定はそのまま使用できます。
 2. iCUEのXENEON EDGEウィジェット画面で、利用可能なウィジェットの `+` から `.icuewidget` をインポートし、Edge Media Deckを配置します。
    ファイル選択ダイアログが動かない場合は、`.icuewidget`を直接開いてください。Windowsの関連付けからiCUEのインポート画面を表示できます。
 3. 表示されるローカル接続・自己署名証明書の権限を許可します。
@@ -58,6 +60,14 @@ Get-Content "$env:LOCALAPPDATA\StreamDeckMediaControls\icue-token.txt"
 
 開発中は `npm run icue:bridge` でビルド・起動できます。Nodeやnpmの実行環境に問題がある場合は、同等の `node scripts/pack-icue.mjs`、`node scripts/pack-icue-bridge.mjs`、`node scripts/run-icue-bridge.mjs` を使用してください。
 
+### 内蔵ブリッジのオン・オフ
+
+Stream DeckでMedia Controlsのキーまたはダイヤルを選び、設定画面の「iCUE連携」を開いて「iCUE用ブリッジを有効にする」を切り替えます。設定はプラグイン全体で共通です。初期値はオンで、Stream Deckのグローバル設定 `icueBridgeEnabled` に保存し、再起動後も保持します。保存済みの設定を読み込む前には待受けを開始しません。
+
+オンにすると内蔵ブリッジを起動し、オフにするとiCUEの接続と待受けを停止します。プラグインの再起動は不要で、Stream DeckとChromeの操作は継続します。トークンと証明書は削除しないため、再びオンにしたときも既存のウィジェット設定を使用できます。この切り替えは、別途 `run-bridge.cmd` で起動した独立ブリッジには適用しません。
+
+設定画面には稼働中・オフ・起動失敗の状態を表示します。起動に失敗した場合はプラグインのログを確認し、独立ブリッジとの競合などを解消してからオフ・オンしてください。グローバル設定の読取りに失敗した場合はブリッジを起動せず、プラグインを再起動して確認します。
+
 ### 任意のChrome連携
 
 既存のChrome拡張を導入し、展開したブリッジのフォルダーで、実際の拡張IDを指定して登録します。登録は明示的に実行したときだけHKCUのNative Messaging設定を変更します。
@@ -68,7 +78,9 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\register-chrome-native-hos
 
 拡張の設定で送信を有効にし、再生ページを再読み込みします。接続状態はウィジェット下部に表示します。登録先は既存のStream Deck版と共通です。
 
-**Chrome受信の39761番ポートは、Stream Deck版と独立ブリッジで同時に所有できません。** iCUE側でChrome情報を使用する間は、Stream Deck版Media Controlsプラグインを停止してください。競合してもWindows操作は継続できます。Chromeが不要なら `run-bridge.cmd --no-chrome` で起動できます。Chromeの登録・送信の解除手順は既存の [FAQ](../docs/faq.ja.md) も参照してください。
+**Stream Deck内蔵ブリッジでは、Chrome受信をStream Deck側と共有するため、両方の画面でChrome情報を使用できます。** Chrome拡張の登録はStream Deckの設定画面からも行えます。
+
+独立ブリッジとの同時起動は避けてください。iCUE受信の39762番ポートとChrome受信の39761番ポートは、それぞれ1プロセスだけが所有できます。プラグインのiCUE待受けに失敗した場合はログへ記録し、Stream Deckの操作は継続します。競合を解消した後、プラグインを再起動してください。独立ブリッジでChromeが不要なら `run-bridge.cmd --no-chrome` を使用できますが、iCUE受信ポートの競合は解消しません。Chromeの登録・送信の解除手順は既存の [FAQ](../docs/faq.ja.md) も参照してください。
 
 ### iCUE標準モード
 
@@ -142,7 +154,9 @@ iCUE標準モードのブラウザーデモは `index.html?demo=1` で明示的�
 | `scripts/bridge.js` | 認証通信、対象選択、追加操作、再接続 |
 | `manifest.json` / `translation.json` | 対応環境、権限、設定ラベル |
 | [icue-server.ts](../src/icue-server.ts) | HTTPS、表示確認情報、コマンド検証 |
-| [icue-bridge.ts](../src/icue-bridge.ts) | ネイティブ・Chrome接続、起動／終了 |
+| [icue-runtime.ts](../src/icue-runtime.ts) | 内蔵／独立ブリッジ共通のトークン、メディア状態・操作との接続 |
+| [icue-integration.ts](../src/icue-integration.ts) | 内蔵ブリッジのグローバル設定、オン・オフ、稼働状態 |
+| [plugin.ts](../src/plugin.ts) / [icue-bridge.ts](../src/icue-bridge.ts) | 内蔵／独立ブリッジそれぞれの起動／終了 |
 | [build-icue-bridge.mjs](../scripts/build-icue-bridge.mjs) | 独立ブリッジのビルド |
 | [pack-icue.mjs](../scripts/pack-icue.mjs) / [pack-icue-bridge.mjs](../scripts/pack-icue-bridge.mjs) | 配布物の生成 |
 | [icue-server.test.mjs](../tests/icue-server.test.mjs) / [icue-bridge-e2e.mjs](../tests/icue-bridge-e2e.mjs) | 通信と表示／操作の検証 |

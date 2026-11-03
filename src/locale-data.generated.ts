@@ -191,7 +191,18 @@ export default {
     "extension.info.help": "Read automatically from this extension. Use this ID to register Chrome integration in Stream Deck.",
     "extension.info.copyId": "Copy ID",
     "extension.info.copied": "Extension ID copied.",
-    "extension.info.copyFailed": "Could not copy. The ID is selected; copy it manually."
+    "extension.info.copyFailed": "Could not copy. The ID is selected; copy it manually.",
+    "settings.icue.title": "iCUE integration",
+    "settings.icue.enabled": "Enable iCUE bridge",
+    "settings.icue.help": "Applies to the whole plugin and is saved across restarts. Enabled by default. Turning it off disconnects iCUE widgets; Stream Deck and Chrome controls continue to work.",
+    "settings.icue.loading": "Loading iCUE settings…",
+    "settings.icue.disabled": "iCUE bridge is off.",
+    "settings.icue.starting": "Starting iCUE bridge…",
+    "settings.icue.running": "iCUE bridge is running.",
+    "settings.icue.error": "The iCUE bridge could not start. Check the plugin log. If a standalone bridge is running, stop it, then turn this setting off and on.",
+    "settings.icue.saving": "Applying iCUE setting…",
+    "settings.icue.saveFailed": "Could not save the iCUE setting. The previous setting is retained.",
+    "settings.icue.unconfirmed": "Could not confirm the change. Checking the current setting…"
   },
   "ja": {
     "1.s": "1秒",
@@ -370,6 +381,17 @@ export default {
     "extension.info.help": "この拡張機能から自動取得した情報です。Stream Deck の Chrome 連携登録には、この ID を使ってください。",
     "extension.info.copyId": "ID をコピー",
     "extension.info.copied": "拡張機能 ID をコピーしました。",
-    "extension.info.copyFailed": "コピーできませんでした。選択された ID を手動でコピーしてください。"
+    "extension.info.copyFailed": "コピーできませんでした。選択された ID を手動でコピーしてください。",
+    "settings.icue.title": "iCUE連携",
+    "settings.icue.enabled": "iCUE用ブリッジを有効にする",
+    "settings.icue.help": "プラグイン全体に適用され、再起動後も保持されます。初期値はオンです。オフにするとiCUEウィジェットとの接続を切断します。Stream DeckとChromeの操作は引き続き使用できます。",
+    "settings.icue.loading": "iCUEの設定を読み込んでいます…",
+    "settings.icue.disabled": "iCUE用ブリッジはオフです。",
+    "settings.icue.starting": "iCUE用ブリッジを起動しています…",
+    "settings.icue.running": "iCUE用ブリッジは稼働中です。",
+    "settings.icue.error": "iCUE用ブリッジを起動できませんでした。プラグインのログを確認してください。独立ブリッジが起動中なら停止し、この設定をオフにしてからオンにしてください。",
+    "settings.icue.saving": "iCUEの設定を反映しています…",
+    "settings.icue.saveFailed": "iCUEの設定を保存できませんでした。変更前の設定を維持しています。",
+    "settings.icue.unconfirmed": "変更結果を確認できませんでした。現在の設定を確認しています…"
   }
 };

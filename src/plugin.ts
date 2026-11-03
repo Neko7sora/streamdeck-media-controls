@@ -1,6 +1,7 @@
 import streamDeck from "@elgato/streamdeck";
 import {setLanguage} from "./localization.js";
 import {startChromeServer} from "./chrome-server.js";
+import {initializeIcueIntegration,stopIcueIntegration} from "./icue-integration.js";
 import {stopChromeRegistration} from "./chrome-registration.js";
 import {startMediaPolling,subscribe} from "./media-state.js";
 import {ANIMATION_INTERVAL_MS} from "./scrolling-text.js";
@@ -25,6 +26,13 @@ animation.unref();
 let closeBridge=()=>{};
 try {const server=startChromeServer(msg=>streamDeck.logger.info(msg));closeBridge=()=>{server.close();server.closeAllConnections();};}
 catch(e) {streamDeck.logger.error(`Chrome bridge: ${String(e)}`);}
-process.once("exit",()=>{clearInterval(animation);stop();stopChromeRegistration();});
-for(const signal of ["SIGINT","SIGTERM"] as const) process.once(signal,()=>{clearInterval(animation);stop();stopChromeRegistration();closeBridge();process.exit(0);});
+let stopped=false;
+function shutdown() {
+  if(stopped) return;
+  stopped=true;
+  clearInterval(animation);stop();stopChromeRegistration();stopIcueIntegration();closeBridge();
+}
+process.once("exit",shutdown);
+for(const signal of ["SIGINT","SIGTERM"] as const) process.once(signal,()=>{shutdown();process.exit(0);});
 await streamDeck.connect();
+await initializeIcueIntegration();

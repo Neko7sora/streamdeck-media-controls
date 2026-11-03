@@ -24,6 +24,19 @@ function updateDisplaySummary(){
 const actionLabels={"play-pause":"settings.action.playPause",previous:"settings.action.previous",next:"settings.action.next",stop:"settings.action.stop",mute:"settings.action.mute","volume-up":"settings.action.volumeUp","volume-down":"settings.action.volumeDown","volume-dial":"settings.action.volumeDial","now-playing":"settings.action.nowPlaying","now-playing-dial":"settings.action.nowPlayingDial"};
 const registerChrome=document.getElementById("register-chrome"),chromeStatus=document.getElementById("chrome-registration-status");
 const registrationForm=document.getElementById("chrome-registration-form"),extensionIdInput=document.getElementById("chrome-extension-id");
+const icueEnabled=document.getElementById("icue-enabled"),icueStatus=document.getElementById("icue-status");
+let icueIntegration=null,icueRequestId=null,icueTimeout,icueFeedback="";
+function updateIcueControls(){
+  icueEnabled.checked=icueIntegration?.enabled===true;
+  icueEnabled.disabled=socket?.readyState!==WebSocket.OPEN||!icueIntegration?.ready||icueRequestId!==null||!lastOptionsAt||Date.now()-lastOptionsAt>6000;
+  const keys={loading:"settings.icue.loading",disabled:"settings.icue.disabled",starting:"settings.icue.starting",running:"settings.icue.running",error:"settings.icue.error"};
+  const message=icueRequestId!==null?t("settings.icue.saving"):icueFeedback||t(keys[icueIntegration?.state]??"settings.icue.loading");
+  if(icueStatus.textContent!==message) icueStatus.textContent=message;
+}
+function receiveIcueIntegration(value,feedback=""){
+  if(value&&typeof value.enabled==="boolean"&&typeof value.ready==="boolean"&&["loading","disabled","starting","running","error"].includes(value.state)) {icueIntegration=value;icueFeedback=feedback;}
+  updateIcueControls();
+}
 let registrationRequestId=null,registrationTimeout;
 function updateRegistrationControls(){
   registerChrome.disabled=socket?.readyState!==WebSocket.OPEN||registrationRequestId!==null;
@@ -48,6 +61,7 @@ function showChromeConnection(connection){
 function setSettingsDisabled(disabled){
   for(const element of [media,audio,global,dialMode,seekStep,scrollText,...displaySettings.map(([element])=>element)]) element.disabled=disabled;
   updateDisplaySummary();
+  updateIcueControls();
 }
 setSettingsDisabled(true);
 function send(event,payload){if(socket?.readyState===WebSocket.OPEN) socket.send(JSON.stringify({event,context,action,payload}));}
@@ -134,6 +148,12 @@ window.connectElgatoStreamDeckSocket=(port,uuid,registerEvent,_info,actionInfo)=
     const msg=JSON.parse(event.data);
     if(msg.event==="didReceiveSettings"){settingsRevision++;settings=msg.payload.settings??{};show();if(pushOptions) send("sendToPlugin",{request:"watch",settingsRevision});}
     if(msg.event==="sendToPropertyInspector"){
+      if(msg.payload.response==="icueIntegration") {
+        if(icueRequestId===null||msg.payload.requestId!==icueRequestId) return;
+        icueRequestId=null;clearTimeout(icueTimeout);
+        receiveIcueIntegration(msg.payload.icueIntegration,msg.payload.failed?t("settings.icue.saveFailed"):"");
+        return;
+      }
       if(msg.payload.response==="chromeHostRegistration") {
         if(registrationRequestId===null||msg.payload.requestId!==registrationRequestId) return;
         registrationRequestId=null;clearTimeout(registrationTimeout);updateRegistrationControls();
@@ -150,11 +170,13 @@ window.connectElgatoStreamDeckSocket=(port,uuid,registerEvent,_info,actionInfo)=
       if(msg.payload.sessions!==undefined) {sessions=msg.payload.sessions;mediaOptionsLoaded=true;}
       if(msg.payload.audio!==undefined) {audioTargets=msg.payload.audio;audioOptionsLoaded=true;}
       lastOptionsAt=Date.now();if(msg.payload.chromeConnection!==undefined) showChromeConnection(msg.payload.chromeConnection);
+      if(msg.payload.icueIntegration!==undefined) receiveIcueIntegration(msg.payload.icueIntegration);
       show();
       if(msg.payload.optionsRequired===true){pushOptions=false;requestOptions();}
     }
   };
   socket.onclose=()=>{
+    clearTimeout(icueTimeout);icueRequestId=null;icueIntegration=null;icueFeedback="";
     setSettingsDisabled(true);
     clearTimeout(registrationTimeout);
     if(registrationRequestId!==null) chromeStatus.textContent=t("chrome.registration.unconfirmed");
@@ -164,6 +186,16 @@ window.connectElgatoStreamDeckSocket=(port,uuid,registerEvent,_info,actionInfo)=
     document.getElementById("status").textContent=t("disconnected.from.the.plugin");
   };
 };
+icueEnabled.addEventListener("change",()=>{
+  const enabled=icueEnabled.checked;
+  if(icueEnabled.disabled) {updateIcueControls();return;}
+  icueRequestId=crypto.randomUUID();icueFeedback="";updateIcueControls();
+  send("sendToPlugin",{request:"setIcueIntegration",requestId:icueRequestId,enabled});
+  icueTimeout=setTimeout(()=>{
+    icueRequestId=null;icueFeedback=t("settings.icue.unconfirmed");icueIntegration=null;
+    updateIcueControls();requestOptions();
+  },12000);
+});
 extensionIdInput.addEventListener("input",()=>{
   extensionIdInput.setCustomValidity("");
   extensionIdInput.removeAttribute("aria-invalid");
@@ -223,4 +255,5 @@ setInterval(()=>{
   if(!pushOptions) requestOptions();
   else if(Date.now()-Math.max(lastProbeAt,lastOptionsAt)>=3000) {lastProbeAt=Date.now();send("sendToPlugin",{request:"alive"});}
   if(lastOptionsAt&&Date.now()-lastOptionsAt>6000) showChromeConnection({state:"unavailable"});
+  updateIcueControls();
 },1000);

@@ -85,3 +85,4 @@ footer { padding: 14px 3px 0; }
 .save-note::before { content: "↳"; color: var(--accent); }
 @media (max-width: 300px) { body { padding: 14px 8px; } .card { padding: 11px; } .appearance-summary { gap: 6px; } }
 @media (forced-colors: active) { .connection strong::before { background: CanvasText; } .brand-mark, .count-badge { border: 1px solid CanvasText; } summary::after { border-color: CanvasText; } }
+#icue-toggle-row { min-block-size: 48px; }

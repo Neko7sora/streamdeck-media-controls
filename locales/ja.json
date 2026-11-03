@@ -175,5 +175,16 @@
   "extension.info.help": "この拡張機能から自動取得した情報です。Stream Deck の Chrome 連携登録には、この ID を使ってください。",
   "extension.info.copyId": "ID をコピー",
   "extension.info.copied": "拡張機能 ID をコピーしました。",
-  "extension.info.copyFailed": "コピーできませんでした。選択された ID を手動でコピーしてください。"
+  "extension.info.copyFailed": "コピーできませんでした。選択された ID を手動でコピーしてください。",
+  "settings.icue.title": "iCUE連携",
+  "settings.icue.enabled": "iCUE用ブリッジを有効にする",
+  "settings.icue.help": "プラグイン全体に適用され、再起動後も保持されます。初期値はオンです。オフにするとiCUEウィジェットとの接続を切断します。Stream DeckとChromeの操作は引き続き使用できます。",
+  "settings.icue.loading": "iCUEの設定を読み込んでいます…",
+  "settings.icue.disabled": "iCUE用ブリッジはオフです。",
+  "settings.icue.starting": "iCUE用ブリッジを起動しています…",
+  "settings.icue.running": "iCUE用ブリッジは稼働中です。",
+  "settings.icue.error": "iCUE用ブリッジを起動できませんでした。プラグインのログを確認してください。独立ブリッジが起動中なら停止し、この設定をオフにしてからオンにしてください。",
+  "settings.icue.saving": "iCUEの設定を反映しています…",
+  "settings.icue.saveFailed": "iCUEの設定を保存できませんでした。変更前の設定を維持しています。",
+  "settings.icue.unconfirmed": "変更結果を確認できませんでした。現在の設定を確認しています…"
 }

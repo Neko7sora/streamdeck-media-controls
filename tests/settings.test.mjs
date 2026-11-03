@@ -2,6 +2,38 @@ import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {inspector,displayFields} from './settings-harness.mjs';
 
+test('iCUE switch uses plugin-wide settings, waits for confirmation, and handles failure and disconnect',()=>{
+  const pi=inspector({mediaTarget:'A'},{language:'en'});
+  const toggle=pi.elements.get('icue-enabled');
+  assert.equal(toggle.disabled,true,'do not guess the saved global preference');
+  pi.receive('sendToPropertyInspector',{icueIntegration:{enabled:true,ready:true,state:'running'}});
+  assert.equal(toggle.disabled,false);assert.equal(toggle.checked,true);
+  pi.change('icue-enabled',false);
+  const request=pi.messages.at(-1).payload;
+  assert.equal(request.request,'setIcueIntegration');assert.equal(request.enabled,false);
+  assert.equal(toggle.disabled,true);assert.equal(toggle.checked,true,'retain the confirmed preference while saving');
+  assert.equal(pi.messages.some(message=>message.event==='setSettings'),false,'the action settings must remain untouched');
+  pi.receive('sendToPropertyInspector',{response:'icueIntegration',requestId:'old',icueIntegration:{enabled:false,ready:true,state:'disabled'}});
+  assert.equal(toggle.disabled,true);
+  pi.receive('sendToPropertyInspector',{response:'icueIntegration',requestId:request.requestId,failed:false,icueIntegration:{enabled:false,ready:true,state:'disabled'}});
+  assert.equal(toggle.checked,false);assert.equal(toggle.disabled,false);
+  assert.equal(pi.elements.get('icue-status').textContent,'iCUE bridge is off.');
+  pi.change('icue-enabled',true);
+  pi.receive('sendToPropertyInspector',{response:'icueIntegration',requestId:pi.messages.at(-1).payload.requestId,failed:true,icueIntegration:{enabled:false,ready:true,state:'disabled'}});
+  assert.equal(toggle.checked,false);assert.match(pi.elements.get('icue-status').textContent,/Could not save/);
+  pi.change('icue-enabled',true);pi.timeout();
+  assert.equal(toggle.disabled,true);assert.equal(pi.messages.at(-1).payload.request,'options');
+  pi.receive('sendToPropertyInspector',{icueIntegration:{enabled:true,ready:true,state:'running'}});
+  assert.equal(toggle.checked,true);assert.equal(toggle.disabled,false);
+  assert.equal(pi.elements.get('icue-status').textContent,'iCUE bridge is running.','a fresh state clears the unconfirmed message');
+  pi.advance(6100);assert.equal(toggle.disabled,true,'a silent plugin cannot accept another toggle');
+  pi.receive('sendToPropertyInspector',{response:'alive'});pi.poll();assert.equal(toggle.disabled,false);
+  pi.close();assert.equal(toggle.disabled,true);
+  pi.open();assert.equal(toggle.disabled,true,'reopening waits for the current preference');
+  pi.receive('sendToPropertyInspector',{icueIntegration:{enabled:false,ready:true,state:'disabled'}});
+  assert.equal(toggle.checked,false);assert.equal(toggle.disabled,false);
+});
+
 test('action settings are revealed after configuration and setup help opens through Stream Deck',()=>{
   const pi=inspector({},{language:'en',action:'dev.n7s.media-controls.mute'});
   assert.equal(pi.elements.get('action-settings').hidden,false);

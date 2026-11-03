@@ -133,15 +133,16 @@ node --test tests/*.test.mjs
 | 回帰検証・測定 | `tests/communication.test.mjs`, `chrome-transport.test.mjs`, ページ・worker・settingsの既存テスト、共有harness、`scripts/measure-*.mjs` |
 | バージョン・説明 | `package.json`, `package-lock.json`, 両manifest、`README.md`, 本文書、測定JSON |
 
-## iCUE独立ウィジェットの通信
+## iCUEウィジェットの通信
 
-Edge Media Deckのブリッジモードは、Stream Deckアプリを起動せずに既存のWindowsヘルパー、メディア選択、Chrome受信／操作処理を再利用します。実装は `src/icue-bridge.ts` / `src/icue-server.ts`、画面側は `icue-widget/scripts/bridge.js` です。
+Edge Media Deckのブリッジモードは、Stream Deckプラグイン内で自動起動し、既存のWindowsヘルパー、メディア状態、Chrome受信／操作処理を共有します。別のポーリングやヘルパーは追加起動しません。Stream Deckアプリを使わない独立ブリッジも同じ実装を利用します。共通実装は `src/icue-runtime.ts` / `src/icue-server.ts`、起動・終了は `src/plugin.ts` または `src/icue-bridge.ts`、画面側は `icue-widget/scripts/bridge.js` です。
 
 - iCUE向けは `https://127.0.0.1:39762` のみで待受け、Chromeと異なるBearerトークンを使用します。トークンとTLS証明書は既存の保護ディレクトリに保存し、現在のユーザーとSYSTEMのみにアクセスを限定します。
 - ウィジェットからの接続は `Origin: null`（ローカルHTML）と正確なHostを検査し、HTTP(S)の外部Originを拒否します。ヘッダーに認証を載せ、トークンをURLやlocalStorageへ保存しません。権限は対象ポートの `url` と `self-signed-certificate` だけです。
 - `/events` は認証付きNDJSONストリームです。変更は50msで集約し、10秒ごとに状態・表示確認情報を更新します。接続は最大8本、1状態は8MB以内とし、バックプレッシャー中の変更をまとめます。画面は18秒の応答停止で切断し、3秒後に再接続します。非表示時は接続を閉じます。
 - `/command` は12KB以内のJSON POST、同時処理は最大16件です。署名付きの表示確認情報は30秒で失効し、選択したメディア対象・曲の識別値・音量対象の識別値を含みます。操作直前に現在値と操作可否を検査し、曲の切替・切断・置換を拒否します。シークは元のセッション／ブラウザー範囲へ制限し、Chrome操作はdocumentと要素IDを指定します。大域メディアキーへのフォールバックはありません。
 - 音量スライダーは既存ヘルパーに `value`（0〜1の絶対音量）を送ります。Stream Deck側が使う `delta` は維持し、両方の指定は拒否します。音量の並行変更があってもスライダー指定が相対差分として積み重なることを防ぎます。
-- Chromeの39761番ポートとNative Messaging登録先は従来版と共通です。同時に所有できる受信プロセスは1つなので、iCUE側でChrome連携を使う場合はStream Deck版プラグインを停止します。競合は接続状態として表示し、Windows機能は継続します。`--no-chrome` でChrome受信を省略できます。
+- 内蔵版ではChromeの39761番ポートを既存の受信サーバーと共有するため、Stream DeckとiCUEでChrome情報を同時利用できます。iCUEの39762番ポートとChromeの39761番ポートを所有できるプロセスはそれぞれ1つなので、独立ブリッジとは同時起動しません。内蔵iCUE待受けの同期／非同期の起動失敗はログに残し、Stream Deckの操作は継続します。競合を解消した後はプラグインを再起動します。独立版の `--no-chrome` はChrome受信だけを省略します。
+- 内蔵版の有効・無効は `src/icue-integration.ts` がStream Deckのグローバル設定 `icueBridgeEnabled` に保存します。未設定はオン、明示的なfalseはオフです。保存済みの設定を読み込む前には待受けを開かず、読み込めなければ起動しません。設定画面からの変更はアクティブなインスペクター、要求ID、boolean値を検証してから保存し、起動・停止を直列化します。オフはiCUEの接続だけを閉じ、Windowsのメディア観測とChrome通信は維持します。競合解消後は設定画面のオフ・オンでも再起動できます。
 
 導入・権限・制限は [ウィジェットREADME](icue-widget/README.md) にまとめています。ウィジェット用CLI、モックHTTPSの単体テスト、Chromiumの操作／配置テストと、実iCUE／XENEON EDGEの受け入れ確認は区別します。

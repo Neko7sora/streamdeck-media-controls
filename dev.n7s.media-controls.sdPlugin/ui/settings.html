@@ -84,6 +84,12 @@
       <p class="help" id="scroll-help" data-i18n="scrolling.help">Smoothly scrolls long titles, artist names and target names. When disabled, text stays at the beginning and is clipped to fit. Applies immediately to this key / dial only. Enabled by default.</p>
     </fieldset>
     </details>
+    <details class="card setup-card" id="icue-settings">
+      <summary data-i18n="settings.icue.title">iCUE integration</summary>
+      <label class="check-row" id="icue-toggle-row" for="icue-enabled"><input type="checkbox" id="icue-enabled" name="icueBridgeEnabled" aria-describedby="icue-help icue-status" disabled><span data-i18n="settings.icue.enabled">Enable iCUE bridge</span></label>
+      <p class="help" id="icue-help" data-i18n="settings.icue.help">Applies to the whole plugin and is saved across restarts. Enabled by default. Turning it off disconnects iCUE widgets; Stream Deck and Chrome controls continue to work.</p>
+      <p class="feedback" id="icue-status" role="status" aria-live="polite" aria-atomic="true"></p>
+    </details>
     <details class="card setup-card" id="chrome-setup">
       <summary id="chrome-setup-summary" data-i18n="settings.chromeSetup">Setup Chrome integration</summary>
       <p class="section-help" data-i18n="settings.chromeSetup.help">Optional: adds media information from browser tabs.</p>

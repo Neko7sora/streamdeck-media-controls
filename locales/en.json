@@ -189,5 +189,16 @@
   "extension.info.help": "Read automatically from this extension. Use this ID to register Chrome integration in Stream Deck.",
   "extension.info.copyId": "Copy ID",
   "extension.info.copied": "Extension ID copied.",
-  "extension.info.copyFailed": "Could not copy. The ID is selected; copy it manually."
+  "extension.info.copyFailed": "Could not copy. The ID is selected; copy it manually.",
+  "settings.icue.title": "iCUE integration",
+  "settings.icue.enabled": "Enable iCUE bridge",
+  "settings.icue.help": "Applies to the whole plugin and is saved across restarts. Enabled by default. Turning it off disconnects iCUE widgets; Stream Deck and Chrome controls continue to work.",
+  "settings.icue.loading": "Loading iCUE settings…",
+  "settings.icue.disabled": "iCUE bridge is off.",
+  "settings.icue.starting": "Starting iCUE bridge…",
+  "settings.icue.running": "iCUE bridge is running.",
+  "settings.icue.error": "The iCUE bridge could not start. Check the plugin log. If a standalone bridge is running, stop it, then turn this setting off and on.",
+  "settings.icue.saving": "Applying iCUE setting…",
+  "settings.icue.saveFailed": "Could not save the iCUE setting. The previous setting is retained.",
+  "settings.icue.unconfirmed": "Could not confirm the change. Checking the current setting…"
 }

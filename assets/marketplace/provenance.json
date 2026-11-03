@@ -8,7 +8,7 @@
     "src/scrolling-text.ts": "0a5ef6d91f3f9e1948a7cbfeeb33ad497a354f278852d981ccb14ae2a31cc294",
     "src/display-font.ts": "01120d67e03419bef8699a38e0a224ab7cc0e419d01123a0d3c99dcbde4baa52",
     "src/display-guidelines.ts": "b6fde60b325d24ed310de6448a32a5b6707bed6d7d9d5c17fb1a7e76679682e7",
-    "src/plugin.ts": "6d81d0694ac7c385ab2c982e2c7b5bb2393dfcadcb5d2efcadc9a8c38dd1501e",
+    "src/plugin.ts": "9aaa1d3b3e700f8814f7e5130d2f648e7367888b5985dd454b8bf58706b3886e",
     "src/configured-action.ts": "243344ea4267893b2ecdc1cd35bf328c7eb1bab646ad99774fb0a407de9de289",
     "src/control-actions.ts": "bfc70d1e0bde9556b2df4319f0a1eb7b66806ae06be8e7f82fa1df5bc0684d47",
     "src/now-playing-actions.ts": "d750dfe0703943b8f694253fabab06d4231859fad242c0ab8e414e58705d1043",
