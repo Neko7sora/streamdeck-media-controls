@@ -8,6 +8,7 @@ Media Controls は [Elgato Marketplace](https://marketplace.elgato.com/product/m
 
 | 用途 | 文書 |
 |---|---|
+| プラグイン実装の責務と依存関係 | [ソース構成](source-structure.md) |
 | 現行の機能・導入・ビルド・復旧・実機確認 | [README](../README.md) |
 | 利用者向けの導入・操作・トラブル対応のQ&A | [よくある質問（日本語）](faq.ja.md) |
 | 公開版の機能・制限 | [リリース履歴](version-history.md) |
