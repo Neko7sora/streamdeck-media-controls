@@ -9,7 +9,9 @@ export const untrustedTls={key:read('untrusted-key'),cert:read('untrusted-cert')
 export function httpsFetch(url,options={}) {
   return new Promise((resolve,reject)=>{
     const req=request(url,{...options,ca:options.ca??tls.cert,rejectUnauthorized:true},res=>{
-      resolve(new Response(Readable.toWeb(res),{status:res.statusCode}));
+      const empty = [204,205,304].includes(res.statusCode);
+      if(empty) res.resume();
+      resolve(new Response(empty ? null : Readable.toWeb(res),{status:res.statusCode}));
     });
     req.on('error',reject);req.end(options.body);
   });

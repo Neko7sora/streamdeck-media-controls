@@ -15,7 +15,7 @@ export function chromeConnectionStatus(now=Date.now()) {
   const connected=bridgeListening&&lastChromeContact!==null&&now-lastChromeContact<15000;
   return {state:!bridgeListening?"unavailable":connected?"connected":"disconnected",lastSeen:lastChromeContact,sessions:connected?chromeSessions(now).length:0};
 }
-function loadCredentials():{token:string;tls:ServerOptions} {
+export function loadCredentials():{token:string;tls:ServerOptions} {
   if(!process.env.LOCALAPPDATA) throw new Error("LOCALAPPDATA is required for private token storage");
   const dir=join(process.env.LOCALAPPDATA,"StreamDeckMediaControls"), path=join(dir,"chrome-token.txt");
   const pfx=join(dir,"chrome-server.pfx"),cert=join(dir,"chrome-server.pem");
@@ -28,7 +28,7 @@ function loadCredentials():{token:string;tls:ServerOptions} {
       $acl.SetAccessRuleProtection($true,$false);
       foreach($identity in @($sid,$system)) {$acl.AddAccessRule((New-Object Security.AccessControl.FileSystemAccessRule($identity,'FullControl','ContainerInherit,ObjectInherit','None','Allow')))};
       [IO.Directory]::SetAccessControl($env:SDMC_TOKEN_DIR,$acl);
-      foreach($file in @($env:SDMC_TOKEN_FILE,$env:SDMC_TLS_PFX,$env:SDMC_TLS_CERT)) {if([IO.File]::Exists($file)) {
+      foreach($file in @($env:SDMC_TOKEN_FILE,$env:SDMC_TLS_PFX,$env:SDMC_TLS_CERT,$env:SDMC_ICUE_TOKEN_FILE)) {if([IO.File]::Exists($file)) {
         $fileAcl=New-Object Security.AccessControl.FileSecurity; $fileAcl.SetAccessRuleProtection($true,$false);
         foreach($identity in @($sid,$system)) {$fileAcl.AddAccessRule((New-Object Security.AccessControl.FileSystemAccessRule($identity,'FullControl','Allow')))};
         [IO.File]::SetAccessControl($file,$fileAcl);
@@ -47,7 +47,7 @@ function loadCredentials():{token:string;tls:ServerOptions} {
           } finally {$certificate.Dispose()}
         } finally {$rsa.Dispose()}
       }`;
-    execFileSync(join(process.env.SystemRoot??"C:\\Windows","System32/WindowsPowerShell/v1.0/powershell.exe"),["-NoProfile","-NonInteractive","-Command",script],{windowsHide:true,timeout:10000,env:{...process.env,SDMC_TOKEN_DIR:dir,SDMC_TOKEN_FILE:path,SDMC_TLS_PFX:pfx,SDMC_TLS_CERT:cert},stdio:"pipe"});
+    execFileSync(join(process.env.SystemRoot??"C:\\Windows","System32/WindowsPowerShell/v1.0/powershell.exe"),["-NoProfile","-NonInteractive","-Command",script],{windowsHide:true,timeout:10000,env:{...process.env,SDMC_TOKEN_DIR:dir,SDMC_TOKEN_FILE:path,SDMC_TLS_PFX:pfx,SDMC_TLS_CERT:cert,SDMC_ICUE_TOKEN_FILE:join(dir,"icue-token.txt")},stdio:"pipe"});
   }
   // Never regenerate a partial identity or silently fall back to plaintext.
   const tls={pfx:readFileSync(pfx),passphrase:""};

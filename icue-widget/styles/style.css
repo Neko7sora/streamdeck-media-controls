@@ -140,3 +140,67 @@ button { font: inherit; }
 }
 @media (prefers-reduced-motion: reduce) { .control { transition: none; } }
 @media (forced-colors: active) { .control-primary { border-color: ButtonText; } }
+
+/* Extended controls use native select/range/button behavior in Chromium 130. */
+.bridge-panel[hidden], .extra-controls[hidden] { display: none; }
+#appIcon { inline-size: calc(var(--layout-unit) * 5); block-size: calc(var(--layout-unit) * 5); object-fit: contain; }
+#appIcon[hidden] { display: none; }
+#songTitleText { display: inline-block; }
+#songName[data-scroll="true"][data-overflow="true"] #songTitleText { animation: title-scroll var(--title-duration, 12s) linear infinite alternate; }
+@keyframes title-scroll { 0%, 15% { transform: translateX(0); } 85%, 100% { transform: translateX(calc(-1 * var(--title-overflow))); } }
+@media (prefers-reduced-motion: reduce) { #songName[data-scroll="true"][data-overflow="true"] #songTitleText { animation: none; } }
+.bridge-panel { display: grid; gap: calc(var(--layout-unit) * .5); }
+.target-row { display: grid; grid-template-columns: 1fr 1fr; gap: calc(var(--layout-unit) * 2); }
+.target-field { min-inline-size: 0; display: grid; }
+.bridge-panel label, .bridge-notice, #positionText, #volumeText { font-size: var(--font-label); line-height: 1.2; }
+.bridge-panel select, .bridge-panel button, .extra-controls button {
+  box-sizing: border-box; min-inline-size: 0; block-size: var(--bridge-control-size); font: inherit;
+  font-size: var(--font-label); color: var(--ink); background: var(--base); border: calc(var(--layout-unit) * .29) solid currentColor;
+  border-radius: calc(var(--layout-unit) * 2); padding-inline: calc(var(--layout-unit) * 2); touch-action: manipulation;
+}
+.bridge-panel select { inline-size: 100%; text-overflow: ellipsis; }
+.bridge-panel :disabled, .extra-controls :disabled { opacity: .45; }
+.seek-row { display: grid; grid-template-columns: auto 1fr; align-items: center; }
+#positionText { text-align: end; font-variant-numeric: tabular-nums; }
+.seek-row input { grid-column: 1 / -1; }
+.audio-row { display: grid; grid-template-columns: calc(var(--layout-unit) * 9) minmax(0, 1fr) calc(var(--layout-unit) * 13) calc(var(--layout-unit) * 28); align-items: center; gap: calc(var(--layout-unit) * 2); }
+.bridge-panel input[type="range"] {
+  font: inherit;
+  box-sizing: border-box; inline-size: 100%; min-inline-size: 0; block-size: var(--bridge-control-size);
+  margin: 0; accent-color: var(--accent); cursor: pointer;
+}
+.extra-controls { display: flex; gap: calc(var(--layout-unit) * 1.5); }
+.extra-controls button { inline-size: var(--bridge-control-size); min-inline-size: var(--bridge-control-size); padding-inline: 0; cursor: pointer; }
+.bridge-notice { margin: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.bridge-panel :is(input, select, button):focus-visible, .extra-controls button:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+:root[data-bridge="true"] {
+  font-size: calc(var(--layout-unit) * 4);
+  --bridge-control-size: max(48px, calc(var(--layout-unit) * 14));
+  --space-pad: calc(var(--layout-unit) * 2.2);
+  --space-gap: calc(var(--layout-unit) * 5);
+  --font-hero: calc(var(--layout-unit) * 6.4);
+  --font-secondary: max(14px, calc(var(--layout-unit) * 4));
+  --font-label: max(12px, calc(var(--layout-unit) * 3.5));
+  --control-size: var(--bridge-control-size);
+  --control-primary-size: calc(var(--bridge-control-size) * 1.12);
+}
+:root[data-bridge="true"][data-icue-surface] {
+  --bridge-control-size: calc(var(--layout-unit) * 14);
+  --font-secondary: calc(var(--layout-unit) * 4);
+  --font-label: calc(var(--layout-unit) * 3.5);
+}
+:root[data-bridge="true"] .content { gap: var(--layout-unit); }
+:root[data-bridge="true"] .metadata h1 { margin: 0; }
+:root[data-bridge="true"] .album-line { margin: 0; }
+:root[data-bridge="true"] :is(.brand, .hint) { display: none; }
+:root[data-bridge="true"] .cover { inline-size: min(22%, calc(var(--layout-unit) * 56)); }
+:root[data-bridge="true"] .bottomline { justify-content: start; }
+@media (max-aspect-ratio: 1.8) {
+  :root[data-bridge="true"] { --layout-unit: min(1vmin, 3.44px); }
+  :root[data-bridge="true"][data-icue-surface] { --layout-unit: min(1vmin, .4942528736vw); }
+}
+@media (max-aspect-ratio: 1.05) {
+  :root[data-bridge="true"] .cover { inline-size: calc(var(--layout-unit) * 56); }
+  :root[data-bridge="true"] .bottomline { justify-content: center; }
+  :root[data-bridge="true"] .player { gap: calc(var(--layout-unit) * 5); }
+}

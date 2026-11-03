@@ -85,16 +85,32 @@ pub fn snapshot() -> windows::core::Result<Value> {
         )
     }
 }
+fn volume_request(v: &Value) -> Result<(Option<f32>, f32), &'static str> {
+    if let Some(value) = v.get("value") {
+        if v.get("delta").is_some() {
+            return Err("Ambiguous volume request");
+        }
+        let absolute = value
+            .as_f64()
+            .filter(|x| x.is_finite() && (0.0..=1.0).contains(x))
+            .ok_or("Invalid absolute volume")?;
+        Ok((Some(absolute as f32), 0.0))
+    } else {
+        let delta = v["delta"]
+            .as_f64()
+            .filter(|x| x.is_finite() && x.abs() <= 1.0)
+            .ok_or("Invalid volume delta")?;
+        Ok((None, delta as f32))
+    }
+}
+
 pub fn command(v: &Value) -> Result<(), Box<dyn std::error::Error>> {
     let target = v["target"].as_str().ok_or("Missing audio target")?;
     let mute = v["command"] == "mute";
-    let delta = if mute {
-        0.0
+    let (absolute, delta) = if mute {
+        (None, 0.0)
     } else {
-        v["delta"]
-            .as_f64()
-            .filter(|x| x.is_finite() && x.abs() <= 1.0)
-            .ok_or("Invalid volume delta")? as f32
+        volume_request(v)?
     };
     unsafe {
         let device = device()?;
@@ -104,7 +120,9 @@ pub fn command(v: &Value) -> Result<(), Box<dyn std::error::Error>> {
                 endpoint.SetMute(!endpoint.GetMute()?.as_bool(), ptr::null())?;
             } else {
                 endpoint.SetMasterVolumeLevelScalar(
-                    (endpoint.GetMasterVolumeLevelScalar()? + delta).clamp(0.0, 1.0),
+                    absolute.unwrap_or(
+                        (endpoint.GetMasterVolumeLevelScalar()? + delta).clamp(0.0, 1.0),
+                    ),
                     ptr::null(),
                 )?;
             }
@@ -123,7 +141,7 @@ pub fn command(v: &Value) -> Result<(), Box<dyn std::error::Error>> {
                 volume.SetMute(!volume.GetMute()?.as_bool(), ptr::null())?;
             } else {
                 volume.SetMasterVolume(
-                    (volume.GetMasterVolume()? + delta).clamp(0.0, 1.0),
+                    absolute.unwrap_or((volume.GetMasterVolume()? + delta).clamp(0.0, 1.0)),
                     ptr::null(),
                 )?;
             }
@@ -136,6 +154,24 @@ pub fn command(v: &Value) -> Result<(), Box<dyn std::error::Error>> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn absolute_volume_is_bounded_and_keeps_legacy_deltas() {
+        assert_eq!(
+            volume_request(&json!({"value":0.75})),
+            Ok((Some(0.75), 0.0))
+        );
+        assert_eq!(volume_request(&json!({"value":0})), Ok((Some(0.0), 0.0)));
+        assert_eq!(volume_request(&json!({"delta":-0.25})), Ok((None, -0.25)));
+        for input in [
+            json!({"value":-0.1}),
+            json!({"value":1.1}),
+            json!({"value":null}),
+            json!({"value":"0.5"}),
+            json!({"value":0.5,"delta":0.2}),
+        ] {
+            assert!(volume_request(&input).is_err());
+        }
+    }
     #[test]
     fn malformed_audio_commands_are_rejected_before_any_device_access() {
         assert!(command(&json!({"command":"volume"})).is_err());

@@ -1,12 +1,25 @@
 # Edge Media Deck — XENEON EDGE iCUE ウィジェット
 
-同梱の `icue-widget` テンプレートを基にした、XENEON EDGE 向けのメディアウィジェットです。**Windows、iCUE 5.52 以降、Widget API 1.9.0 / Media Data Provider 1.1** を対象にしています。
+Stream Deck Media Controls の曲情報・アート・アプリアイコン表示、再生操作、シーク、プレーヤー選択、マスター／アプリ別音量を、XENEON EDGE のタッチ画面へ移植したウィジェットです。**Windows 11 x64、iCUE 5.52 以降（Widget API 1.9.0）、Node.js 24 以降**を使用します。Stream Deck アプリ・物理デバイスは不要です。
 
-曲名・アーティスト・アルバム・アルバムアートを表示し、前の曲／再生・一時停止／次の曲をタッチで操作できます。文字色・アクセント色・背景色・背景透明度と、アルバムアート／アルバム名の表示を設定できます。画面と操作ラベルは日本語、iCUE の設定は日本語・英語に対応しています。
+既存の Windows Rust ヘルパーとメディア選択・Chrome 通信処理を使う、独立した Node.js ブリッジを常駐させます。Chrome 拡張は任意です。個人利用向けの実装で、CORSAIR 公式製品ではありません。iCUE / XENEON EDGE 実機でのインポートと操作は未検証です。
 
-## 対応画面と設定
+## 対応機能
 
-XENEON EDGE の全サイズ・両向きに対応します。横長ではアートと曲情報を左右に、縦長では上下に配置します。M／L／XL の縦枠でも S 縦を基準に文字・操作ボタンの大きさを保ち、余白で調整します。iCUE のプレビューと実機では、文字・ボタン・画像・余白を同じ比率で拡縮します。縮小プレビューには開発ブラウザー向けの最小文字サイズ・操作領域や小画面用の省略を適用しません。長い曲名は省略表示し、ブラウザーではタイトル属性から全文を確認できます。
+| 機能 | ブリッジモード（初期値） | iCUE標準モード |
+|---|---|---|
+| 曲名・アーティスト・アルバム・アート | Windows / 任意のChrome情報 | Media Data Provider 1.1 |
+| アプリ／サイトアイコン | 取得できる場合に表示 | 未対応 |
+| 前へ・再生／一時停止・次へ | 対象の対応操作だけ有効 | プロバイダーが選ぶアクティブプレーヤー |
+| 停止・±10秒・シークバー | 対応する対象だけ有効、実際のシーク可能範囲に制限 | 未対応 |
+| 再生位置と長さ | 取得値を基準に表示を補間、不明値は `--:--` | 未対応 |
+| プレーヤー選択 | 自動または特定セッション、切断した対象を維持 | 未対応 |
+| 音量・ミュート | マスターまたは特定Audio Session | 未対応 |
+| 長い曲名 | スクロール切替、動きを減らす設定に対応 | 同左 |
+
+Stream Deck + のダイヤル／タップ操作は、画面のシーク・音量スライダーとボタンに置き換えています。物理キー／ダイヤルのイベント連携は使用しません。元のプラグインと同じく、アプリ／サイトが公開しない情報・操作は利用できません。Chrome の前／次など、元の拡張が対応しない操作も追加していません。
+
+XENEON EDGE の全8枠に対応します。ポンプ／キーボードLCDは対象外です。
 
 | サイズ | 横 | 縦 |
 |---|---|---|
@@ -15,104 +28,127 @@ XENEON EDGE の全サイズ・両向きに対応します。横長ではアー�
 | L | 1688×696 | 696×1688 |
 | XL | 2536×696 | 696×2536 |
 
-| 設定ID | 設定 | 初期値 |
-|---|---|---|
-| `showArtwork` | アルバムアートを表示 | オン |
-| `showAlbum` | アルバム名を表示 | オン |
-| `textColor` | 文字色 | `#F7F8FC` |
-| `accentColor` | アクセント色（既存IDを維持） | `#66E6CE` |
-| `backgroundColor` | 背景色（既存IDを維持） | `#111827` |
-| `transparency` | 背景の透明度 | 0%（不透明）、0〜100% |
+## ビルドと導入
 
-背景透明度は背景と装飾にだけ適用し、曲情報・ボタン・アートは薄くしません。再生ボタンのアイコンはアクセント色に合わせて白／黒を選びます。小さな開発プレビューではアルバム名と装飾ラベルを省き、44px 以上の操作領域を保ちます。ポンプ／キーボード LCD は対象外です。
-
-## ビルドとインストール
-
-リポジトリのルートで実行してください。Node.js 24 以降が必要です。公式 `icuewidget-cli` は開発依存としてロックされているため、グローバルインストールは不要です。
+リポジトリのルートで実行します。公式 `icuewidget-cli` 0.5.1 は開発依存としてロックされています。
 
 ```powershell
 npm ci
 npm run icue:check
 npm run icue:pack
+npm run icue:bridge:pack
 ```
 
-ルートに `icue-widget-1.0.0.icuewidget` が生成されます。出力名はウィジェットの `manifest.json` のバージョンに従います。ウィジェットは独立した成果物として 1.0.0 を使用し、Stream Deck / Chrome 拡張のリリース番号は変更しません。
+- `icue-widget-1.0.0.icuewidget`: iCUEへインポートするウィジェット。
+- `icue-bridge-1.0.0.zip`: Node.js用ブリッジ、Windowsヘルパー、起動ファイル、Chrome登録スクリプト、ライセンス、説明書。
 
-1. iCUE で XENEON EDGE のウィジェット画面を開きます。
-2. 利用可能なウィジェットの `+` から生成した `.icuewidget` を選択します。
-3. Edge Media Deck をディスプレイへ追加します。
-4. Windows のシステムメディア情報に対応するアプリで曲を再生します。
-5. iCUE のウィジェット設定で表示内容と外観を調整します。
+ウィジェットのバージョンは独立した1.0.0を維持しています。Stream Deck / Chrome版のリリース番号は変更しません。ブリッジのビルドにはRustとWindows x64向けVisual Studio C++ビルドツールが必要です。ZIPを使う側にはRustは不要ですが、Node.js 24以降が必要です。
 
-パッケージ生成は必要な HTML / CSS / JS、manifest、設定の翻訳、アイコン、プレビュー、ライセンスだけを一時フォルダに集め、公式 CLI で検証・生成します。デモプロバイダー、サンプル画像、テストコードは配布物に含めません。
-
-## データと操作の範囲
-
-iCUE が提供する `window.plugins.Mediadataprovider` を使用します。Stream Deck アプリ、プラグイン、Rust ヘルパー、Chrome 拡張の導入は不要です。ウィジェットから外部ネットワークへの通信、API キー、追加権限、ファイルアクセスは使用しません。
-
-- 初期値を非同期の `get*(requestId)` / `asyncResponse` で読み取り、プロパティ変更通知で表示を更新します。非同期取得のタイムアウト時は現在のプロパティ値を利用し、不明な値に以前の曲情報を流用しません。
-- 通知の取りこぼしに備え、表示中は20秒ごとにプロバイダーの消失・交換を確認して再取得します。初期化通知なしで後から現れたプロバイダーも、この周期で検出します。非表示／画面を閉じたときはタイマー・保留要求・シグナル接続を解放し、復帰時に再接続します。
-- 非同期取得のタイムアウト時は、その時点のプロパティ値を利用します。応答と現在のプロパティが食い違う場合は現在の表示へ更新し、古い応答の曲情報を採用しません。
-- 取得情報は文字列として表示します。画像はサイズを制限した PNG data URL のみ受け付け、未取得・読み込み失敗時は音符を表示します。
-- 曲名が未取得、または該当する操作メソッドが提供されない場合、ボタンを無効にします。再生状態が未取得なら「再生状態不明」と表示します。
-
-接続待ちは「iCUEメディアを待機中」、非同期情報の初回取得中は「メディア情報を取得中」、空のセッションは「再生待ち」を表示します。全項目が取得できなければ接続確認と自動再試行を案内し、古い曲情報は表示しません。操作例外は「操作に失敗しました」を一時表示し、再生状態を成功したものとして変更しません。
-
-権限監査: **追加権限は不要**です。manifest の `permissions` は空配列のままです。iCUE Media Data Provider 1.1 以外のプラグイン、外部通信、ローカルファイルの読み取り、ハードウェアAPIは追加していません。
-
-**再生時間、シーク、音量、アプリ名、プレーヤー選択、セッションID、操作可否の詳細は公式 Media Data Provider 1.1 の公開APIにありません。** 操作先は iCUE のプロバイダーが選ぶアクティブセッションです。表示済みの曲情報と現在のプロパティが異なる場合やプロバイダーが交換された場合は、一度表示を更新してから次の操作を受け付けます。ただし、曲情報が同じセッションの切り替えや、表示確認から操作までの間の切り替えを検出して固定することはできません。特定のアプリへ操作を固定する必要がある場合は、既存の Stream Deck プラグインを使用してください。
-
-対応状況は各アプリが Windows / iCUE に公開する情報に依存します。このウィジェットはコミュニティ製であり、CORSAIR 公式製品ではありません。
-
-## ブラウザーのデモと検証
-
-`index.html?demo=1` をブラウザーで開くと、サンプル曲と動作する操作ボタンを確認できます。ローカルサーバーを使う場合は次のとおりです。
+1. ZIPをローカルフォルダーに展開し、`run-bridge.cmd`を開きます。コンソールを開いたまま使用し、停止するにはCtrl+Cを押します。ログイン時の自動起動は登録しません。
+2. iCUEのXENEON EDGEウィジェット画面で、利用可能なウィジェットの `+` から `.icuewidget` をインポートし、Edge Media Deckを配置します。
+   ファイル選択ダイアログが動かない場合は、`.icuewidget`を直接開いてください。Windowsの関連付けからiCUEのインポート画面を表示できます。
+3. 表示されるローカル接続・自己署名証明書の権限を許可します。
+4. 次のコマンドで**自分のPCで生成された**トークンを読み、iCUEの「接続トークン」に貼り付けます。トークンは秘密情報なので共有しないでください。
 
 ```powershell
-py -m http.server 8765 --directory icue-widget
+Get-Content "$env:LOCALAPPDATA\StreamDeckMediaControls\icue-token.txt"
 ```
 
-[ブラウザーデモ](http://localhost:8765/index.html?demo=1) は明示したときだけ有効です。通常の読み込みでは偽の曲を表示せず、実際のプロバイダーが注入されている場合はデモで上書きしません。配布パッケージにはデモ自体がありません。
+5. Windowsのメディアセッションに対応するアプリで再生し、画面の「プレーヤー」「音量の対象」を選びます。選択はウィジェットの `uniqueId` ごとに保存します。トークンはlocalStorageへ保存しません。
+
+開発中は `npm run icue:bridge` でビルド・起動できます。Nodeやnpmの実行環境に問題がある場合は、同等の `node scripts/pack-icue.mjs`、`node scripts/pack-icue-bridge.mjs`、`node scripts/run-icue-bridge.mjs` を使用してください。
+
+### 任意のChrome連携
+
+既存のChrome拡張を導入し、展開したブリッジのフォルダーで、実際の拡張IDを指定して登録します。登録は明示的に実行したときだけHKCUのNative Messaging設定を変更します。
 
 ```powershell
-node --test tests/icue-widget.test.mjs
+powershell -NoProfile -ExecutionPolicy Bypass -File .\register-chrome-native-host.ps1 -ExtensionId 実際の拡張ID
+```
+
+拡張の設定で送信を有効にし、再生ページを再読み込みします。接続状態はウィジェット下部に表示します。登録先は既存のStream Deck版と共通です。
+
+**Chrome受信の39761番ポートは、Stream Deck版と独立ブリッジで同時に所有できません。** iCUE側でChrome情報を使用する間は、Stream Deck版Media Controlsプラグインを停止してください。競合してもWindows操作は継続できます。Chromeが不要なら `run-bridge.cmd --no-chrome` で起動できます。Chromeの登録・送信の解除手順は既存の [FAQ](../docs/faq.ja.md) も参照してください。
+
+### iCUE標準モード
+
+「Windowsブリッジを使用」をオフにすると従来のMedia Data Provider 1.1による曲情報表示と前へ／再生一時停止／次へを使用できます。このモードにはNode.jsやRustヘルパーは不要です。シーク・音量・プレーヤー固定は利用できず、iCUEのアクティブセッションが操作対象になります。
+
+ブリッジが切断されても標準モードへ自動切替しません。表示していない別プレーヤーへの操作を防ぐためです。
+
+## 設定
+
+| 設定ID | 内容 | 初期値 |
+|---|---|---|
+| `useBridge` | 独立Windowsブリッジを使用 | オン |
+| `bridgeToken` | ローカルブリッジの認証トークン | 空欄（自分のPCの値を設定） |
+| `showArtwork` | アルバムアート表示 | オン |
+| `showAlbum` | アルバム名表示 | オン |
+| `scrollTitle` | 長い曲名のスクロール | オン |
+| `textColor` | 文字色 | `#F7F8FC` |
+| `accentColor` | アクセント色 | `#66E6CE` |
+| `backgroundColor` | 背景色 | `#111827` |
+| `transparency` | 背景のみの透明度 | 0%、0〜100% |
+
+既存の設定IDを維持しています。設定ラベルは日本語／英語、画面と操作ラベルは日本語です。背景透明度は文字・アート・ボタンを薄くしません。iCUEプレビューと実機用画面は比例拡縮し、縦長の枠では基準の文字・操作サイズを保ちます。
+
+## 通信と権限
+
+| manifestの権限 | 範囲 | 用途 |
+|---|---|---|
+| `url` | `127.0.0.1:39762` | 自分のPCのHTTPSブリッジから状態を受信し、操作を送信 |
+| `self-signed-certificate` | `127.0.0.1` | ブリッジが生成するローカル証明書を使用 |
+
+権限はインストール時に表示され、iCUE設定で取り消せます。ウィジェットは外部API、外部画像・スクリプト・フォント、ローカルファイル読取り、クリップボード、Stream Deck Providerを使用しません。アートとアイコンはブリッジからのサイズ制限付きPNG/JPEG/WebP data URLだけを表示します。APIキー・アカウントへのログインは不要です。
+
+### iCUE 5.52.93と公式CLIの権限表記の差
+
+実アプリのインポーターは `self-signed-certificate`（ハイフン）と `domain` フィールドを使用します。公式資料とCLI 0.5.1の `self_signed_certificate` / `host` とは表記が異なります。iCUE 5.52.93の実ログで、アンダースコア表記の「無効な権限タイプ」と、`host`指定による「Missing domain field in permission」を確認しました。ソースmanifestと配布パッケージは次の定義を使用し、ファイルを直接開いた実iCUEで権限確認画面まで進むことを確認済みです。権限承認後の最終インポートと実機タッチ操作は別途確認が必要です。
+
+```json
+{ "type": "self-signed-certificate", "domain": "127.0.0.1" }
+```
+
+`npm run icue:check` / `npm run icue:pack` は、一時コピーの証明書権限のタイプ名と項目名（`domain` → `host`）だけをCLI向けに変換して公式CLIの構造・スコープ・使用権限検査を実行します。検証後の配布には元のmanifestを使い、ロック済みCLIのZIP生成処理でパッケージ化します。権限の削除・拡張、TLS検証の無効化は行いません。`icuewidget validate icue-widget` の直接実行は、この表記差に対応しないため使用しないでください。
+
+ブリッジは`127.0.0.1`のみに待受け、Bearer認証、Host／Origin検査、要求サイズ・接続数・同時コマンド数の制限を行います。`Origin: null`はiCUEのローカルHTML向けに認めますが、トークンなしでは読取り・操作できません。トークンをURL・ログへ出さず、Windowsの保存先は現在のユーザーとSYSTEMに限定します。Chromeとは別のトークンを使います。
+
+状態は変更通知で受信し、10秒ごとに状態と期限付きの表示確認情報を更新します。表示確認情報は操作先のセッション・曲・音量対象に結び付き、30秒で失効します。現在の対象・曲・対応操作と一致しなければ操作を拒否します。Chromeではdocumentとメディア要素のIDも照合します。シーク中に曲が変わった場合も、ジェスチャー開始時の対象を照合します。音量は絶対値を指定し、従来プラグインの相対音量操作も維持しています。
+
+接続がなくなれば曲情報と操作を解除し、原因としてブリッジ未起動・トークン・権限の確認を案内します。18秒間応答がなければ再接続し、失敗時は3秒後に再試行します。非表示時は通信・タイマーを解放し、復帰時に再接続します。失敗した操作は再送せず、成功したと推測して再生状態を変更しません。情報なし・操作非対応は未知／無効として扱います。
+
+## 検証
+
+```powershell
+node --test tests/icue-widget.test.mjs tests/icue-server.test.mjs
 npm run check:fast
-npm run test:chrome:install
 npm run test:icue:e2e
 npm run icue:pack
+npm run icue:bridge:pack
 ```
 
-ブラウザーテストは既存の Playwright を共用します。上記8枠と、2560×720、1280×360、640×180、320×140、280×320 の配置・44px 以上の操作領域を確認します。さらに `iCUE.isPreview` を切り替え、全8枠の実機サイズと1/2・1/4サイズのプレビューで、正規化した配置・文字サイズ・要素の表示状態が一致するかを検査します。縦枠間の計算済み文字サイズ、キーボード操作、長い曲名、表示切替、背景のみの透明度、遅延初期化、取得中／空／取得失敗、復帰、外部通信なしも検査します。スクリーンショットは `tests/.generated/icue-*.png` に出力します。Python 版の旧スモークテストは Node.js 版へ統合しました。
+Playwrightのブラウザーがない場合は `npm run test:chrome:install` で導入します。テストはモックのプレーヤーと公開テスト用TLS証明書を使い、PCの実際の再生／音量を変更しません。スクリーンショットは `tests/.generated/icue-bridge-*.png` に出力します。
 
-公式 CLI 検証やモックプロバイダーによる Chromium テストは、実際の iCUE / XENEON EDGE での受け入れ確認を代替しません。実機でのインポート、複数プレーヤー間の切り替え、タッチ操作、スリープ復帰は別途確認が必要です。
+iCUE標準モードのブラウザーデモは `index.html?demo=1` で明示的に有効にできます。配布パッケージにデモは含めません。`.icuewidget`にはHTML/CSS/JS、manifest、翻訳、アイコン、プレビュー、ライセンスだけを含め、ブリッジ本体と秘密情報は含めません。
+
+公式CLI・ブラウザーテストは実機受け入れの代替ではありません。実機ではインポート・ローカル通信権限・自己署名TLSの接続・タッチ・複数プレーヤー・スリープ復帰を別途確認してください。Marketplace公開用の審査や掲載資料は、この個人利用向け成果物の範囲外です。
 
 ## 編集先
 
 | ファイル | 用途 |
 |---|---|
-| `index.html` | 画面、iCUE 外観設定、初期化入口 |
-| `manifest.json` | iCUE の対応環境と Media Provider 宣言 |
-| `translation.json` | iCUE 外観設定の日本語・英語ラベル |
-| `scripts/widget.js` | プロバイダー接続、非同期応答、表示、操作、終了・復帰 |
-| `scripts/demo-provider.js` | ブラウザー専用のデモ |
-| `styles/style.css` | 横長・コンパクト表示とフォーカス表示 |
-| `resources/` | アイコン、選択プレビュー、テンプレートのデモ画像 |
-| [pack-icue.mjs](../scripts/pack-icue.mjs) | 配布ファイルの収集と公式CLIでのパッケージ化 |
-| [icue-widget.test.mjs](../tests/icue-widget.test.mjs) | プロバイダーの単体テスト |
-| [icue-e2e.mjs](../tests/icue-e2e.mjs) | ブラウザーでの表示・操作テスト |
-
-## トラブル対応
-
-- インポートに失敗する場合は iCUE 5.52 以降か確認し、`npm run icue:check` と `npm run icue:pack` を再実行してください。HTML の先頭は大文字の `<!DOCTYPE html>` を維持してください。
-- ソースを修正してもインポート済みのウィジェットは更新されません。生成した `.icuewidget` を iCUE に再インポートし、必要に応じて配置を追加し直してください。
-- 曲が表示されない場合は Windows のメディアセッションに対応するアプリで再生してください。ブラウザーデモで画面だけを確認できます。
-- 画像がない場合は iCUE が画像を返しているか確認してください。未取得の音符表示は正常です。
-- 操作に失敗した場合は曲を再生し直し、iCUE 側のメディア情報を確認してください。ウィジェットは成功したと仮定して再生状態を変更しません。
+| `index.html` / `styles/style.css` | 設定、画面、比例レイアウト |
+| `scripts/widget.js` | 共通表示とiCUE標準プロバイダー |
+| `scripts/bridge.js` | 認証通信、対象選択、追加操作、再接続 |
+| `manifest.json` / `translation.json` | 対応環境、権限、設定ラベル |
+| [icue-server.ts](../src/icue-server.ts) | HTTPS、表示確認情報、コマンド検証 |
+| [icue-bridge.ts](../src/icue-bridge.ts) | ネイティブ・Chrome接続、起動／終了 |
+| [build-icue-bridge.mjs](../scripts/build-icue-bridge.mjs) | 独立ブリッジのビルド |
+| [pack-icue.mjs](../scripts/pack-icue.mjs) / [pack-icue-bridge.mjs](../scripts/pack-icue-bridge.mjs) | 配布物の生成 |
+| [icue-server.test.mjs](../tests/icue-server.test.mjs) / [icue-bridge-e2e.mjs](../tests/icue-bridge-e2e.mjs) | 通信と表示／操作の検証 |
 
 ## 公式資料
 
-- [Widget の導入・パッケージ・インポート](https://docs.elgato.com/icue/widgets/)
-- [Widget API 1.9.0 仕様](https://docs.elgato.com/icue/widgets/specification/)
+- [Widget仕様](https://docs.elgato.com/icue/widgets/specification/)
 - [Media Data Provider 1.1](https://docs.elgato.com/icue/widgets/references/plugins/media-data-provider/)
-- [プラグインの初期化](https://docs.elgato.com/icue/widgets/references/plugins/)
-- [設定の翻訳](https://docs.elgato.com/icue/widgets/references/translations/)
+- [権限](https://docs.elgato.com/icue/widgets/references/permissions/)

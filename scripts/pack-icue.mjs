@@ -1,7 +1,8 @@
 import {copyFile, mkdir, mkdtemp, readFile, rm, writeFile} from 'node:fs/promises';
 import {dirname, isAbsolute, join, relative, resolve} from 'node:path';
 import {fileURLToPath} from 'node:url';
-import {spawnSync} from 'node:child_process';
+import {createPackage} from '../node_modules/icuewidget-cli/src-node/zip.js';
+import {validateIcueWidget} from './check-icue.mjs';
 
 const root = fileURLToPath(new URL('../', import.meta.url));
 const source = join(root, 'icue-widget');
@@ -13,7 +14,7 @@ await mkdir(generated, {recursive:true});
 const staging = await mkdtemp(join(generated, 'icue-package-'));
 try {
   // Ship only runtime files. In particular, the demo provider must never enter iCUE.
-  for (const file of ['manifest.json', 'translation.json', 'scripts/widget.js', 'styles/style.css',
+  for (const file of ['manifest.json', 'translation.json', 'scripts/widget.js', 'scripts/bridge.js', 'styles/style.css',
     'resources/icon.svg', 'resources/icon.png', 'resources/preview.png']) {
     const destination = join(staging, file);
     await mkdir(dirname(destination), {recursive:true});
@@ -24,12 +25,9 @@ try {
   if (html.includes('demo-provider.js')) throw new Error('Demo script still referenced in package');
   await writeFile(join(staging, 'index.html'), html);
   for (const file of ['LICENSE-MIT', 'LICENSE-APACHE']) await copyFile(join(root, file), join(staging, file));
-  const result = spawnSync(process.execPath, [join(root, 'node_modules/icuewidget-cli/node-bin/icuewidget.js'),
-    'package', staging, '--output', output], {
-    cwd:root, stdio:'inherit', windowsHide:true,
-    env:{...process.env, ICUEWIDGET_NO_UPDATE_CHECK:'1'},
-  });
-  if (result.error || result.status !== 0) throw result.error ?? new Error(`iCUE packaging failed (${result.status})`);
+  await validateIcueWidget(staging);
+  // Use the locked official ZIP writer with the original, runtime-compatible manifest.
+  await createPackage(staging, output);
   console.log(`iCUE package: ${output}`);
 } finally {
   // Verify the absolute deletion target stays inside this checkout's generated test output.

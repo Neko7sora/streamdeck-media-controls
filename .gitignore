@@ -9,3 +9,4 @@ node_modules/
 tests/.generated/
 media-bridge-*.zip
 *.icuewidget
+icue-bridge-*.zip

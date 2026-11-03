@@ -10,7 +10,7 @@ const steps = [
     readdirSync(new URL(`../${directory}/`, import.meta.url))
       .filter(file => file.endsWith('.js')).sort()
       .map(file => [`syntax: ${directory}/${file}`, ['--check', `${directory}/${file}`]])),
-  ['iCUE widget', ['node_modules/icuewidget-cli/node-bin/icuewidget.js', 'validate', 'icue-widget']],
+  ['iCUE widget', ['scripts/check-icue.mjs']],
   ['TypeScript', ['node_modules/typescript/bin/tsc', '--noEmit']],
   ['unit tests', ['--test', '--test-timeout=120000', ...readdirSync(new URL('../tests/', import.meta.url))
     .filter(file => file.endsWith('.test.mjs')).sort().map(file => `tests/${file}`)]],

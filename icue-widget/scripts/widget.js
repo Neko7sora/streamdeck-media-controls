@@ -39,6 +39,7 @@
   }
 
   function updateAppearance() {
+    window.edgeMediaBridge?.configure();
     // Both iCUE surfaces use proportional tokens: a mimic can have a smaller CSS viewport.
     const preview = setting(() => iCUE.isPreview);
     if (typeof preview === "boolean") document.documentElement.dataset.icueSurface = preview ? "preview" : "device";
@@ -50,6 +51,7 @@
     const transparent = setting(() => transparency);
     const artwork = setting(() => showArtwork);
     const album = setting(() => showAlbum);
+    el.song.dataset.scroll = setting(() => scrollTitle) === false ? "false" : "true";
     for (const [property, value] of [["--accent", accent], ["--base", background], ["--ink", ink]]) {
       if (typeof value === "string" && /^#[0-9a-f]{6}$/i.test(value)) {
         document.documentElement.style.setProperty(property, value);
@@ -75,13 +77,24 @@
   }
 
   function setText(element, value, fallback) {
-    element.textContent = value || fallback;
-    element.title = element.textContent;
+    const content = element === el.song ? document.getElementById("songTitleText") || element : element;
+    const text = value || fallback;
+    if (content.textContent !== text) content.textContent = text;
+    element.title = text;
+  }
+
+  function updateScrolling() {
+    const content = document.getElementById("songTitleText");
+    if (!content) return;
+    const distance = Math.max(0, content.getBoundingClientRect().width - el.song.getBoundingClientRect().width);
+    el.song.dataset.overflow = distance > 1 ? "true" : "false";
+    el.song.style.setProperty("--title-overflow", `${distance}px`);
+    el.song.style.setProperty("--title-duration", `${Math.max(12, distance / 30 + 6)}s`);
   }
 
   function validArtwork(value) {
     return typeof value === "string" && value.length <= 12_000_000 &&
-      /^data:image\/png;base64,[A-Za-z0-9+/]+={0,2}$/.test(value);
+      /^data:image\/(png|jpeg|webp);base64,[A-Za-z0-9+/]+={0,2}$/i.test(value);
   }
 
   function normalize(values) {
@@ -95,6 +108,7 @@
   }
 
   function currentProvider() {
+    if (window.edgeMediaBridge?.enabled) return window.edgeMediaBridge.provider;
     return read(read(window, "plugins"), "Mediadataprovider") || null;
   }
 
@@ -133,6 +147,11 @@
     else if (state.isPlaying === null) setStatus("idle", "再生状態不明");
     else if (state.isPlaying) setStatus("playing", "再生中");
     else setStatus("paused", "一時停止");
+    if (window.edgeMediaBridge?.enabled && !plugin) {
+      setStatus("waiting", window.edgeMediaBridge.message);
+      setText(el.song, "", "Windowsブリッジに接続してください");
+      setText(el.artist, "", "ブリッジの起動・接続トークン・iCUEの権限を確認してください");
+    }
 
     // SVGElement.hidden is not a reflected boolean property in Qt/Chromium.
     el.play.querySelector(".icon-play").toggleAttribute("hidden", state.isPlaying === true);
@@ -143,6 +162,7 @@
     for (const [button, method] of controls) {
       button.disabled = suspended || !hasTrack || typeof property(method) !== "function";
     }
+    updateScrolling();
   }
 
   function connect(signal, callback) {
@@ -266,6 +286,7 @@
   function resume() {
     if (document.visibilityState === "hidden") return;
     suspended = false;
+    window.edgeMediaBridge?.resume();
     updateAppearance();
     if (!initializeMedia()) scheduleRefresh();
     // Also recover missing/replaced providers when the host misses an initialization event.
@@ -277,6 +298,7 @@
 
   function suspend() {
     suspended = true;
+    window.edgeMediaBridge?.suspend();
     clearInterval(pollTimer);
     pollTimer = null;
     detach();
@@ -291,17 +313,25 @@
       const value = property(key);
       if (typeof value === "string" && value.trim() !== state[key]) { scheduleRefresh(); return; }
     }
-    try {
-      plugin[method]();
+    const activeBinding = binding;
+    const success = () => {
+      if (activeBinding !== binding || suspended) return;
       commandError = false;
       clearTimeout(errorTimer);
       scheduleRefresh();
-    } catch {
+    };
+    const failure = () => {
+      if (activeBinding !== binding || suspended) return;
       commandError = true;
       render();
       clearTimeout(errorTimer);
       errorTimer = setTimeout(() => { commandError = false; render(); }, 2500);
-    }
+    };
+    try {
+      const result = plugin[method]();
+      if (result && typeof result.then === "function") result.then(success, failure);
+      else success();
+    } catch { failure(); }
   }
 
   for (const [button, method] of controls) button.addEventListener("click", () => action(button, method));
@@ -309,12 +339,13 @@
     failedArtwork = el.art.getAttribute("src") || "";
     el.art.hidden = true;
     el.artPlaceholder.hidden = false;
+    window.edgeMediaBridge?.artworkFailed(failedArtwork);
   });
   window.icueEvents = {
     onICUEInitialized() { updateAppearance(); initializeMedia(); },
-    onDataUpdated() { updateAppearance(); render(); },
+    onDataUpdated() { updateAppearance(); initializeMedia(); render(); },
   };
-  window.pluginMediadataproviderEvents = { onInitialized: initializeMedia };
+  window.pluginMediadataproviderEvents = { onInitialized() { initializeMedia(); render(); } };
   document.addEventListener("visibilitychange", () => {
     if (document.visibilityState === "hidden") suspend();
     else resume();
@@ -322,6 +353,12 @@
   window.addEventListener("pagehide", suspend);
   window.addEventListener("pageshow", resume);
   window.addEventListener("resize", render);
+  if (typeof ResizeObserver !== "undefined" && document.getElementById("songTitleText")) {
+    const observer = new ResizeObserver(updateScrolling);
+    observer.observe(el.song); observer.observe(document.getElementById("songTitleText"));
+    window.addEventListener("pagehide", () => observer.disconnect());
+    window.addEventListener("pageshow", () => {observer.observe(el.song); observer.observe(document.getElementById("songTitleText"));});
+  }
 
   updateAppearance();
   render();

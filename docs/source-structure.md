@@ -10,6 +10,7 @@ Stream Deck プラグインの入口は [plugin.ts](../src/plugin.ts) です。�
 | [now-playing-actions.ts](../src/now-playing-actions.ts) | Now Playing のキー・ダイヤル表示、シーク、セッション切替 |
 | [media-commands.ts](../src/media-commands.ts) | 操作失敗の通知、音量制御、Windows / Chrome へのセッション指定操作 |
 | [property-inspector.ts](../src/property-inspector.ts) | 設定画面とのハンドシェイク、差分通知、Chrome ホスト登録要求 |
+| [icue-bridge.ts](../src/icue-bridge.ts)、[icue-server.ts](../src/icue-server.ts) | Stream Deckから独立したiCUEブリッジの起動、認証付きHTTPS、表示対象の照合。既存のメディア状態とWindows／Chrome通信を再利用 |
 
 アクションは入口で明示的に生成します。基底クラスのコンストラクターによるグローバルな登録は行いません。設定画面のイベント購読も入口から開始します。
 

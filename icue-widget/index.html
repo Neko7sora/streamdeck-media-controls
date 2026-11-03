@@ -6,14 +6,17 @@
   <title>tr('Edge Media Deck')</title>
   <link rel="icon" type="image/svg+xml" href="resources/icon.svg" />
   <meta name="x-icue-widget-preview" content="resources/preview.png" />
+  <meta name="x-icue-property" content="useBridge" data-label="tr('Use Windows Bridge')" data-type="switch" data-default="true" />
+  <meta name="x-icue-property" content="bridgeToken" data-label="tr('Bridge Token')" data-type="textfield" data-default="''" />
   <meta name="x-icue-property" content="showArtwork" data-label="tr('Show Artwork')" data-type="switch" data-default="true" />
   <meta name="x-icue-property" content="showAlbum" data-label="tr('Show Album')" data-type="switch" data-default="true" />
+  <meta name="x-icue-property" content="scrollTitle" data-label="tr('Scroll Long Titles')" data-type="switch" data-default="true" />
   <meta name="x-icue-property" content="textColor" data-label="tr('Text Color')" data-type="color" data-default="'#F7F8FC'" />
   <meta name="x-icue-property" content="accentColor" data-label="tr('Accent Color')" data-type="color" data-default="'#66E6CE'" />
   <meta name="x-icue-property" content="backgroundColor" data-label="tr('Background Color')" data-type="color" data-default="'#111827'" />
   <meta name="x-icue-property" content="transparency" data-label="tr('Background Transparency')" data-type="slider" data-default="0" data-min="0" data-max="100" data-step="1" data-unit-label="'%'" />
   <script type="application/json" id="x-icue-groups">
-  [{"title":"tr('Display')","properties":["showArtwork","showAlbum"]},{"title":"tr('Appearance')","properties":["textColor","accentColor","backgroundColor","transparency"]}]
+  [{"title":"tr('Connection')","properties":["useBridge","bridgeToken"]},{"title":"tr('Display')","properties":["showArtwork","showAlbum","scrollTitle"]},{"title":"tr('Appearance')","properties":["textColor","accentColor","backgroundColor","transparency"]}]
   </script>
   <link rel="stylesheet" href="styles/style.css" />
 </head>
@@ -36,14 +39,30 @@
 
       <div class="content">
         <div class="topline">
-          <span class="now-label" role="status"><span class="dot" id="statusDot" aria-hidden="true"></span> <span id="statusText">iCUEに接続しています</span></span>
+          <span class="now-label" role="status"><img id="appIcon" alt="" hidden /><span class="dot" id="statusDot" aria-hidden="true"></span> <span id="statusText">iCUEに接続しています</span></span>
           <span class="brand">EDGE <span class="brand-sep">/</span> MEDIA</span>
         </div>
 
         <div class="metadata" aria-live="polite" aria-atomic="true">
-          <h1 id="songName" title="">メディアを待機中</h1>
+          <h1 id="songName" title=""><span id="songTitleText">メディアを待機中</span></h1>
           <div class="artist" id="artist" title="">再生中のメディア情報を表示します</div>
           <div class="album-line" id="album" title=""></div>
+        </div>
+
+        <div class="bridge-panel" id="bridgePanel" hidden>
+          <div class="target-row">
+            <div class="target-field"><label for="mediaTarget">プレーヤー</label><select id="mediaTarget" disabled><option value="auto">自動選択</option></select></div>
+            <div class="target-field"><label for="audioTarget">音量の対象</label><select id="audioTarget" disabled><option value="master">マスター音量</option></select></div>
+          </div>
+          <div class="seek-row">
+            <label for="seekRange">再生位置</label><span id="positionText">--:-- / --:--</span>
+            <input id="seekRange" type="range" min="0" max="1" step="0.1" value="0" disabled />
+          </div>
+          <div class="audio-row">
+            <label for="volumeRange">音量</label><input id="volumeRange" type="range" min="0" max="100" step="1" value="0" disabled />
+            <span id="volumeText">--%</span><button id="muteButton" type="button" disabled>ミュート</button>
+          </div>
+          <p id="bridgeNotice" class="bridge-notice" role="status">Windowsブリッジを待機中</p>
         </div>
 
         <div class="bottomline">
@@ -59,12 +78,16 @@
               <svg viewBox="0 0 32 32" fill="currentColor" aria-hidden="true"><path d="M23 7h3v18h-3zM7 8.3v15.4c0 1.05 1.15 1.69 2.04 1.13L21 17.13a1.35 1.35 0 0 0 0-2.26L9.04 7.17C8.15 6.6 7 7.24 7 8.3Z" /></svg>
             </button>
           </div>
+          <div id="bridgeExtra" hidden class="extra-controls" role="group" aria-label="追加の再生操作">
+            <button id="rewindButton" type="button" disabled>−10秒</button><button id="stopButton" type="button" disabled>停止</button><button id="forwardButton" type="button" disabled>＋10秒</button>
+          </div>
           <div class="hint">CORSAIR iCUE <span class="hint-separator">•</span> MEDIA CONTROLS</div>
         </div>
       </div>
     </section>
   </main>
   <script src="scripts/demo-provider.js"></script>
+  <script src="scripts/bridge.js"></script>
   <script src="scripts/widget.js"></script>
 </body>
 </html>

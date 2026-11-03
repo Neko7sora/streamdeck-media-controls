@@ -152,6 +152,7 @@ try {
   assert.notEqual(await page.locator('#playPauseButton').evaluate(node => getComputedStyle(node).outlineStyle), 'none');
 
   const live = await context.newPage();
+  await live.addInitScript(() => {window.useBridge = false;});
   await live.goto(entry);
   assert.equal(await live.locator('#playPauseButton').isDisabled(), true);
   assert.equal(await live.locator('#statusText').innerText(), 'iCUEメディアを待機中');
@@ -210,6 +211,7 @@ try {
   assert.equal(await live.locator('#coverPlaceholder').isVisible(), true);
   // Delayed async-only providers distinguish loading, an empty session and a lost connection.
   const pending = await context.newPage();
+  await pending.addInitScript(() => {window.useBridge = false;});
   await pending.goto(entry);
   await pending.evaluate(() => {
     const listeners = new Set();
