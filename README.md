@@ -144,9 +144,9 @@ Chrome 公式のセキュリティ要件との対応と自動検査は [Chrome �
 
 1. プラグインを起動します。Native Messaging ホストからの中継を受けるため、`127.0.0.1:39761` にだけ待ち受けます。
 2. [Chrome Web Store](https://chromewebstore.google.com/detail/stream-deck-media-metadat/iagfcpchjohmpnnlcgppdcadehinhdpa) から拡張をインストールします。ストア版の拡張 ID は `iagfcpchjohmpnnlcgppdcadehinhdpa` です。開発時は、代わりに `chrome://extensions` の開発者モードで、このリポジトリの `chrome-extension` を「パッケージ化されていない拡張機能」として読み込めます。その場合の ID はストア版と異なることがあるため、実際に読み込んだ拡張の ID を確認してください。
-3. Stream Deck アプリで Media Controls のアクションを選択し、「Chrome 連携の設定」を開きます。`chrome://extensions` で導入元と ID を確認し、ストア版なら `iagfcpchjohmpnnlcgppdcadehinhdpa` を入力して「Chrome 連携を登録」をクリックします。入力した拡張機能 ID のみを許可し、現在のユーザーの HKCU に Native Messaging ホストを登録します。起動時や定期的な登録は行わず、ボタンを押したときだけ実行します。未導入の場合は Chrome で拡張をインストールしてから再度クリックしてください。Stream Deck に同梱された Node.js 24 を使い、ホストを LOCALAPPDATA にコピーします。管理者権限や別途 Node.js のインストールは不要です。拡張のオプションで送信を有効にして保存してください。トークンの貼り付けは不要です。
+3. Stream Deck アプリで Media Controls のアクションを選択し、「Chrome 連携の設定」を開きます。拡張の導入元を確認し、拡張の設定の「はじめての設定」に自動表示される ID を「ID をコピー」でコピーして貼り付け、「Chrome 連携を登録」をクリックします。入力した拡張機能 ID のみを許可し、現在のユーザーの HKCU に Native Messaging ホストを登録します。起動時や定期的な登録は行わず、ボタンを押したときだけ実行します。未導入の場合は Chrome で拡張をインストールしてから再度クリックしてください。Stream Deck に同梱された Node.js 24 を使い、ホストを LOCALAPPDATA にコピーします。管理者権限や別途 Node.js のインストールは不要です。拡張のオプションで送信を有効にして保存してください。トークンの貼り付けは不要です。
 
-   手動で登録・修復したい場合は、リポジトリで次を実行できます（Node.js 24 以降が必要）。`chrome://extensions` で、ストアからインストールした拡張、またはこのリポジトリから読み込んだ拡張の ID を確認してください。名前だけでは識別できないため、自動検出は行いません。
+   手動で登録・修復したい場合は、リポジトリで次を実行できます（Node.js 24 以降が必要）。ストアからインストールした拡張、またはこのリポジトリから読み込んだ拡張の「はじめての設定」で、自動表示される ID を確認してください。登録スクリプトは名前で拡張を推測せず、指定した ID だけを許可します。
 
    ```powershell
    powershell -NoProfile -ExecutionPolicy Bypass -File scripts/register-chrome-native-host.ps1 -ExtensionId <確認した拡張機能ID>

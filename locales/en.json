@@ -20,7 +20,7 @@
   "chrome.disconnected": "Chrome: Disconnected",
   "chrome.integration": "Chrome integration",
   "chrome.registration.failed": "Registration failed. Check the plugin logs and try again.",
-  "chrome.registration.help": "In chrome://extensions, verify the extension you loaded from this repository and copy its ID below. Names alone do not identify the intended extension.",
+  "chrome.registration.help": "Verify the companion extension’s source, then open its “First-time setup” and copy the automatically displayed ID below. Names alone do not identify the intended extension.",
   "chrome.registration.notFound": "Extension not found. Load the chrome-extension folder in Chrome, then try again.",
   "chrome.registration.success": "Chrome integration registered. Enable sending in the extension options. If it cannot connect, reload the extension.",
   "chrome.registration.timeout": "No response received. Please try again.",
@@ -82,7 +82,7 @@
   "extension.settings.unsaved": "Unsaved changes",
   "extension.setup.help": "For first-time setup, click “Register Chrome integration” in the Stream Deck Media Controls settings, then enable sending below and save.",
   "extension.setup.step1": "In Stream Deck’s Media Controls settings, open “Setup Chrome integration”.",
-  "extension.setup.step2": "Enter this extension’s ID from chrome://extensions, then click “Register Chrome integration”.",
+  "extension.setup.step2": "Copy the extension ID shown above, paste it into the plugin settings, then click “Register Chrome integration”.",
   "extension.setup.step3": "Enable sending above, then save.",
   "extension.setup.step4": "Reload your media tabs and start playback. Check that the connection reads “Connected to Stream Deck”.",
   "extension.setup.title": "First-time setup",
@@ -182,6 +182,12 @@
   "waiting.for.the.plugin.to.respond": "Waiting for the plugin to respond.",
   "windows.media": "Windows media",
   "chrome.registration.extensionId": "Chrome extension ID",
-  "chrome.registration.invalidId": "Enter the verified 32-character extension ID (a–p) from chrome://extensions.",
-  "chrome.registration.busy": "Registration is in progress. Wait for it to finish, then try again."
+  "chrome.registration.invalidId": "Enter the 32-character extension ID (a–p) shown in the companion extension’s “First-time setup”.",
+  "chrome.registration.busy": "Registration is in progress. Wait for it to finish, then try again.",
+  "extension.info.name": "Extension name",
+  "extension.info.version": "Version",
+  "extension.info.help": "Read automatically from this extension. Use this ID to register Chrome integration in Stream Deck.",
+  "extension.info.copyId": "Copy ID",
+  "extension.info.copied": "Extension ID copied.",
+  "extension.info.copyFailed": "Could not copy. The ID is selected; copy it manually."
 }

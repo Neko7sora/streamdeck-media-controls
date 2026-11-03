@@ -42,6 +42,12 @@ for(const language of ['en','ja']) {
     assert.equal(await page.locator('#save').isDisabled(),true);
     assert.equal(await page.locator('html').getAttribute('lang'),language);
     assert.equal(await page.evaluate(()=>chrome.runtime.getManifest().name),'Stream Deck Media Metadata Bridge (Local)');
+    assert.equal(await page.locator('#extension-id').inputValue(),id);
+    assert.equal(await page.locator('#extension-id').getAttribute('readonly'),'');
+    const manifest=await page.evaluate(()=>chrome.runtime.getManifest());
+    assert.equal(await page.locator('#extension-name').innerText(),manifest.name);
+    assert.equal(await page.locator('#extension-version').innerText(),manifest.version);
+    assert.equal(await page.locator('#copy-extension-id').isDisabled(),false);
     assert.equal(await page.locator('#sharing-data').isVisible(),true);
     assert.equal(await page.evaluate(()=>document.querySelector('#enabled').getAttribute('aria-describedby').split(' ').every(id=>!!document.getElementById(id))),true);
     // These are real browser screenshots of the disabled first-run state.
@@ -50,6 +56,17 @@ for(const language of ['en','ja']) {
       await page.screenshot({path:join(output,name)});
       images[name]=createHash('sha256').update(await readFile(join(output,name))).digest('hex');
     }
+    // Verify the click wiring without modifying the user's system clipboard.
+    await page.evaluate(()=>Object.defineProperty(navigator,'clipboard',{configurable:true,value:{writeText:async value=>{globalThis.__copiedId=value;}}}));
+    await page.locator('#copy-extension-id').click();
+    await page.waitForFunction(()=>!!document.getElementById('copy-id-status').textContent);
+    assert.equal(await page.evaluate(()=>globalThis.__copiedId),id);
+    assert.equal(await page.locator('#copy-extension-id').isDisabled(),false);
+    await page.evaluate(()=>Object.defineProperty(navigator,'clipboard',{configurable:true,value:{writeText:async()=>{throw Error('E2E: clipboard denied');}}}));
+    await page.locator('#copy-extension-id').click();
+    await page.waitForFunction(()=>document.activeElement===document.getElementById('extension-id'));
+    assert.equal(await page.locator('#extension-id').evaluate(input=>input.value.slice(input.selectionStart,input.selectionEnd)),id);
+    await page.evaluate(()=>delete navigator.clipboard);
     // Native checkbox semantics expose switch state without a second ARIA state
     // that can drift from checked. Exercise the keyboard in the real browser.
     await page.locator('#enabled').focus();await page.keyboard.press('Space');

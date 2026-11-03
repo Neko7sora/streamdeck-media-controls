@@ -10,15 +10,15 @@ function deferred(){
   const promise=new Promise((done,fail)=>{resolve=done;reject=fail;});
   return {promise,resolve,reject};
 }
-function options({language="ja",load=Promise.resolve({}),write=async()=>{},connect,connection=Promise.resolve({state:'disabled'})}={}){
-  const elements=new Map(["enabled","token","status","save","connection","connection-title","connection-detail","retry-connection","setup","setup-summary"].map(id=>[id,{
+function options({language="ja",load=Promise.resolve({}),write=async()=>{},connect,connection=Promise.resolve({state:'disabled'}),extensionId="a".repeat(32),manifest=()=>({name:"Installed Media Bridge",version:"1.2.3"}),clipboard={writeText:async()=>{}}}={}){
+  const elements=new Map(["enabled","token","status","save","connection","connection-title","connection-detail","retry-connection","setup","setup-summary","extension-id","extension-name","extension-version","copy-extension-id","copy-id-status"].map(id=>[id,{
     dataset:{},
     checked:false,value:"",textContent:"",disabled:false,open:id==="setup",listeners:{},
-    addEventListener(event,fn){this.listeners[event]=fn;}
+    addEventListener(event,fn){this.listeners[event]=fn;},focus(){this.focused=true;},select(){this.selected=true;}
   }]));
   const writes=[];
   const timers=new Map();let nextTimer=0,poll,now=1000;
-  vm.runInNewContext(source,{Date:{now:()=>now},setInterval(fn){poll=fn;},setTimeout(fn){timers.set(++nextTimer,fn);return nextTimer;},clearTimeout(id){timers.delete(id);},document:{documentElement:{},querySelectorAll:()=>[],getElementById:id=>elements.get(id)},chrome:{i18n:{getUILanguage:()=>language},runtime:{connect,async sendMessage(){return typeof connection==="function"?connection():connection;}},storage:{local:{
+  vm.runInNewContext(source,{navigator:{clipboard},Date:{now:()=>now},setInterval(fn){poll=fn;},setTimeout(fn){timers.set(++nextTimer,fn);return nextTimer;},clearTimeout(id){timers.delete(id);},document:{documentElement:{},querySelectorAll:()=>[],getElementById:id=>elements.get(id)},chrome:{i18n:{getUILanguage:()=>language},runtime:{id:extensionId,getManifest:manifest,connect,async sendMessage(){return typeof connection==="function"?connection():connection;}},storage:{local:{
     get:()=>load,
     set(value){writes.push({...value});return write(value);}
   }}}});
@@ -34,6 +34,55 @@ function assertDisabled(page,disabled,saveDisabled=disabled){
   assert.equal(page.elements.get("enabled").disabled,disabled,"enabled");
   assert.equal(page.elements.get("save").disabled,saveDisabled,"save");
 }
+
+test('setup reads the installed extension identity even while settings and connection are unavailable',async()=>{
+  for(const extensionId of ['iagfcpchjohmpnnlcgppdcadehinhdpa','p'.repeat(32)]) {
+    const page=options({extensionId,load:Promise.reject(Error('storage unavailable')),connection:Promise.reject(Error('worker unavailable'))});
+    await flush();
+    assert.equal(page.elements.get('extension-id').value,extensionId);
+    assert.equal(page.elements.get('extension-name').textContent,'Installed Media Bridge');
+    assert.equal(page.elements.get('extension-version').textContent,'1.2.3');
+    assert.equal(page.elements.get('copy-extension-id').disabled,false);
+    assert.deepEqual(page.writes,[]);
+  }
+});
+
+test('copy writes only the actual extension ID and reports completion after the write',async()=>{
+  const copied=[],pending=deferred();
+  const page=options({clipboard:{writeText(value){copied.push(value);return pending.promise;}}});
+  const button=page.elements.get('copy-extension-id');
+  // Even a modified input cannot substitute another ID in the copy operation.
+  page.elements.get('extension-id').value='b'.repeat(32);
+  const copying=button.listeners.click();
+  assert.equal(button.disabled,true);
+  assert.equal(page.elements.get('copy-id-status').textContent,'');
+  await button.listeners.click();
+  assert.deepEqual(copied,['a'.repeat(32)]);
+  pending.resolve();await copying;
+  assert.equal(button.disabled,false);
+  assert.match(page.elements.get('copy-id-status').textContent,/コピーしました/);
+  assert.deepEqual(page.writes,[]);
+});
+
+test('unavailable or denied clipboard selects the ID for manual copying and permits retry',async()=>{
+  for(const clipboard of [undefined,{writeText:async()=>{throw Error('denied');}}]) {
+    const page=options({clipboard:clipboard??{}});
+    await page.elements.get('copy-extension-id').listeners.click();
+    const input=page.elements.get('extension-id');
+    assert.equal(input.focused,true);assert.equal(input.selected,true);
+    assert.match(page.elements.get('copy-id-status').textContent,/コピーできませんでした/);
+    assert.equal(page.elements.get('copy-extension-id').disabled,false);
+  }
+});
+
+test('missing extension metadata stays unknown without blocking settings',async()=>{
+  const page=options({manifest:()=>{throw Error('extension reloaded');}});
+  await flush();
+  for(const id of ['extension-name','extension-version']) assert.equal(page.elements.get(id).textContent,'取得できません');
+  assert.equal(page.elements.get('extension-id').value,'取得できません');
+  assert.equal(page.elements.get('copy-extension-id').disabled,true);
+  assertDisabled(page,false,true);
+});
 
 test('English and unsupported Chrome languages use English connection and save messages',async()=>{
   for(const language of ['en-US','de']) {

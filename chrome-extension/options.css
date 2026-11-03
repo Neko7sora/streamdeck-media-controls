@@ -56,6 +56,14 @@ h2 { font-size: 13px; font-weight: 650; line-height: 1.5; }
 .consent-copy, .setup-requirements { color: var(--muted); font-size: 12px; line-height: 1.7; }
 .consent-copy { margin-bottom: 12px; }
 .setup-requirements { padding: 0 18px; }
+.extension-details { margin: 14px 18px; padding: 12px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface-soft); }
+.extension-details dl { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 4px 12px; margin: 0 0 10px; font-size: 11px; }
+.extension-details dt { color: var(--muted); }
+.extension-details dd { margin: 0; }
+.extension-details label { display: block; margin-bottom: 4px; font-size: 12px; font-weight: 600; }
+#extension-id { width: 100%; min-height: 36px; padding: 6px 8px; border: 1px solid var(--border); border-radius: 5px; background: var(--surface); color: var(--text); font: 11px/1.5 ui-monospace, monospace; }
+#extension-id-help, #copy-id-status { margin-top: 5px; color: var(--muted); font-size: 11px; }
+#copy-id-status:empty { display: none; }
 a { color: var(--accent); text-underline-offset: 3px; }
 a:focus-visible { outline: 3px solid var(--accent); outline-offset: 4px; }
 .privacy-document section { margin-top: 22px; }

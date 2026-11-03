@@ -8,7 +8,7 @@ Main features
 
 Requires Windows 11 or later (x64), Stream Deck 7.1 or later, the Media Controls plugin, Chrome 111 or later and local bridge registration. Setup from the plugin uses Stream Deck's bundled runtime; a separate Node.js installation is only needed for the manual registration script. The extension cannot work on its own. Dial actions require Stream Deck +. macOS is not supported.
 
-Setup: install the companion plugin, open Setup Chrome integration in its action settings, enter this extension's ID from chrome://extensions and register the local host. Enable sending in this extension and save, then reload your media tabs. The toolbar badge shows connection or disabled status.
+Setup: install the companion plugin, open Setup Chrome integration in its action settings, copy the automatically displayed ID from First-time setup in this extension, paste it into the plugin settings and register the local host. Enable sending in this extension and save, then reload your media tabs. The toolbar badge shows connection or disabled status.
 
 Sending is off by default. When enabled, media information, page titles and page addresses without credentials, queries or fragments are passed to the plugin through a local native host. Page scripts may observe media APIs even when sending is disabled; use Chrome site access controls or uninstall to stop them.
 
