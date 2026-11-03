@@ -8,6 +8,9 @@
     "node": ">=24.0.0"
   },
   "scripts": {
+    "doctor": "node scripts/doctor.mjs",
+    "test": "node --test tests/*.test.mjs",
+    "check:fast": "node scripts/check-fast.mjs",
     "icons:build": "node scripts/build-icons.mjs",
     "chrome:icons": "node scripts/build-chrome-icons.mjs",
     "chrome:listing:build": "node scripts/build-chrome-listing.mjs",

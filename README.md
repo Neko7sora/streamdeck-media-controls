@@ -65,6 +65,8 @@ v1.0.1 では、ダイヤルを連続して回した際のシーク取りこぼ�
 
 ## Windows x64 ビルド
 
+Codex・開発者向けの編集先と検査手順は [AGENTS.md](AGENTS.md) と [開発ガイド](docs/development.md) を参照してください。通常の変更確認には、Rust ビルド不要の `npm run check:fast` を使用できます。環境の診断は `npm run doctor` で行えます。
+
 Windows 11 以降（x64）、Stream Deck 7.1+、Node.js 24 以降、Rust MSVC toolchain と Visual Studio C++ Build Tools / Windows SDK が必要です。プラグインの実行には Stream Deck 同梱の Node.js 24 を使用します。CLI はプロジェクト依存に含まれます。
 
 **Developer PowerShell for Visual Studio（x64）** でリポジトリを開きます。`cargo` / `node` / `npm` が PATH にあることを確認してください。
