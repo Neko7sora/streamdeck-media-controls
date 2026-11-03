@@ -10,6 +10,8 @@ Windows のメディア再生、音量調整、曲情報の表示を Stream Deck
 
 Windows 11 以降（x64）、Stream Deck 7.1 以降に対応しています。ダイヤル操作には Stream Deck + が必要です。インストール後、Media Controls のアクションをキーまたはダイヤルに追加してください。Chrome 連携は任意です。導入・設定の詳細は [セットアップガイド（英語）](docs/marketplace/setup.md) を参照してください。
 
+導入・対象の選択・Chrome 連携・表示や操作のトラブルは [よくある質問（日本語Q&A）](docs/faq.ja.md) を参照してください。
+
 Requires Windows 11 or later (x64) and Stream Deck 7.1 or later. Dial actions require Stream Deck +. After installation, add a Media Controls action to a key or dial. Chrome integration is optional. See the [setup guide](docs/marketplace/setup.md) for details.
 
 ## ライセンス / License
