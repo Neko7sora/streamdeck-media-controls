@@ -76,6 +76,20 @@ try {
   assert.ok(fixture.calls.some(call => call.command === 'seek'));
   await page.locator('#audioTarget').selectOption(fixture.audio.id);
   await page.waitForFunction(() => document.getElementById('volumeRange').value === '25');
+  // Live snapshots preserve the drag preview, including the accessible value.
+  await page.locator('#volumeRange').dispatchEvent('pointerdown');
+  await page.locator('#volumeRange').evaluate(node => {node.value='73';node.dispatchEvent(new Event('input'));});
+  fixture.audio.volume = .31; fixture.emit();
+  await page.waitForFunction(() => document.getElementById('volumeRange').value === '73' && document.getElementById('volumeText').textContent === '73%');
+  // Wait for an observable change from this snapshot, not merely the local input event.
+  fixture.audio.muted = true; fixture.emit();
+  await page.waitForFunction(() => document.getElementById('muteButton').getAttribute('aria-pressed') === 'true');
+  assert.equal(await page.locator('#volumeText').textContent(), '73%');
+  assert.equal(await page.locator('#volumeRange').getAttribute('aria-valuetext'), '73%');
+  await page.locator('#volumeRange').dispatchEvent('pointercancel');
+  assert.equal(await page.locator('#volumeText').textContent(), '31%');
+  fixture.audio.muted = false; fixture.emit();
+  await page.waitForFunction(() => document.getElementById('muteButton').getAttribute('aria-pressed') === 'false');
   await page.locator('#volumeRange').focus();
   const volumeResponse = page.waitForResponse(response => response.url().endsWith('/command'));
   await page.keyboard.press('End'); assert.equal((await volumeResponse).status(),200);
@@ -108,6 +122,9 @@ try {
   // Incorrect/revoked credentials are recoverable and never fall back to iCUE's active player.
   await page.evaluate(() => {window.bridgeToken='e'.repeat(64);window.icueEvents.onDataUpdated();});
   await page.waitForFunction(() => document.getElementById('statusText').textContent.includes('トークンを確認'));
+  assert.equal(await page.locator('#songName').textContent(), '接続トークンを確認してください');
+  assert.equal(await page.locator('#volumeRange').getAttribute('aria-valuetext'), '音量不明');
+  assert.equal(await page.locator('#seekRange').getAttribute('aria-valuetext'), '再生位置不明');
   assert.equal(await page.locator('#playPauseButton').isDisabled(),true);
   await page.evaluate(({token}) => {window.bridgeToken=token;window.icueEvents.onDataUpdated();},{token});
   await page.waitForFunction(() => !document.getElementById('playPauseButton').disabled);

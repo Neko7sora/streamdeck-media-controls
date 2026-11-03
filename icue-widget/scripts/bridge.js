@@ -56,6 +56,9 @@
     data = null; api.provider = null; gestures.clear(); lastTrack = "";
     for (const id of ["mediaTarget", "audioTarget", "seekRange", "volumeRange", "muteButton", "rewindButton", "forwardButton", "stopButton"]) el[id].disabled = true;
     el.positionText.textContent = "--:-- / --:--"; el.volumeText.textContent = "--%";
+    el.seekRange.setAttribute("aria-valuetext", "再生位置不明");
+    el.volumeRange.setAttribute("aria-valuetext", "音量不明");
+    el.muteButton.textContent = "ミュート";
     el.muteButton.removeAttribute("aria-pressed");
     appIcon.hidden = true; appIcon.removeAttribute("src"); fallbackIcon = "";
   }
@@ -160,9 +163,12 @@
     el.muteButton.textContent = audio?.muted ? "ミュート解除" : "ミュート";
     if (typeof audio?.muted === "boolean") el.muteButton.setAttribute("aria-pressed", String(audio.muted));
     else el.muteButton.removeAttribute("aria-pressed");
-    if (!gestures.has(el.volumeRange)) el.volumeRange.value = String(Math.round((audio?.volume ?? 0) * 100));
-    el.volumeText.textContent = Number.isFinite(audio?.volume) ? `${Math.round(audio.volume * 100)}%` : "--%";
-    el.volumeRange.setAttribute("aria-valuetext", el.volumeText.textContent);
+    // A live snapshot must not overwrite the value the user is previewing while dragging.
+    if (!gestures.has(el.volumeRange)) {
+      el.volumeRange.value = String(Math.round((audio?.volume ?? 0) * 100));
+      el.volumeText.textContent = Number.isFinite(audio?.volume) ? `${Math.round(audio.volume * 100)}%` : "--%";
+      el.volumeRange.setAttribute("aria-valuetext", el.volumeText.textContent);
+    }
     el.stopButton.disabled = busy || !allowed("stop");
     updatePosition();
     if (!tick) tick = setInterval(updatePosition, 250);

@@ -35,7 +35,7 @@
 
   function setStatus(value, label) {
     el.deck.dataset.status = value;
-    el.status.textContent = label;
+    if (el.status.textContent !== label) el.status.textContent = label;
   }
 
   function updateAppearance() {
@@ -140,7 +140,8 @@
     if (!artwork) failedArtwork = "";
 
     if (commandError) setStatus("error", "操作に失敗しました");
-    else if (!plugin) setStatus("waiting", "iCUEメディアを待機中");
+    else if (!plugin) setStatus("waiting", window.edgeMediaBridge?.enabled
+      ? window.edgeMediaBridge.message : "iCUEメディアを待機中");
     else if (loading) setStatus("loading", "メディア情報を取得中");
     else if (readError) setStatus("error", "iCUE接続を確認してください");
     else if (!hasTrack) setStatus("idle", "再生待ち");
@@ -148,9 +149,10 @@
     else if (state.isPlaying) setStatus("playing", "再生中");
     else setStatus("paused", "一時停止");
     if (window.edgeMediaBridge?.enabled && !plugin) {
-      setStatus("waiting", window.edgeMediaBridge.message);
-      setText(el.song, "", "Windowsブリッジに接続してください");
-      setText(el.artist, "", "ブリッジの起動・接続トークン・iCUEの権限を確認してください");
+      setText(el.song, "", window.edgeMediaBridge.message);
+      setText(el.artist, "", window.edgeMediaBridge.message.includes("トークン")
+        ? "iCUE設定の「接続トークン」を確認してください"
+        : "ブリッジの起動とiCUEの権限を確認・自動再接続します");
     }
 
     // SVGElement.hidden is not a reflected boolean property in Qt/Chromium.

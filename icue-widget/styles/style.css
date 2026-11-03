@@ -160,6 +160,8 @@ button { font: inherit; }
 }
 .bridge-panel select { inline-size: 100%; text-overflow: ellipsis; }
 .bridge-panel :disabled, .extra-controls :disabled { opacity: .45; }
+#muteButton[aria-pressed="true"] { background: var(--accent); color: var(--accent-ink, #0b1722); border-color: var(--accent); }
+#volumeText { text-align: end; font-variant-numeric: tabular-nums; }
 .seek-row { display: grid; grid-template-columns: auto 1fr; align-items: center; }
 #positionText { text-align: end; font-variant-numeric: tabular-nums; }
 .seek-row input { grid-column: 1 / -1; }
