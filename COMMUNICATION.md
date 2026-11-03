@@ -138,7 +138,7 @@ node --test tests/*.test.mjs
 Edge Media Deckのブリッジモードは、Stream Deckプラグイン内で自動起動し、既存のWindowsヘルパー、メディア状態、Chrome受信／操作処理を共有します。別のポーリングやヘルパーは追加起動しません。Stream Deckアプリを使わない独立ブリッジも同じ実装を利用します。共通実装は `src/icue-runtime.ts` / `src/icue-server.ts`、起動・終了は `src/plugin.ts` または `src/icue-bridge.ts`、画面側は `icue-widget/scripts/bridge.js` です。
 
 - iCUE向けは `https://127.0.0.1:39762` のみで待受け、Chromeと異なるBearerトークンを使用します。トークンとTLS証明書は既存の保護ディレクトリに保存し、現在のユーザーとSYSTEMのみにアクセスを限定します。
-- ウィジェットからの接続は `Origin: null`（ローカルHTML）と正確なHostを検査し、HTTP(S)の外部Originを拒否します。ヘッダーに認証を載せ、トークンをURLやlocalStorageへ保存しません。権限は対象ポートの `url` と `self-signed-certificate` だけです。
+- ウィジェットからの接続はローカルHTMLの `Origin: null` と、実iCUEのQtWebEngineが送る `Origin: file://`、正確なHostを検査します。Originはこの2文字列の完全一致だけを認め、パス付きfile URL、リモートホスト付きfile URL、HTTP(S)の外部Originを拒否します。ヘッダーに認証を載せ、トークンをURLやlocalStorageへ保存しません。権限は対象ポートの `url` と `self-signed-certificate` だけです。
 - `/events` は認証付きNDJSONストリームです。変更は50msで集約し、10秒ごとに状態・表示確認情報を更新します。接続は最大8本、1状態は8MB以内とし、バックプレッシャー中の変更をまとめます。画面は18秒の応答停止で切断し、3秒後に再接続します。非表示時は接続を閉じます。
 - `/command` は12KB以内のJSON POST、同時処理は最大16件です。署名付きの表示確認情報は30秒で失効し、選択したメディア対象・曲の識別値・音量対象の識別値を含みます。操作直前に現在値と操作可否を検査し、曲の切替・切断・置換を拒否します。シークは元のセッション／ブラウザー範囲へ制限し、Chrome操作はdocumentと要素IDを指定します。大域メディアキーへのフォールバックはありません。
 - 音量スライダーは既存ヘルパーに `value`（0〜1の絶対音量）を送ります。Stream Deck側が使う `delta` は維持し、両方の指定は拒否します。音量の並行変更があってもスライダー指定が相対差分として積み重なることを防ぎます。

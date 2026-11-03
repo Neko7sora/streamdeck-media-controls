@@ -25,8 +25,14 @@ const equal = (a: string, b: string) => {
 };
 
 /** Authenticated loopback only. Display receipts bind commands to the rendered target/track. */
-export function startIcueServer(backend: IcueBackend, options: {token: string; tls: ServerOptions; port?: number}) {
+export function startIcueServer(backend: IcueBackend, options: {token: string; tls: ServerOptions; port?: number; log?: (message: string) => void}) {
   if (!/^[a-f0-9]{64}$/.test(options.token)) throw new Error("Invalid iCUE bridge token");
+  const diagnostics = new Map<string, number>();
+  function diagnose(kind: string, detail = "") {
+    if (!options.log || Date.now() - (diagnostics.get(kind) ?? 0) < 30000) return;
+    diagnostics.set(kind, Date.now());
+    options.log(`iCUE HTTPS ${kind}${detail ? ": " + detail : ""}`);
+  }
   const clients = new Set<ServerResponse>();
   let pendingCommands = 0;
   const signature = (body: string) => createHmac("sha256", options.token).update(body).digest("base64url");
@@ -88,11 +94,15 @@ export function startIcueServer(backend: IcueBackend, options: {token: string; t
     const reply = (status: number, body: unknown) => {if (!res.writableEnded) res.writeHead(status).end(JSON.stringify(body));};
     const origin = req.headers.origin;
     const port = (server.address() as {port: number} | null)?.port;
-    if (req.headers.host !== `127.0.0.1:${port}` || (origin !== undefined && origin !== "null")) {
+    // QtWebEngine serializes iCUE's local widget origin as file://; ordinary
+    // Chromium file pages use null. Only these exact local origins are allowed.
+    const localOrigin = origin === "null" || origin === "file://";
+    if (req.headers.host !== `127.0.0.1:${port}` || (origin !== undefined && !localOrigin)) {
+      diagnose("origin rejected", JSON.stringify({origin:origin?.slice(0,160),host:req.headers.host?.slice(0,160)}));
       reply(403, {error: "origin"}); return;
     }
-    if (origin === "null") {
-      res.setHeader("Access-Control-Allow-Origin", "null"); res.setHeader("Vary", "Origin");
+    if (localOrigin) {
+      res.setHeader("Access-Control-Allow-Origin", origin); res.setHeader("Vary", "Origin");
     }
     if (req.method === "OPTIONS") {
       const headers = String(req.headers["access-control-request-headers"] || "").toLowerCase().split(",").map(v => v.trim()).filter(Boolean);
@@ -103,11 +113,12 @@ export function startIcueServer(backend: IcueBackend, options: {token: string; t
       res.setHeader("Access-Control-Allow-Private-Network", "true");
       res.writeHead(204).end(); return;
     }
-    if (!equal(String(req.headers.authorization || ""), `Bearer ${options.token}`)) {reply(401, {error: "unauthorized"}); return;}
+    if (!equal(String(req.headers.authorization || ""), `Bearer ${options.token}`)) {diagnose("authentication rejected");reply(401, {error: "unauthorized"}); return;}
     const url = new URL(req.url || "/", "https://127.0.0.1");
     const media = url.searchParams.get("media") || "auto", audio = url.searchParams.get("audio") || "master";
     if (req.url!.length > 6000 || media.length > 2000 || audio.length > 2000) {reply(400, {error: "target"}); return;}
     if (req.method === "GET" && url.pathname === "/events") {
+      diagnose("widget connected");
       if (clients.size >= 8) {reply(503, {error: "busy"}); return;}
       clients.add(res);
       res.setHeader("Content-Type", "application/x-ndjson"); res.writeHead(200); res.flushHeaders(); res.setTimeout(0);
@@ -155,6 +166,7 @@ export function startIcueServer(backend: IcueBackend, options: {token: string; t
     });
   });
   server.requestTimeout = 5000; server.headersTimeout = 5000; server.timeout = 5000; server.maxConnections = 32;
+  server.on("tlsClientError", error => diagnose("TLS client error", String((error as NodeJS.ErrnoException).code ?? error.name)));
   server.on("close", () => {for (const client of clients) client.destroy(); clients.clear();});
   server.listen(options.port ?? ICUE_PORT, "127.0.0.1");
   return server;

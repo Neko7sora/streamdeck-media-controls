@@ -346,6 +346,9 @@
     onDataUpdated() { updateAppearance(); initializeMedia(); render(); },
   };
   window.pluginMediadataproviderEvents = { onInitialized() { initializeMedia(); render(); } };
+  // iCUE's evaluated scripts can have host-local event bindings as well as window.
+  try { icueEvents = window.icueEvents; } catch { /* Plain browser without host bindings. */ }
+  try { pluginMediadataproviderEvents = window.pluginMediadataproviderEvents; } catch { /* Plain browser. */ }
   document.addEventListener("visibilitychange", () => {
     if (document.visibilityState === "hidden") suspend();
     else resume();

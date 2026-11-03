@@ -1,11 +1,12 @@
 import assert from 'node:assert/strict';
 import {once} from 'node:events';
-import {mkdir, readFile} from 'node:fs/promises';
+import {mkdir, readFile, writeFile} from 'node:fs/promises';
 import {fileURLToPath} from 'node:url';
 import {chromium} from 'playwright';
 import {load} from './load.mjs';
 import {tls} from './tls-fixture.mjs';
 import {icueBackend} from './icue-backend.mjs';
+import {buildIcueHtml} from '../scripts/icue-widget-html.mjs';
 const {startIcueServer} = await load('icue-server');
 const token = 'd'.repeat(64), fixture = icueBackend();
 fixture.windows.artwork_data_url = 'data:image/png;base64,' + (await readFile(new URL('../icue-widget/resources/icon.png',import.meta.url))).toString('base64');
@@ -17,14 +18,18 @@ fixture.backend.native = async command => {
   if (command.command === 'seek') {fixture.windows.timeline.position_sec = command.position; fixture.windows.timeline.updated_at = Date.now();}
   fixture.emit();
 };
-const server = startIcueServer(fixture.backend, {token,tls});
+const server = startIcueServer(fixture.backend, {token,tls,port:0});
 await once(server,'listening');
+const testEndpoint = `https://127.0.0.1:${server.address().port}`;
+const isolateBridge = context => context.route('https://127.0.0.1:39762/**',route=>
+  route.continue({url:route.request().url().replace('https://127.0.0.1:39762',testEndpoint)}));
 const browser = await chromium.launch({headless:true});
 const output = new URL('.generated/',import.meta.url); await mkdir(output,{recursive:true});
 const entry = new URL('../icue-widget/index.html',import.meta.url).href;
 try {
   // Public test-only TLS identity. Production never disables TLS verification.
   const context = await browser.newContext({ignoreHTTPSErrors:true,viewport:{width:840,height:344}});
+  await isolateBridge(context);
   const errors = [], requests = [];
   context.on('page',page => page.on('pageerror',error => errors.push(error.message)));
   context.on('request',request => {if (/^https?:/.test(request.url())) requests.push(request.url());});
@@ -135,6 +140,32 @@ try {
   assert.ok(requests.every(url => !url.includes(token)));
   console.log('OK bridge keyboard, player/audio selection, absolute volume, mute, Chrome seeking, stale gesture rejection, disconnect/resume and token recovery');
   await context.close();
+  // iCUE's body scripts can receive properties as function locals, not window globals.
+  // Exercise the packaged scripts in that scope rather than mocking window.bridgeToken.
+  const scopedContext = await browser.newContext({ignoreHTTPSErrors:true,viewport:{width:840,height:344}});
+  await isolateBridge(scopedContext);
+  const scopedErrors = [];
+  const scoped = await scopedContext.newPage();
+  scoped.on('pageerror',error=>scopedErrors.push(error.message));
+  const html = (await buildIcueHtml(fileURLToPath(new URL('../icue-widget/',import.meta.url))))
+    .replace('<link rel="stylesheet" href="styles/style.css" />',`<link rel="stylesheet" href="${new URL('../icue-widget/styles/style.css',import.meta.url).href}" />`)
+    .replace(/<script>\n([\s\S]*?)\n  <\/script>/g,(_,code)=>`<script>
+      (function(bridgeToken,useBridge,icueEvents,pluginMediadataproviderEvents){
+        ${code}
+        window.hostEvents=icueEvents;window.hostMediaEvents=pluginMediadataproviderEvents;
+      })(${JSON.stringify(token)},true,{},{});
+    </script>`);
+  const hostEntry = new URL('.generated/icue-host-scope.html',import.meta.url);
+  await writeFile(hostEntry,html);
+  await scoped.goto(hostEntry.href);
+  await scoped.waitForFunction(()=>!document.getElementById('playPauseButton').disabled);
+  assert.equal(await scoped.evaluate(()=>typeof window.bridgeToken),'undefined');
+  assert.equal(await scoped.evaluate(()=>window.hostEvents===window.icueEvents),true);
+  assert.equal(await scoped.evaluate(()=>window.hostMediaEvents===window.pluginMediadataproviderEvents),true);
+  assert.equal(await scoped.locator('#songName').textContent(),fixture.windows.title);
+  assert.deepEqual(scopedErrors,[]);
+  await scopedContext.close();
+  console.log('OK packaged iCUE scripts read host-local credentials and register host-local event handlers');
 } finally {
   await browser.close(); server.closeAllConnections(); await new Promise(resolve => server.close(resolve));
 }

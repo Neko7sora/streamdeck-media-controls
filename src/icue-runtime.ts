@@ -7,7 +7,7 @@ import {nativeCommand} from "./native-client.js";
 import {startIcueServer} from "./icue-server.js";
 
 /** Share the host's media state and Chrome transport without starting another poller or helper. */
-export function startIcueBridge(options: {port?: number} = {}) {
+export function startIcueBridge(options: {port?: number; log?: (message: string) => void} = {}) {
   // This also restricts the credential directory and existing files to the user and SYSTEM.
   const credentials = loadCredentials();
   const tokenFile = join(process.env.LOCALAPPDATA!, "StreamDeckMediaControls", "icue-token.txt");
@@ -34,6 +34,6 @@ export function startIcueBridge(options: {port?: number} = {}) {
       if (media.tab_id === undefined || media.frame_id === undefined || !media.document_id) return Promise.reject(new Error("Chrome target unavailable"));
       return chromeCommand(media.tab_id, media.frame_id, media.document_id, media.title ?? "", command, position,
         media.browser_media?.target_id, media.client_id);
-    }}, {token, tls: credentials.tls, port: options.port});
+    }}, {token, tls: credentials.tls, port: options.port, log: options.log});
   return {server, tokenFile};
 }

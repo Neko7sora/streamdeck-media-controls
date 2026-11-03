@@ -56,6 +56,23 @@ test('iCUE commands retain displayed media identity, reject track/session races 
   assert.equal(selected.media,null); assert.equal((await f.command(selected.view,'stop')).status,409);
   assert.equal(f.calls.length,0);
 });
+
+test('iCUE Qt file:// origin can preflight and authenticate; other file origins and remote sites remain rejected', async t => {
+  const f = await setup(t);
+  const preflight = await fetch(f.url+'/events',{method:'OPTIONS',headers:{origin:'file://',
+    'access-control-request-method':'GET','access-control-request-headers':'authorization'}});
+  assert.equal(preflight.status,204);
+  assert.equal(preflight.headers.get('access-control-allow-origin'),'file://');
+  assert.equal((await fetch(f.url+'/events',{headers:{origin:'file://'}})).status,401);
+  const response = await fetch(f.url+'/events',{headers:{...f.headers,origin:'file://'}});
+  assert.equal(response.status,200);assert.equal(response.headers.get('access-control-allow-origin'),'file://');
+  assert.equal(response.headers.get('vary'),'Origin');
+  const reader=response.body.getReader();assert.equal((await reader.read()).done,false);await reader.cancel();
+  for (const origin of ['file://evil.example','file:///some/page','https://evil.example','http://localhost:39762']) {
+    const denied=await fetch(f.url+'/events',{headers:{...f.headers,origin}});
+    assert.equal(denied.status,403);assert.equal(denied.headers.get('access-control-allow-origin'),null);
+  }
+});
 test('iCUE seeks use absolute provider ranges and Chrome document identity, with no global fallback', async t => {
   const f = await setup(t); const state = await f.snapshot(f.chrome.session_id);
   assert.equal((await f.command(state.view,'seek',55)).status,200);

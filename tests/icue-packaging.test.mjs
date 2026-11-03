@@ -5,6 +5,17 @@ import {fileURLToPath} from 'node:url';
 import {isAbsolute, join, relative, resolve} from 'node:path';
 import {spawnSync} from 'node:child_process';
 import {cliValidationManifest} from '../scripts/check-icue.mjs';
+import {buildIcueHtml} from '../scripts/icue-widget-html.mjs';
+
+test('iCUE package evaluates runtime scripts in the host property scope without the demo', async () => {
+  const source = fileURLToPath(new URL('../icue-widget/',import.meta.url));
+  const html = await buildIcueHtml(source);
+  assert.equal(/<script\s+src=/.test(html),false);
+  assert.equal(html.includes('demo-provider.js'),false);
+  for (const name of ['bridge','widget']) assert.ok(html.includes(await readFile(join(source,`scripts/${name}.js`),'utf8')));
+  const head = html.split('</head>')[0];
+  assert.equal(/<script(?! type="application\/json")/.test(head),false,'runtime code must stay in the body');
+});
 
 test('iCUE certificate compatibility preserves the permission scope and rejects the import-breaking spelling', () => {
   const runtime = {permissions:[{type:'url',domain:'127.0.0.1',port:39762},

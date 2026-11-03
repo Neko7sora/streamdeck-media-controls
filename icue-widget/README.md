@@ -123,7 +123,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\register-chrome-native-hos
 
 `npm run icue:check` / `npm run icue:pack` は、一時コピーの証明書権限のタイプ名と項目名（`domain` → `host`）だけをCLI向けに変換して公式CLIの構造・スコープ・使用権限検査を実行します。検証後の配布には元のmanifestを使い、ロック済みCLIのZIP生成処理でパッケージ化します。権限の削除・拡張、TLS検証の無効化は行いません。`icuewidget validate icue-widget` の直接実行は、この表記差に対応しないため使用しないでください。
 
-ブリッジは`127.0.0.1`のみに待受け、Bearer認証、Host／Origin検査、要求サイズ・接続数・同時コマンド数の制限を行います。`Origin: null`はiCUEのローカルHTML向けに認めますが、トークンなしでは読取り・操作できません。トークンをURL・ログへ出さず、Windowsの保存先は現在のユーザーとSYSTEMに限定します。Chromeとは別のトークンを使います。
+ブリッジは`127.0.0.1`のみに待受け、Bearer認証、Host／Origin検査、要求サイズ・接続数・同時コマンド数の制限を行います。ローカルHTMLのOriginは通常のChromiumが送る `null` と、実iCUEのQtWebEngineが送る `file://` の完全一致だけを認めます。トークンなしでは読取り・操作できません。トークンをURL・ログへ出さず、Windowsの保存先は現在のユーザーとSYSTEMに限定します。Chromeとは別のトークンを使います。
 
 状態は変更通知で受信し、10秒ごとに状態と期限付きの表示確認情報を更新します。表示確認情報は操作先のセッション・曲・音量対象に結び付き、30秒で失効します。現在の対象・曲・対応操作と一致しなければ操作を拒否します。Chromeではdocumentとメディア要素のIDも照合します。シーク中に曲が変わった場合も、ジェスチャー開始時の対象を照合します。音量は絶対値を指定し、従来プラグインの相対音量操作も維持しています。
 
@@ -144,6 +144,8 @@ Playwrightのブラウザーがない場合は `npm run test:chrome:install` で
 iCUE標準モードのブラウザーデモは `index.html?demo=1` で明示的に有効にできます。配布パッケージにデモは含めません。`.icuewidget`にはHTML/CSS/JS、manifest、翻訳、アイコン、プレビュー、ライセンスだけを含め、ブリッジ本体と秘密情報は含めません。
 
 公式CLI・ブラウザーテストは実機受け入れの代替ではありません。実機ではインポート・ローカル通信権限・自己署名TLSの接続・タッチ・複数プレーヤー・スリープ復帰を別途確認してください。Marketplace公開用の審査や掲載資料は、この個人利用向け成果物の範囲外です。
+
+配布パッケージのHTMLは、`scripts/icue-widget-html.mjs` が本体スクリプトをbody内へ埋め込んで生成します。実iCUEでは設定値とイベントの束縛がホストの関数スコープへ注入され、通常の外部スクリプトから接続トークンなどを参照できないためです。編集元は引き続き `scripts/bridge.js` と `scripts/widget.js` です。ソースHTMLのまま上書きせず、`npm run icue:pack` で生成したパッケージを導入してください。ブラウザーテストには、設定値をwindowへ公開しないホストスコープの再現も含めています。
 
 ## 編集先
 

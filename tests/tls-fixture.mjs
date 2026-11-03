@@ -11,7 +11,9 @@ export function httpsFetch(url,options={}) {
     const req=request(url,{...options,ca:options.ca??tls.cert,rejectUnauthorized:true},res=>{
       const empty = [204,205,304].includes(res.statusCode);
       if(empty) res.resume();
-      resolve(new Response(empty ? null : Readable.toWeb(res),{status:res.statusCode}));
+      const headers = new Headers();
+      for (let index = 0; index < res.rawHeaders.length; index += 2) headers.append(res.rawHeaders[index],res.rawHeaders[index+1]);
+      resolve(new Response(empty ? null : Readable.toWeb(res),{status:res.statusCode,headers}));
     });
     req.on('error',reject);req.end(options.body);
   });

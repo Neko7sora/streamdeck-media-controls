@@ -3,6 +3,7 @@ import {dirname, isAbsolute, join, relative, resolve} from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {createPackage} from '../node_modules/icuewidget-cli/src-node/zip.js';
 import {validateIcueWidget} from './check-icue.mjs';
+import {buildIcueHtml} from './icue-widget-html.mjs';
 
 const root = fileURLToPath(new URL('../', import.meta.url));
 const source = join(root, 'icue-widget');
@@ -20,9 +21,7 @@ try {
     await mkdir(dirname(destination), {recursive:true});
     await copyFile(join(source, file), destination);
   }
-  const html = (await readFile(join(source, 'index.html'), 'utf8'))
-    .replace(/  <script src="scripts\/demo-provider\.js"><\/script>\r?\n/, '');
-  if (html.includes('demo-provider.js')) throw new Error('Demo script still referenced in package');
+  const html = await buildIcueHtml(source);
   await writeFile(join(staging, 'index.html'), html);
   for (const file of ['LICENSE-MIT', 'LICENSE-APACHE']) await copyFile(join(root, file), join(staging, file));
   await validateIcueWidget(staging);

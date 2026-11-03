@@ -38,7 +38,7 @@ async function apply(value: boolean) {
   if (server) return;
   publish("starting");
   try {
-    const bridge = startIcueBridge(), current = bridge.server;
+    const bridge = startIcueBridge({log:message=>streamDeck.logger.info(message)}), current = bridge.server;
     server = current;
     await new Promise<void>(resolve => {
       current.once("listening", () => {
