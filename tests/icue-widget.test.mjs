@@ -4,6 +4,15 @@ import vm from 'node:vm';
 import {readFileSync} from 'node:fs';
 import {widget, mediaProvider, keys} from './icue-harness.mjs';
 
+test('iCUE uses proportional host styling on late initialization for preview and device', () => {
+  const w = widget();
+  assert.equal(w.document.documentElement.dataset.icueSurface, undefined);
+  w.run('let iCUE = {isPreview:true}; window.icueEvents.onICUEInitialized()');
+  assert.equal(w.document.documentElement.dataset.icueSurface, 'preview');
+  w.run('iCUE.isPreview = false; window.icueEvents.onDataUpdated()');
+  assert.equal(w.document.documentElement.dataset.icueSurface, 'device');
+});
+
 test('iCUE waits without a provider, initializes late once, and checks each command method', async () => {
   const w = widget();
   assert.equal(w.elements.get('statusText').textContent, 'iCUEメディアを待機中');
@@ -57,7 +66,7 @@ test('iCUE timeouts clear old async-only metadata and preserve fresh property fa
   await w.flush();
   for (const method of ['getSongName','getArtist','getAlbum','getThumbnail','getIsPlaying']) p.media[method] = () => {};
   w.visibility('visible'); await w.flush(); await w.flush(3500);
-  assert.equal(w.elements.get('songName').textContent, '再生中の曲はありません');
+  assert.equal(w.elements.get('songName').textContent, 'メディア情報を取得できません');
   assert.equal(w.elements.get('playPauseButton').disabled, true);
   const p2 = mediaProvider({}, {autoRespond:false}), w2 = widget(p2);
   await w2.flush(); await w2.flush(3500);
@@ -127,4 +136,108 @@ test('iCUE browser demo cannot replace a real injected media provider', () => {
   const window = {plugins:{Mediadataprovider:provider}, __EDGE_DEMO_OVERRIDE__:true};
   vm.runInNewContext(readFileSync(new URL('../icue-widget/scripts/demo-provider.js', import.meta.url), 'utf8'), {window});
   assert.equal(window.plugins.Mediadataprovider, provider);
+});
+
+test('iCUE periodically discovers, replaces and loses providers without host events', async () => {
+  const w = widget(), p = mediaProvider();
+  w.window.plugins.Mediadataprovider = p.media;
+  for (const tick of [...w.intervals.values()]) tick();
+  await w.flush();
+  assert.equal(w.elements.get('songName').textContent, 'Track A');
+  const replacement = mediaProvider({songName:'Replacement'});
+  w.window.plugins.Mediadataprovider = replacement.media;
+  for (const tick of [...w.intervals.values()]) tick();
+  assert.equal(w.elements.get('songName').textContent, 'Replacement');
+  assert.equal(p.media.songNameChanged.size, 0);
+  assert.equal(replacement.media.songNameChanged.size, 1);
+  delete w.window.plugins.Mediadataprovider;
+  for (const tick of [...w.intervals.values()]) tick();
+  assert.equal(w.elements.get('statusText').textContent, 'iCUEメディアを待機中');
+  assert.equal(w.elements.get('playPauseButton').disabled, true);
+  assert.equal(replacement.media.songNameChanged.size, 0);
+  assert.equal(w.intervals.size, 1);
+});
+
+test('iCUE hides cancel requests and subscriptions, then visible resumes only once', async () => {
+  const p = mediaProvider({}, {autoRespond:false}), w = widget(p);
+  await w.flush();
+  const old = [...p.requests];
+  w.visibility('hidden');
+  assert.equal(w.timers.size, 0);
+  assert.equal(w.intervals.size, 0);
+  assert.equal(p.media.asyncResponse.size, 0);
+  for (const r of old) p.media.asyncResponse.emit(r.id, r.value);
+  assert.equal(w.elements.get('playPauseButton').disabled, true);
+  p.data.songName = 'Resumed';
+  w.visibility('visible'); w.event('pageshow');
+  assert.equal(w.elements.get('songName').textContent, 'Resumed');
+  assert.equal(w.intervals.size, 1);
+  assert.equal(p.media.songNameChanged.size, 1);
+});
+
+test('iCUE shows loading and unavailable states for async-only timeouts, then recovers', async () => {
+  const p = mediaProvider({}, {asyncOnly:true, autoRespond:false}), w = widget(p);
+  assert.equal(w.elements.get('deck').dataset.status, 'loading');
+  await w.flush(); await w.flush(3500);
+  assert.equal(w.elements.get('deck').dataset.status, 'error');
+  assert.equal(w.elements.get('playPauseButton').disabled, true);
+  for (const tick of [...w.intervals.values()]) tick();
+  for (const r of p.requests.slice(-5)) p.media.asyncResponse.emit(r.id, r.value);
+  await w.flush();
+  assert.equal(w.elements.get('statusText').textContent, '再生中');
+  assert.equal(w.elements.get('playPauseButton').disabled, false);
+});
+
+test('iCUE timeout fallback reads current properties and rejects stale successful snapshots', async () => {
+  const p = mediaProvider({}, {autoRespond:false}), w = widget(p);
+  await w.flush();
+  p.data.songName = 'New while waiting';
+  p.data.artist = 'New artist';
+  await w.flush(3500);
+  assert.equal(w.elements.get('songName').textContent, 'New while waiting');
+  assert.equal(w.elements.get('artist').textContent, 'New artist');
+  for (const tick of [...w.intervals.values()]) tick();
+  const stale = p.requests.slice(-5);
+  p.data.songName = 'Unannounced change';
+  for (const r of stale) p.media.asyncResponse.emit(r.id, r.value);
+  await w.flush();
+  assert.equal(w.elements.get('songName').textContent, 'Unannounced change');
+  w.click('playPauseButton');
+  assert.equal(p.calls.length, 1);
+});
+
+test('iCUE a destroyed provider cannot throw from rendering or enable commands', async () => {
+  let destroyed = false;
+  const p = mediaProvider();
+  const media = new Proxy(p.media, {get(target, key) {
+    if (destroyed) throw new Error('Qt object deleted');
+    return Reflect.get(target, key);
+  }});
+  const w = widget({media});
+  await w.flush();
+  destroyed = true;
+  for (const tick of [...w.intervals.values()]) tick();
+  await w.flush();
+  assert.equal(w.elements.get('deck').dataset.status, 'error');
+  assert.equal(w.elements.get('playPauseButton').disabled, true);
+  w.window.plugins.Mediadataprovider = p.media;
+  for (const tick of [...w.intervals.values()]) tick();
+  assert.equal(w.elements.get('songName').textContent, 'Track A');
+});
+
+test('iCUE personalization keeps old IDs and accepts only bounded typed values', () => {
+  const w = widget(mediaProvider());
+  w.run('let textColor = "#fedcba"; let transparency = 75; let showArtwork = false; let showAlbum = false; let accentColor = "#000000"; window.icueEvents.onDataUpdated()');
+  assert.equal(w.styles.get('--ink'), '#fedcba');
+  assert.equal(w.styles.get('--background-opacity'), '0.25');
+  assert.equal(w.styles.get('--art-display'), 'none');
+  assert.equal(w.styles.get('--album-display'), 'none');
+  assert.equal(w.styles.get('--accent-ink'), '#ffffff');
+  w.run('transparency = 150; textColor = "red; background:url(https://example.com)"; window.icueEvents.onDataUpdated()');
+  assert.equal(w.styles.get('--background-opacity'), '0');
+  assert.equal(w.styles.get('--ink'), '#fedcba');
+  w.run('transparency = NaN; showArtwork = true; showAlbum = true; accentColor = "#ffffff"; window.icueEvents.onDataUpdated()');
+  assert.equal(w.styles.get('--background-opacity'), '0');
+  assert.equal(w.styles.get('--accent-ink'), '#000000');
+  assert.equal(w.elements.get('album').textContent, 'Album');
 });

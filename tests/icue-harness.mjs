@@ -36,7 +36,7 @@ export function mediaProvider(values = {}, {asyncOnly = false, autoRespond = tru
 
 export function widget(provider) {
   const elements = new Map();
-  for (const id of ['deck', 'songName', 'artist', 'album', 'albumArt', 'coverPlaceholder', 'statusText',
+  for (const id of ['deck', 'songName', 'artist', 'album', 'albumArt', 'coverPlaceholder', 'cover', 'statusText',
     'playPauseButton', 'previousButton', 'nextButton']) {
     const attributes = new Map(), listeners = new Map(), children = new Map();
     elements.set(id, {
@@ -56,7 +56,7 @@ export function widget(provider) {
   const timers = new Map(), intervals = new Map(), windowEvents = new Map(), documentEvents = new Map(), styles = new Map();
   let nextTimer = 0;
   const document = {
-    visibilityState:'visible', documentElement:{style:{setProperty:(key, value) => styles.set(key, value)}},
+    visibilityState:'visible', documentElement:{dataset:{}, style:{setProperty:(key, value) => styles.set(key, value)}},
     getElementById:id => elements.get(id),
     addEventListener:(event, callback) => documentEvents.set(event, callback),
   };
@@ -65,6 +65,8 @@ export function widget(provider) {
     addEventListener:(event, callback) => windowEvents.set(event, callback),
   };
   const context = vm.createContext({window, document,
+    getComputedStyle(node) { return {display:node === elements.get('cover') ? styles.get('--art-display') ?? 'block'
+      : node === elements.get('album') ? styles.get('--album-display') ?? 'block' : 'block'}; },
     setTimeout(callback, delay) { timers.set(++nextTimer, {callback, delay}); return nextTimer; },
     clearTimeout:id => timers.delete(id),
     setInterval(callback) { intervals.set(++nextTimer, callback); return nextTimer; },

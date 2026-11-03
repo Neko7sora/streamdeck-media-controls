@@ -31,25 +31,118 @@ try {
   await page.locator('#previousButton').click();
   assert.equal(await page.locator('#songName').innerText(), 'Midnight Current');
 
-  for (const [width, height] of [[2560,720], [1280,360], [640,180], [320,140], [280,320]]) {
+  const sizes = [[840,344], [696,416], [840,696], [696,840], [1688,696], [696,1688],
+    [2536,696], [696,2536], [2560,720], [1280,360], [640,180], [320,140], [280,320]];
+  const fonts = new Map();
+  for (const [width, height] of sizes) {
     await page.setViewportSize({width, height});
     // Check actual controls, not just document overflow (the template clips overflow).
-    const boxes = await page.locator('.control, .metadata, .cover').evaluateAll(nodes => nodes.map(node => {
+    const boxes = await page.locator('.control, .metadata, .cover, .topline, .bottomline').evaluateAll(nodes => nodes.map(node => {
       const {x, y, width, height} = node.getBoundingClientRect();
       return {id:node.id, x, y, width, height};
     }));
     for (const box of boxes) {
       assert.ok(box.x >= -0.5 && box.y >= -0.5 && box.x + box.width <= width + 0.5 &&
         box.y + box.height <= height + 0.5, `${width}x${height}: clipped ${JSON.stringify(box)}`);
-      if (box.id.endsWith('Button')) assert.ok(box.width >= 42 && box.height >= 42);
+      if (box.id.endsWith('Button')) assert.ok(box.width >= 44 && box.height >= 44);
     }
+    for (const selector of ['#songName', '#artist', '#album', '#statusText']) {
+      assert.ok(await page.locator(selector).evaluate(node => {
+        if (getComputedStyle(node).display === 'none') return true;
+        const box = node.getBoundingClientRect(), parent = node.parentElement.getBoundingClientRect();
+        return box.x >= parent.x - .5 && box.right <= parent.right + .5 &&
+          box.y >= -.5 && box.bottom <= innerHeight + .5 && node.clientHeight >= parseFloat(getComputedStyle(node).fontSize);
+      }), `${width}x${height}: clipped text ${selector}`);
+    }
+    fonts.set(`${width}x${height}`, await page.locator('#songName').evaluate(node => parseFloat(getComputedStyle(node).fontSize)));
+    assert.equal(await page.locator('.player').evaluate(node => getComputedStyle(node).flexDirection), width / height <= 1.05 ? 'column' : 'row');
     await page.locator('#playPauseButton').click();
     await page.locator('#playPauseButton').click();
-    if (width === 1280 || width === 280) {
+    if (width === 1280 || width === 280 || width === 696 || width === 840 || width === 2536) {
       await page.screenshot({path:fileURLToPath(new URL(`icue-${width}x${height}.png`, output))});
     }
     console.log(`OK iCUE layout and controls: ${width}x${height}`);
   }
+  assert.ok(fonts.get('2536x696') > fonts.get('840x344'));
+  for (const height of [840,1688,2536]) assert.equal(fonts.get(`696x${height}`), fonts.get('696x416'));
+
+  // The iCUE mimic can expose a reduced CSS viewport rather than a scaled full-size one.
+  // Compare normalized geometry, computed type and visibility with the device surface.
+  const mimic = await context.newPage();
+  await mimic.addInitScript(() => { window.iCUE = {isPreview:false}; });
+  await mimic.goto(entry + '?demo=1');
+  await mimic.waitForFunction(() => document.getElementById('albumArt').naturalWidth > 0);
+  const composition = () => mimic.evaluate(() => {
+    const selectors = ['.cover', '.content', '.topline', '.now-label', '#songName', '#artist', '#album',
+      '.bottomline', '.control', '.control-primary', '.brand', '.hint'];
+    return selectors.map(selector => {
+      const node = document.querySelector(selector), style = getComputedStyle(node);
+      const {x, y, width, height} = node.getBoundingClientRect();
+      return {selector, display:style.display,
+        geometry:[x / innerWidth, y / innerHeight, width / innerWidth, height / innerHeight],
+        font:node.matches('.now-label, #songName, #artist, #album, .brand, .hint')
+          ? parseFloat(style.fontSize) / Math.min(innerWidth, innerHeight) : null};
+    });
+  });
+  for (const [width, height] of sizes.slice(0, 8)) {
+    await mimic.setViewportSize({width, height});
+    await mimic.evaluate(() => { window.iCUE.isPreview = false; window.icueEvents.onDataUpdated(); });
+    assert.equal(await mimic.locator('html').getAttribute('data-icue-surface'), 'device');
+    const device = await composition();
+    for (const item of device) {
+      if (item.display === 'none') continue;
+      const [x, y, w, h] = item.geometry;
+      assert.ok(x >= -.001 && y >= -.001 && x + w <= 1.001 && y + h <= 1.001,
+        `${width}x${height}: device clips ${item.selector}`);
+    }
+    assert.ok(await mimic.locator('.control').first().evaluate(node => node.getBoundingClientRect().width >= 44));
+    if (width === 840 && height === 344) await mimic.screenshot({path:fileURLToPath(new URL('icue-device-s-horizontal.png', output))});
+    if (height === 2536) await mimic.screenshot({path:fileURLToPath(new URL('icue-device-xl-vertical.png', output))});
+    for (const scale of [.5, .25]) {
+      await mimic.setViewportSize({width:width * scale, height:height * scale});
+      await mimic.evaluate(() => { window.iCUE.isPreview = true; window.icueEvents.onDataUpdated(); });
+      assert.equal(await mimic.locator('html').getAttribute('data-icue-surface'), 'preview');
+      const preview = await composition();
+      for (let i = 0; i < device.length; i++) {
+        const message = `${width}x${height} at ${scale}: ${device[i].selector}`;
+        assert.equal(preview[i].display, device[i].display, `${message} visibility differs`);
+        if (device[i].display === 'none') continue;
+        for (let axis = 0; axis < 4; axis++) {
+          assert.ok(Math.abs(preview[i].geometry[axis] - device[i].geometry[axis]) < .006,
+            `${message} geometry differs: ${JSON.stringify({device:device[i], preview:preview[i]})}`);
+        }
+        assert.ok(Math.abs(preview[i].font - device[i].font) < .0001, `${message} type scale differs`);
+      }
+      if (height === 2536 && scale === .25) await mimic.screenshot({path:fileURLToPath(new URL('icue-preview-xl-vertical.png', output))});
+    }
+    console.log(`OK iCUE preview/device proportions: ${width}x${height}, half and quarter size`);
+  }
+  await mimic.close();
+
+  // Settings change the background layer without dimming text or controls.
+  await page.setViewportSize({width:696, height:840});
+  await page.evaluate(() => {
+    window.textColor = '#ddeeff'; window.transparency = 75; window.showArtwork = false; window.showAlbum = false;
+    window.accentColor = '#000000'; window.icueEvents.onDataUpdated();
+  });
+  assert.equal(await page.locator('#cover').isVisible(), false);
+  assert.equal(await page.locator('#album').isVisible(), false);
+  assert.equal(await page.locator('#songName').evaluate(node => getComputedStyle(node).color), 'rgb(221, 238, 255)');
+  assert.equal(await page.locator('#deck').evaluate(node => getComputedStyle(node, '::before').opacity), '0.25');
+  assert.equal(await page.locator('#playPauseButton').evaluate(node => getComputedStyle(node).color), 'rgb(255, 255, 255)');
+  for (const [width, height] of sizes.slice(0, 8)) {
+    await page.setViewportSize({width, height});
+    assert.ok(await page.locator('#playPauseButton').evaluate(node => {
+      const box = node.getBoundingClientRect();
+      return box.x >= 0 && box.right <= innerWidth && box.y >= 0 && box.bottom <= innerHeight;
+    }));
+  }
+  await page.evaluate(() => {
+    window.transparency = 0; window.showArtwork = true; window.showAlbum = true;
+    window.accentColor = '#66e6ce'; window.textColor = '#f7f8fc'; window.icueEvents.onDataUpdated();
+  });
+  assert.equal(await page.locator('#cover').isVisible(), true);
+  assert.equal(await page.locator('#album').innerText(), 'Offline Preview • Vol. 1');
 
   // Keyboard operation uses native buttons and visible focus.
   await page.setViewportSize({width:1280, height:360});
@@ -88,17 +181,57 @@ try {
   assert.equal(await live.evaluate(() => getComputedStyle(document.documentElement).getPropertyValue('--accent').trim()), '#ffcc66');
   await live.locator('#playPauseButton').click();
   assert.equal(await live.locator('#statusText').innerText(), '再生中');
-  await live.evaluate(() => { window.plugins.Mediadataprovider.songName = '長い日本語の曲名'.repeat(80); window.plugins.Mediadataprovider.songNameChanged.emit(); });
+  await live.evaluate(() => {
+    const media = window.plugins.Mediadataprovider;
+    media.songName = '長い日本語の曲名 🎧 e\u0301'.repeat(80);
+    media.artist = '長いアーティスト名'.repeat(80);
+    media.album = '長いアルバム名'.repeat(80);
+    media.songNameChanged.emit();
+  });
+  for (const [width, height] of sizes.slice(0, 8)) {
+    await live.setViewportSize({width, height});
+    for (const selector of ['#songName', '#artist', '#album']) {
+      assert.ok(await live.locator(selector).evaluate(node => {
+        const box = node.getBoundingClientRect();
+        return box.left >= 0 && box.right <= innerWidth && box.top >= 0 && box.bottom <= innerHeight &&
+          getComputedStyle(node).textOverflow === 'ellipsis';
+      }), `${width}x${height}: long text ${selector}`);
+    }
+  }
+  await live.evaluate(() => { window.plugins.Mediadataprovider.album = 'アルバム'; window.plugins.Mediadataprovider.albumChanged.emit(); });
   await live.setViewportSize({width:320, height:140});
   assert.equal(await live.locator('#songName').evaluate(node => getComputedStyle(node).textOverflow), 'ellipsis');
+  await live.setViewportSize({width:696, height:840});
+  assert.equal(await live.locator('#album').innerText(), 'アルバム');
   await live.evaluate(() => { window.dispatchEvent(new Event('pagehide')); window.dispatchEvent(new Event('pageshow')); });
   assert.equal(await live.locator('#playPauseButton').isEnabled(), true);
   await live.evaluate(() => { window.plugins.Mediadataprovider.songName = ''; window.plugins.Mediadataprovider.songNameChanged.emit(); });
   assert.equal(await live.locator('#playPauseButton').isDisabled(), true);
   assert.equal(await live.locator('#coverPlaceholder').isVisible(), true);
+  // Delayed async-only providers distinguish loading, an empty session and a lost connection.
+  const pending = await context.newPage();
+  await pending.goto(entry);
+  await pending.evaluate(() => {
+    const listeners = new Set();
+    window.pendingRequests = [];
+    window.plugins = {Mediadataprovider:{
+      asyncResponse:{connect:fn => listeners.add(fn), disconnect:fn => listeners.delete(fn)},
+      getSongName(id) { window.pendingRequests.push(id); },
+    }};
+    window.reply = value => { for (const fn of listeners) fn(window.pendingRequests.at(-1), value); };
+    window.pluginMediadataproviderEvents.onInitialized();
+  });
+  assert.equal(await pending.locator('#deck').getAttribute('data-status'), 'loading');
+  await pending.waitForFunction(() => window.pendingRequests.length > 0);
+  await pending.evaluate(() => window.reply(''));
+  await pending.waitForFunction(() => document.getElementById('deck').dataset.status === 'idle');
+  await pending.evaluate(() => { window.dispatchEvent(new Event('pagehide')); window.dispatchEvent(new Event('pageshow')); });
+  await pending.waitForFunction(() => document.getElementById('deck').dataset.status === 'error');
+  assert.equal(await pending.locator('#playPauseButton').isDisabled(), true);
+  await pending.screenshot({path:fileURLToPath(new URL('icue-unavailable.png', output))});
   assert.deepEqual(errors, []);
   assert.deepEqual(remote, []);
-  console.log('OK iCUE demo, keyboard, late provider, settings, unknown metadata, restore, no remote requests or JS errors');
+  console.log('OK iCUE all Edge slots, stable vertical type, personalization, keyboard, loading/empty/error, restore, no remote requests or JS errors');
 } finally {
   await browser.close();
 }

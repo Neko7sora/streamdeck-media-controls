@@ -6,10 +6,14 @@
   <title>tr('Edge Media Deck')</title>
   <link rel="icon" type="image/svg+xml" href="resources/icon.svg" />
   <meta name="x-icue-widget-preview" content="resources/preview.png" />
+  <meta name="x-icue-property" content="showArtwork" data-label="tr('Show Artwork')" data-type="switch" data-default="true" />
+  <meta name="x-icue-property" content="showAlbum" data-label="tr('Show Album')" data-type="switch" data-default="true" />
+  <meta name="x-icue-property" content="textColor" data-label="tr('Text Color')" data-type="color" data-default="'#F7F8FC'" />
   <meta name="x-icue-property" content="accentColor" data-label="tr('Accent Color')" data-type="color" data-default="'#66E6CE'" />
   <meta name="x-icue-property" content="backgroundColor" data-label="tr('Background Color')" data-type="color" data-default="'#111827'" />
+  <meta name="x-icue-property" content="transparency" data-label="tr('Background Transparency')" data-type="slider" data-default="0" data-min="0" data-max="100" data-step="1" data-unit-label="'%'" />
   <script type="application/json" id="x-icue-groups">
-  [{"title":"tr('Appearance')","properties":["accentColor","backgroundColor"]}]
+  [{"title":"tr('Display')","properties":["showArtwork","showAlbum"]},{"title":"tr('Appearance')","properties":["textColor","accentColor","backgroundColor","transparency"]}]
   </script>
   <link rel="stylesheet" href="styles/style.css" />
 </head>

@@ -4,7 +4,7 @@
 
   const el = Object.fromEntries(Object.entries({
     deck: "deck", song: "songName", artist: "artist", album: "album",
-    art: "albumArt", artPlaceholder: "coverPlaceholder", status: "statusText",
+    art: "albumArt", artPlaceholder: "coverPlaceholder", cover: "cover", status: "statusText",
     play: "playPauseButton", previous: "previousButton", next: "nextButton",
   }).map(([key, id]) => [key, document.getElementById(id)]));
   const fields = [
@@ -28,6 +28,8 @@
   let errorTimer = null;
   let failedArtwork = "";
   let commandError = false;
+  let loading = false;
+  let readError = false;
   // Keep IDs unique across host reconnections so delayed responses cannot cross bindings.
   let nextRequestId = 1;
 
@@ -37,14 +39,39 @@
   }
 
   function updateAppearance() {
+    // Both iCUE surfaces use proportional tokens: a mimic can have a smaller CSS viewport.
+    const preview = setting(() => iCUE.isPreview);
+    if (typeof preview === "boolean") document.documentElement.dataset.icueSurface = preview ? "preview" : "device";
+    else delete document.documentElement.dataset.icueSurface;
     // iCUE can expose property globals as lexical bindings rather than window properties.
-    const accent = typeof accentColor === "undefined" ? null : accentColor;
-    const background = typeof backgroundColor === "undefined" ? null : backgroundColor;
-    for (const [property, value] of [["--accent", accent], ["--base", background]]) {
+    const accent = setting(() => accentColor);
+    const background = setting(() => backgroundColor);
+    const ink = setting(() => textColor);
+    const transparent = setting(() => transparency);
+    const artwork = setting(() => showArtwork);
+    const album = setting(() => showAlbum);
+    for (const [property, value] of [["--accent", accent], ["--base", background], ["--ink", ink]]) {
       if (typeof value === "string" && /^#[0-9a-f]{6}$/i.test(value)) {
         document.documentElement.style.setProperty(property, value);
+        if (property === "--accent") {
+          const [r, g, b] = value.slice(1).match(/../g).map(hex => {
+            const channel = parseInt(hex, 16) / 255;
+            return channel <= .04045 ? channel / 12.92 : ((channel + .055) / 1.055) ** 2.4;
+          });
+          document.documentElement.style.setProperty("--accent-ink", .2126 * r + .7152 * g + .0722 * b > .179 ? "#000000" : "#ffffff");
+        }
       }
     }
+    if (typeof transparent === "number" && Number.isFinite(transparent)) {
+      document.documentElement.style.setProperty("--background-opacity", String(1 - Math.min(100, Math.max(0, transparent)) / 100));
+    }
+    document.documentElement.style.setProperty("--art-display", artwork === false ? "none" : "block");
+    document.documentElement.style.setProperty("--album-display", album === false ? "none" : "block");
+  }
+
+  function setting(getValue) {
+    // Resolve on every update, including globals injected after the initial render.
+    try { return getValue(); } catch { return undefined; }
   }
 
   function setText(element, value, fallback) {
@@ -63,18 +90,31 @@
       : (typeof values[index] === "string" ? values[index].trim() : "")]));
   }
 
+  function read(object, key) {
+    try { return object?.[key]; } catch { return undefined; }
+  }
+
+  function currentProvider() {
+    return read(read(window, "plugins"), "Mediadataprovider") || null;
+  }
+
   function property(key) {
-    try { return plugin?.[key]; } catch { return undefined; }
+    return read(plugin, key);
   }
 
   function render() {
     const hasTrack = Boolean(state.songName);
-    setText(el.song, state.songName, plugin ? "再生中の曲はありません" : "メディアを待機中");
-    setText(el.artist, state.artist, hasTrack ? "アーティスト不明" : "メディアプレーヤーで曲を再生してください");
-    setText(el.album, state.album, "");
+    setText(el.song, state.songName, loading ? "メディア情報を取得中" : readError ? "メディア情報を取得できません" : plugin ? "再生中の曲はありません" : "メディアを待機中");
+    setText(el.artist, state.artist, hasTrack ? "アーティスト不明" : !plugin || readError
+      ? "iCUEの接続を確認してください・自動的に再試行します" : loading ? "しばらくお待ちください" : "メディアプレーヤーで曲を再生してください");
+    if (getComputedStyle(el.album).display !== "none") setText(el.album, state.album, "");
 
     const artwork = hasTrack && validArtwork(state.thumbnail) ? state.thumbnail : "";
-    if (artwork && artwork !== failedArtwork) {
+    if (getComputedStyle(el.cover).display === "none") {
+      el.art.removeAttribute("src");
+      el.art.hidden = true;
+      el.artPlaceholder.hidden = false;
+    } else if (artwork && artwork !== failedArtwork) {
       if (el.art.getAttribute("src") !== artwork) el.art.src = artwork;
       el.art.hidden = false;
       el.artPlaceholder.hidden = true;
@@ -87,6 +127,8 @@
 
     if (commandError) setStatus("error", "操作に失敗しました");
     else if (!plugin) setStatus("waiting", "iCUEメディアを待機中");
+    else if (loading) setStatus("loading", "メディア情報を取得中");
+    else if (readError) setStatus("error", "iCUE接続を確認してください");
     else if (!hasTrack) setStatus("idle", "再生待ち");
     else if (state.isPlaying === null) setStatus("idle", "再生状態不明");
     else if (state.isPlaying) setStatus("playing", "再生中");
@@ -99,13 +141,13 @@
     el.play.setAttribute("aria-label", label);
     el.play.title = label;
     for (const [button, method] of controls) {
-      button.disabled = suspended || !hasTrack || typeof plugin?.[method] !== "function";
+      button.disabled = suspended || !hasTrack || typeof property(method) !== "function";
     }
   }
 
   function connect(signal, callback) {
     if (!signal || typeof signal.connect !== "function") return false;
-    signal.connect(callback);
+    try { signal.connect(callback); } catch { return false; }
     connections.push(() => {
       if (typeof signal.disconnect === "function") signal.disconnect(callback);
     });
@@ -114,7 +156,7 @@
 
   function createRequestBridge(media) {
     const pending = new Map();
-    const supported = connect(media.asyncResponse, (requestId, value) => {
+    const supported = connect(read(media, "asyncResponse"), (requestId, value) => {
       const entry = pending.get(Number(requestId));
       if (!entry) return;
       clearTimeout(entry.timeout);
@@ -130,19 +172,20 @@
         pending.clear();
       },
       request(method, fallback) {
-        if (!supported || typeof media[method] !== "function") return Promise.resolve(fallback);
+        const invoke = read(media, method);
+        if (!supported || typeof invoke !== "function") return Promise.resolve(fallback());
         return new Promise(resolve => {
           const requestId = nextRequestId++;
           const timeout = setTimeout(() => {
             pending.delete(requestId);
-            resolve(fallback);
+            resolve(fallback());
           }, 3500);
           pending.set(requestId, { resolve, timeout });
-          try { media[method](requestId); }
+          try { invoke.call(media, requestId); }
           catch {
             clearTimeout(timeout);
             pending.delete(requestId);
-            resolve(fallback);
+            resolve(fallback());
           }
         });
       },
@@ -153,9 +196,18 @@
     if (!plugin || !bridge || suspended) return;
     const current = ++generation;
     bridge.cancel();
-    const values = await Promise.all(fields.map(([key, method]) => bridge.request(method, property(key))));
+    const media = plugin;
+    const values = await Promise.all(fields.map(([key, method]) => bridge.request(method, () => read(media, key))));
     if (current !== generation || suspended) return;
+    if (currentProvider() !== media) { initializeMedia(); return; }
+    // A provider may change properties without delivering a change signal while requests run.
+    if (fields.some(([key], index) => {
+      const value = property(key);
+      return value !== undefined && value !== values[index];
+    })) { scheduleRefresh(); return; }
     state = normalize(values);
+    loading = false;
+    readError = values.every(value => value === undefined);
     render();
   }
 
@@ -164,7 +216,10 @@
     ++generation;
     bridge.cancel();
     // Never reuse metadata from the previous track when fields disappear.
-    state = normalize(fields.map(([key]) => property(key)));
+    const values = fields.map(([key]) => property(key));
+    state = normalize(values);
+    loading = values.every(value => value === undefined);
+    readError = false;
     render();
     clearTimeout(refreshTimer);
     refreshTimer = setTimeout(refresh, 100);
@@ -175,7 +230,6 @@
     ++generation;
     clearTimeout(refreshTimer);
     clearTimeout(errorTimer);
-    clearInterval(pollTimer);
     bridge?.cancel();
     for (const disconnect of connections) {
       try { disconnect(); } catch { /* The host may already have destroyed the Qt object. */ }
@@ -184,35 +238,55 @@
     bridge = null;
     plugin = null;
     commandError = false;
+    loading = false;
+    readError = false;
     state = emptyState();
   }
 
   function initializeMedia() {
-    if (suspended) return;
-    const media = window.plugins?.Mediadataprovider;
-    if (plugin === media) return;
+    if (suspended) return false;
+    const media = currentProvider();
+    if (plugin === media) return false;
     detach();
     if (media) {
       plugin = media;
       bridge = createRequestBridge(media);
       const currentBinding = binding;
       for (const [key] of fields) {
-        connect(media[key + "Changed"], () => {
+        connect(read(media, key + "Changed"), () => {
           if (currentBinding === binding && !suspended) scheduleRefresh();
         });
       }
       scheduleRefresh();
-      pollTimer = setInterval(() => {
-        if (document.visibilityState !== "hidden") refresh();
-      }, 20000);
     }
+    render();
+    return true;
+  }
+
+  function resume() {
+    if (document.visibilityState === "hidden") return;
+    suspended = false;
+    updateAppearance();
+    if (!initializeMedia()) scheduleRefresh();
+    // Also recover missing/replaced providers when the host misses an initialization event.
+    if (pollTimer === null) pollTimer = setInterval(() => {
+      if (!initializeMedia()) refresh();
+    }, 20000);
+    render();
+  }
+
+  function suspend() {
+    suspended = true;
+    clearInterval(pollTimer);
+    pollTimer = null;
+    detach();
     render();
   }
 
   function action(button, method) {
-    if (button.disabled || suspended || !plugin || typeof plugin[method] !== "function") return;
+    if (button.disabled || suspended || !plugin || typeof property(method) !== "function") return;
     // If the host replaced the provider, refresh the display before accepting another action.
-    if (window.plugins?.Mediadataprovider !== plugin) { initializeMedia(); return; }
+    if (currentProvider() !== plugin) { initializeMedia(); return; }
     for (const key of ["songName", "artist", "album"]) {
       const value = property(key);
       if (typeof value === "string" && value.trim() !== state[key]) { scheduleRefresh(); return; }
@@ -238,16 +312,19 @@
   });
   window.icueEvents = {
     onICUEInitialized() { updateAppearance(); initializeMedia(); },
-    onDataUpdated: updateAppearance,
+    onDataUpdated() { updateAppearance(); render(); },
   };
   window.pluginMediadataproviderEvents = { onInitialized: initializeMedia };
   document.addEventListener("visibilitychange", () => {
-    if (document.visibilityState !== "hidden") { initializeMedia(); scheduleRefresh(); }
+    if (document.visibilityState === "hidden") suspend();
+    else resume();
   });
-  window.addEventListener("pagehide", () => { suspended = true; detach(); render(); });
-  window.addEventListener("pageshow", () => { suspended = false; updateAppearance(); initializeMedia(); });
+  window.addEventListener("pagehide", suspend);
+  window.addEventListener("pageshow", resume);
+  window.addEventListener("resize", render);
 
   updateAppearance();
   render();
-  initializeMedia();
+  if (document.visibilityState === "hidden") suspend();
+  else resume();
 })();
