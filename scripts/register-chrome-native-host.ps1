@@ -23,7 +23,9 @@ if ($nodeExe.Contains('%') -or $hostDir.Contains('%')) { throw 'Paths containing
 New-Item -ItemType Directory -Path $hostDir -Force | Out-Null
 $sourceScript = Join-Path $PSScriptRoot 'chrome-native-host.mjs'
 $installedScript = Join-Path $hostDir 'chrome-native-host.mjs'
-if (-not (Test-Path -LiteralPath $installedScript) -or (Get-FileHash -LiteralPath $sourceScript).Hash -ne (Get-FileHash -LiteralPath $installedScript).Hash) {
+# Embedded PowerShell sessions may not expose the Get-FileHash cmdlet.
+# Compare the small script's bytes with .NET so re-registration still updates it.
+if (-not [IO.File]::Exists($installedScript) -or [Convert]::ToBase64String([IO.File]::ReadAllBytes($sourceScript)) -cne [Convert]::ToBase64String([IO.File]::ReadAllBytes($installedScript))) {
   Copy-Item -LiteralPath $sourceScript -Destination $installedScript -Force
 }
 function Write-IfChanged([string]$Path, [string]$Content, [Text.Encoding]$Encoding) {

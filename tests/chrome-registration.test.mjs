@@ -75,10 +75,13 @@ test("registration replaces old origins with the selected ID using an isolated h
   const root=await mkdtemp(join(tmpdir(),"chrome-register-install-"));
   try {
     const host=join(root,"StreamDeckMediaControls","native-host");await mkdir(host,{recursive:true});
+    const installedScript=join(host,"chrome-native-host.mjs");
+    await writeFile(installedScript,"outdated native host");
     const installed=join(host,"dev.n7s.media_controls.json");
     await writeFile(installed,JSON.stringify({allowed_origins:[`chrome-extension://${first}/`,`chrome-extension://${second}/`]}));
     const harness=join(root,"register-test.ps1");
     await writeFile(harness,String.raw`param([string]$Script,[string]$Node,[string]$Id)
+function Get-FileHash { throw 'Get-FileHash is unavailable in the embedded host' }
 function Test-Path { param([string]$LiteralPath) if ($LiteralPath -like 'HKCU:*') { return $false }; Microsoft.PowerShell.Management\Test-Path -LiteralPath $LiteralPath }
 function New-Item { param([string]$Path,[string]$ItemType,[switch]$Force) if ($Path -like 'HKCU:*') { return }; Microsoft.PowerShell.Management\New-Item -Path $Path -ItemType $ItemType -Force:$Force }
 function Get-Item { param([string]$LiteralPath) if ($LiteralPath -like 'HKCU:*') { return (New-Object PSObject | Add-Member ScriptMethod GetValue { param($name) return '' } -PassThru) }; throw 'Unexpected Get-Item' }
@@ -89,5 +92,8 @@ function Set-Item { param([string]$Path,[string]$Value) if ($Path -notlike 'HKCU
     assert.deepEqual(JSON.parse(await readFile(installed,"utf8")).allowed_origins,[`chrome-extension://${first}/`]);
     assert.equal(await readFile(join(root,"registry-target.txt"),"utf8"),installed);
     assert.equal(await readFile(join(host,"chrome-native-host.mjs"),"utf8"),await readFile(new URL("../scripts/chrome-native-host.mjs",import.meta.url),"utf8"));
+    // Re-registering an already current host must also work without Get-FileHash.
+    await run(powershell,["-NoProfile","-NonInteractive","-ExecutionPolicy","Bypass","-File",harness,"-Script",script,"-Node",process.execPath,"-Id",first],{windowsHide:true,env:{...process.env,LOCALAPPDATA:root}});
+    assert.equal(await readFile(installedScript,"utf8"),await readFile(new URL("../scripts/chrome-native-host.mjs",import.meta.url),"utf8"));
   } finally {await rm(root,{recursive:true,force:true});}
 });
