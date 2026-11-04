@@ -1,7 +1,8 @@
 import {cp, mkdir, mkdtemp, readFile, rm, writeFile} from 'node:fs/promises';
-import {dirname, isAbsolute, join, relative, resolve} from 'node:path';
+import {isAbsolute, join, relative, resolve} from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {spawnSync} from 'node:child_process';
+import {checkIcuePresentation} from './check-icue-presentation.mjs';
 
 const root = fileURLToPath(new URL('../', import.meta.url));
 const generated = join(root, 'tests/.generated');
@@ -38,6 +39,7 @@ export async function validateIcueWidget(source) {
       'validate', staging], {cwd:root, stdio:'inherit', windowsHide:true,
       env:{...process.env, ICUEWIDGET_NO_UPDATE_CHECK:'1'}});
     if (result.error || result.status !== 0) throw result.error ?? new Error(`iCUE validation failed (${result.status})`);
+    await checkIcuePresentation(staging);
     console.log('iCUE validation: CLI 0.5.1 certificate type/domain adapted on a temporary copy; runtime permissions preserved.');
   } finally {
     const inside = relative(resolve(generated), resolve(staging));

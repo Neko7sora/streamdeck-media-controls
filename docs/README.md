@@ -27,6 +27,7 @@ Media Controls は [Elgato Marketplace](https://marketplace.elgato.com/product/m
 | Chrome のデータ分類・権限理由の入力原稿 | [Privacy practices](chrome-web-store/privacy-fields.md) |
 | Chrome の審査担当者向け手順の原稿 | [Reviewer instructions](chrome-web-store/reviewer-instructions.md) |
 | XENEON EDGE 用 iCUE ウィジェットの導入・検証・パッケージ生成 | [Edge Media Deck](../icue-widget/README.md) |
+| iCUE Widget API 1.9.0との対応・互換性の例外 | [iCUE Widget 仕様への対応](icue-widget-guidelines.md) |
 | 初期実装に対する過去の監査結果 | [2026-10-16 の開発記録](../AUDIT.md) |
 
 ## 現行仕様と履歴の読み方

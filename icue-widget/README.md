@@ -191,6 +191,8 @@ iCUE標準モードのブラウザーデモは `index.html?demo=1` で明示的�
 
 ## 公式資料
 
+仕様ごとの対応、自動検証の範囲、権限表記の互換性の例外は [iCUE Widget 仕様への対応](../docs/icue-widget-guidelines.md) を参照してください。選択画面用の128×56pxプレビューは `npm run icue:preview` で実際のUIと公開テストデータから再生成できます。
+
 - [Widget仕様](https://docs.elgato.com/icue/widgets/specification/)
 - [Media Data Provider 1.1](https://docs.elgato.com/icue/widgets/references/plugins/media-data-provider/)
 - [権限](https://docs.elgato.com/icue/widgets/references/permissions/)

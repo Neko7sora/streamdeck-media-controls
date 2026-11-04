@@ -1,11 +1,54 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
-import {cp, mkdir, mkdtemp, readFile, rm, writeFile} from 'node:fs/promises';
+import {copyFile, cp, mkdir, mkdtemp, readFile, rm, writeFile} from 'node:fs/promises';
 import {fileURLToPath} from 'node:url';
 import {isAbsolute, join, relative, resolve} from 'node:path';
 import {spawnSync} from 'node:child_process';
 import {cliValidationManifest} from '../scripts/check-icue.mjs';
 import {buildIcueHtml} from '../scripts/icue-widget-html.mjs';
+import {checkIcuePresentation} from '../scripts/check-icue-presentation.mjs';
+import sharp from 'sharp';
+
+test('iCUE presentation rejects oversized previews, missing English labels and invalid property references', async () => {
+  const generated = fileURLToPath(new URL('.generated/', import.meta.url));
+  await mkdir(generated, {recursive:true});
+  const directory = await mkdtemp(join(generated, 'icue-presentation-test-'));
+  try {
+    await mkdir(join(directory, 'resources'));
+    for (const file of ['index.html', 'translation.json', 'resources/preview.png']) {
+      await copyFile(new URL(`../icue-widget/${file}`, import.meta.url), join(directory, file));
+    }
+    const html = await readFile(join(directory, 'index.html'), 'utf8');
+    const translation = await readFile(join(directory, 'translation.json'), 'utf8');
+    await checkIcuePresentation(directory);
+    await sharp({create:{width:840,height:344,channels:3,background:'#000000'}}).png().toFile(join(directory, 'resources/preview.png'));
+    await assert.rejects(checkIcuePresentation(directory), /128 × 56.*840 × 344/);
+    await copyFile(new URL('../icue-widget/resources/preview.png', import.meta.url), join(directory, 'resources/preview.png'));
+    await writeFile(join(directory, 'index.html'), html.replace('content="resources/preview.png"', 'content="../preview.png"'));
+    await assert.rejects(checkIcuePresentation(directory), /must stay inside/);
+    await writeFile(join(directory, 'index.html'), html.replace('content="bridgeToken"', 'content="useBridge"'));
+    await assert.rejects(checkIcuePresentation(directory), /Duplicate iCUE property ID/);
+    await writeFile(join(directory, 'index.html'), html.replace('"properties":["useBridge","bridgeToken"]', '"properties":["missingProperty"]'));
+    await assert.rejects(checkIcuePresentation(directory), /Undeclared iCUE property/);
+    await writeFile(join(directory, 'index.html'), html);
+    const translations = JSON.parse(translation);
+    delete translations.en.translation['Bridge Token'];
+    await writeFile(join(directory, 'translation.json'), JSON.stringify(translations));
+    await assert.rejects(checkIcuePresentation(directory), /Missing iCUE English translation: Bridge Token/);
+    // A partial Japanese catalog is supported: missing keys use English.
+    translations.en.translation['Bridge Token'] = 'Bridge Token';
+    translations.ja.translation = {};
+    await writeFile(join(directory, 'translation.json'), JSON.stringify(translations));
+    await checkIcuePresentation(directory);
+    delete translations.en;
+    await writeFile(join(directory, 'translation.json'), JSON.stringify(translations));
+    await assert.rejects(checkIcuePresentation(directory), /English fallback/);
+  } finally {
+    const inside = relative(resolve(generated), resolve(directory));
+    if (!inside || inside.startsWith('..') || isAbsolute(inside)) throw new Error('Unsafe presentation test cleanup path');
+    await rm(directory, {recursive:true, force:true, maxRetries:5, retryDelay:100});
+  }
+});
 
 test('iCUE package evaluates runtime scripts in the host property scope without the demo', async () => {
   const source = fileURLToPath(new URL('../icue-widget/',import.meta.url));

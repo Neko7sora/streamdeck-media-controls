@@ -42,6 +42,12 @@ try {
   const page = await context.newPage(); await page.goto(entry);
   await page.waitForFunction(() => document.getElementById('songName').textContent === 'Track A');
   await page.waitForFunction(() => document.getElementById('albumArt').naturalWidth === 1024);
+  if (process.argv.includes('--update-preview')) {
+    // Render the actual UI with public fixture data; preserve its aspect ratio
+    // inside the selector's documented 128 × 56 canvas.
+    await sharp(await page.screenshot()).resize(128, 56, {fit:'contain', background:'#070b16'})
+      .png().toFile(fileURLToPath(new URL('../icue-widget/resources/preview.png', import.meta.url)));
+  }
   const selectors = ['#cover','#songName','#artist','#album','#statusText','#bridgePanel','#mediaTarget','#audioTarget','#seekRange','#volumeRange',
     '#muteButton','#rewindButton','#stopButton','#forwardButton','#playPauseButton','#previousButton','#nextButton','#bridgeNotice'];
   const interactive = selectors.filter(s => /Target|Range|Button/.test(s));
