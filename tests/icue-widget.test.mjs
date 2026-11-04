@@ -4,6 +4,19 @@ import vm from 'node:vm';
 import {readFileSync} from 'node:fs';
 import {widget, mediaProvider, keys} from './icue-harness.mjs';
 
+test('iCUE compacts spacing only when every text size is reduced and restores it on updates', () => {
+  const w = widget(mediaProvider());
+  assert.equal(w.document.documentElement.dataset.smallText, 'false');
+  w.run('let titleSize=75, artistSize=75, albumSize=75, labelSize=75; window.icueEvents.onDataUpdated()');
+  assert.equal(w.document.documentElement.dataset.smallText, 'true');
+  assert.equal(w.document.documentElement.dataset.largeText, 'false');
+  w.run('titleSize=150; window.icueEvents.onDataUpdated()');
+  assert.equal(w.document.documentElement.dataset.smallText, 'false');
+  assert.equal(w.document.documentElement.dataset.largeText, 'true');
+  w.run('titleSize=75; labelSize=NaN; window.icueEvents.onDataUpdated()');
+  assert.equal(w.document.documentElement.dataset.smallText, 'false');
+});
+
 test('iCUE display preferences read late lexical properties and keep updating hidden metadata', () => {
   const p = mediaProvider(), w = widget(p);
   assert.equal(w.elements.get('artist').dataset.displayHidden, 'false');

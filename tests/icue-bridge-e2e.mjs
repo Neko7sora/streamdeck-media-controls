@@ -77,8 +77,11 @@ try {
     console.log(`OK extended iCUE controls, touch targets and preview scaling: ${width}x${height}`);
   }
   const callsBeforeSettings = fixture.calls.length;
+  fixture.master.muted = true; fixture.emit();
+  await page.waitForFunction(() => document.getElementById('muteButton').textContent === 'ミュート解除');
   await checkDisplayPreferences(page, {bridge:true,sizes});
   assert.equal(fixture.calls.length, callsBeforeSettings, 'display preferences never issue media commands');
+  fixture.master.muted = false; fixture.emit();
   await page.setViewportSize({width:840,height:344});
   assert.equal(await page.locator('#deck').evaluate(node => node.scrollHeight > node.clientHeight), false);
   assert.equal(await page.locator('.connection-badge[data-connected="true"]').count(), 2);
@@ -241,6 +244,8 @@ try {
     }
   }
   await legacy.setViewportSize({width:840,height:344});
+  await checkDisplayPreferences(legacy, {bridge:true,sizes});
+  await legacy.setViewportSize({width:840,height:344});
   await legacy.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
   assert.equal(await audioPicker.getAttribute('aria-labelledby'), 'audioTargetLabel');
   await audioPicker.focus(); await legacy.keyboard.press('Enter');
@@ -273,6 +278,31 @@ try {
   await legacy.locator('#mediaTargetPicker').click();
   await legacy.locator('#mediaTargetOptions').getByRole('option', {name:'自動選択',exact:true}).click();
   await legacy.waitForFunction(() => !document.getElementById('mediaTargetPicker').disabled);
+  // Reproduce a compact player menu with wrapped Japanese session names.
+  const oldTitles = [fixture.windows.title, fixture.chrome.title];
+  fixture.windows.title = fixture.chrome.title = '長い日本語の動画タイトル・プレーヤーの選択肢が折り返される場合の表示を確認します。'.repeat(2);
+  fixture.emit();
+  await legacy.waitForFunction(() => document.getElementById('mediaTargetOptions').textContent.includes('長い日本語の動画タイトル'));
+  for (const [width,height] of sizes) {
+    await legacy.setViewportSize({width,height});
+    await legacy.evaluate(() => {window.titleSize=window.artistSize=window.albumSize=window.labelSize=100;window.icueEvents.onDataUpdated();});
+    const normal = await legacy.locator('#mediaTargetPicker').evaluate(node => node.getBoundingClientRect().height);
+    await legacy.evaluate(() => {window.titleSize=window.artistSize=window.albumSize=window.labelSize=75;window.icueEvents.onDataUpdated();});
+    await legacy.locator('#mediaTargetPicker').click();
+    const list = legacy.locator('#mediaTargetOptions');
+    const compact = await list.getByRole('option', {name:'自動選択',exact:true}).boundingBox();
+    assert.ok(compact.height >= 24 && compact.height < normal * .7, `${width}x${height}: compact menu row follows text size`);
+    assert.equal(await list.getByRole('option').evaluateAll(nodes => nodes.every(node => {
+      const range = document.createRange(); range.selectNodeContents(node);
+      const text = range.getBoundingClientRect(), box = node.getBoundingClientRect();
+      return text.top >= box.top - 1 && text.bottom <= box.bottom + 1 && node.scrollWidth <= node.clientWidth + 1;
+    })), true, `${width}x${height}: wrapped compact menu labels fit their rows`);
+    if (width === 2536) await legacy.screenshot({path:fileURLToPath(new URL('icue-min-compatible-picker.png',output))});
+    await legacy.keyboard.press('Escape');
+  }
+  [fixture.windows.title, fixture.chrome.title] = oldTitles; fixture.emit();
+  await legacy.evaluate(() => {window.titleSize=window.artistSize=window.albumSize=window.labelSize=100;window.icueEvents.onDataUpdated();});
+  await legacy.setViewportSize({width:840,height:344});
   await audioPicker.click();
   await legacy.evaluate(() => {window.bridgeToken='e'.repeat(64);window.icueEvents.onDataUpdated();});
   await legacy.waitForFunction(() => document.getElementById('audioTargetPicker').disabled);

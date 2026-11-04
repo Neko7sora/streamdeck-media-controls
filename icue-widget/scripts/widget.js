@@ -95,7 +95,7 @@
       for (const id of ids) document.getElementById(id).dataset.displayHidden = String(hidden);
     }
     el.deck.dataset.decoration = String(setting(() => showDecoration) !== false);
-    let largeText = false;
+    let largeText = false, smallText = true;
     for (const [property, getValue] of [
       ["--title-scale", () => titleSize], ["--artist-scale", () => artistSize],
       ["--album-scale", () => albumSize], ["--label-scale", () => labelSize],
@@ -104,8 +104,10 @@
       const scale = typeof value === "number" && Number.isFinite(value) ? Math.min(150, Math.max(75, value)) / 100 : 1;
       document.documentElement.style.setProperty(property, String(scale));
       if (scale > 1) largeText = true;
+      if (scale >= 1) smallText = false;
     }
     document.documentElement.dataset.largeText = String(largeText);
+    document.documentElement.dataset.smallText = String(smallText);
     window.edgeMediaBridge?.refreshDisplay();
   }
 

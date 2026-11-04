@@ -158,7 +158,9 @@ button { font: inherit; }
 @media (forced-colors: active) { .control-primary { border-color: ButtonText; } }
 
 /* Extended controls use native select/range/button behavior in Chromium 130. */
-#playbackStatus { display: inline-flex; align-items: center; gap: calc(var(--layout-unit) * 2); }
+#playbackStatus { display: inline-flex; align-items: center; min-inline-size: 0; gap: calc(var(--layout-unit) * 2); }
+#statusText { min-inline-size: 0; overflow: hidden; text-overflow: ellipsis; }
+#appIcon, .dot { flex-shrink: 0; }
 .volume-slider { display: flex; align-items: center; flex: 1 1 0; min-inline-size: 0; gap: calc(var(--layout-unit) * 3); }
 .volume-slider .volume-label { flex: 0 0 calc(var(--layout-unit) * 6); }
 .volume-slider input { flex: 1 1 0; }
@@ -212,7 +214,7 @@ button { font: inherit; }
 }
 .target-option {
   box-sizing: border-box; display: flex; align-items: center; gap: calc(var(--layout-unit) * 2);
-  min-block-size: var(--bridge-control-size); padding: calc(var(--layout-unit) * 2) calc(var(--layout-unit) * 3);
+  min-block-size: var(--bridge-control-size); padding: .35em calc(var(--layout-unit) * 3 * var(--control-spacing));
   border: 1px solid transparent; border-radius: calc(var(--layout-unit) * 2); cursor: pointer;
   overflow-wrap: anywhere; line-height: 1.4;
 }
@@ -239,7 +241,7 @@ button { font: inherit; }
     border-radius: calc(var(--layout-unit) * 3); box-shadow: 0 calc(var(--layout-unit) * 3) calc(var(--layout-unit) * 8) #00000066;
     font: inherit; scrollbar-width: thin; scrollbar-color: #53627a var(--surface);
   }
-  .bridge-panel option { min-block-size: var(--bridge-control-size); padding: calc(var(--layout-unit) * 2) calc(var(--layout-unit) * 3); border: 1px solid transparent; border-radius: calc(var(--layout-unit) * 2); overflow-wrap: anywhere; white-space: normal; }
+  .bridge-panel option { min-block-size: var(--bridge-control-size); padding: .35em calc(var(--layout-unit) * 3 * var(--control-spacing)); border: 1px solid transparent; border-radius: calc(var(--layout-unit) * 2); overflow-wrap: anywhere; white-space: normal; }
   .bridge-panel option:checked { background: #3b82f62b; border-color: #22d3ee55; }
   .bridge-panel option:hover { background: var(--surface-raised); }
   .bridge-panel option:focus-visible { outline: 2px solid var(--focus); outline-offset: -2px; }
@@ -289,7 +291,9 @@ button { font: inherit; }
 }
 :root[data-bridge="true"] {
   font-size: 100%;
-  --bridge-control-size: max(48px, calc(var(--layout-unit) * 14));
+  --control-spacing: min(1, var(--label-scale, 1));
+  --control-density: calc(var(--control-spacing) * var(--control-spacing));
+  --bridge-control-size: calc(max(48px, calc(var(--layout-unit) * 14)) * var(--control-density));
   --space-pad: calc(var(--layout-unit) * 3.5);
   --space-gap: calc(var(--layout-unit) * 6);
   --font-hero: clamp(1.125rem, calc(var(--layout-unit) * 8.6), 4.5rem);
@@ -300,10 +304,13 @@ button { font: inherit; }
 }
 :root[data-bridge="true"][data-icue-surface] {
   font-size: calc(var(--layout-unit) * 4);
-  --bridge-control-size: calc(var(--layout-unit) * 14);
+  --bridge-control-size: calc(var(--layout-unit) * 14 * var(--control-density));
   --font-hero: calc(var(--layout-unit) * 8.6);
   --font-secondary: calc(var(--layout-unit) * 4);
   --font-label: calc(var(--layout-unit) * 3.5);
+}
+@media (pointer: coarse) {
+  :root[data-bridge="true"] { --control-density: max(.67, calc(var(--control-spacing) * var(--control-spacing))); }
 }
 :root[data-bridge="true"] .content { gap: calc(var(--layout-unit) * .5); line-height: 1.2; block-size: 100%; justify-content: space-between; }
 :root[data-bridge="true"] .metadata h1, :root[data-bridge="true"] .album-line { margin: 0; }
@@ -383,8 +390,37 @@ button { font: inherit; }
 }
 .deck[data-decoration="false"]::before { background: var(--base); }
 .deck[data-decoration="false"]::after, .deck[data-decoration="false"] .ambient { display: none; }
-/* Enlarged text can exceed a small Edge slot. Keep every chosen control reachable
-   by touch instead of clipping the panel or shrinking the user's text preference. */
+/* Font reductions also reduce chrome, rather than leaving tall empty controls. */
+:root[data-bridge="true"] .bridge-panel :is(select, button) { padding-inline: calc(var(--layout-unit) * 3 * var(--control-spacing)); }
+:root[data-bridge="true"] .bridge-panel .target-picker { padding-inline-end: calc(var(--layout-unit) * 9 * var(--control-spacing)); }
+@supports not (appearance: base-select) {
+  :root[data-bridge="true"] .bridge-panel select { padding-inline-end: calc(var(--layout-unit) * 9 * var(--control-spacing)); }
+}
+:root[data-bridge="true"] .target-options { padding: calc(var(--layout-unit) * 1.5 * var(--control-spacing)); }
+:root[data-small-text="true"][data-bridge="true"] .content {
+  block-size: auto; justify-content: center; gap: calc(var(--layout-unit) * 2);
+}
+:root[data-small-text="true"][data-bridge="true"] .content > * { flex-shrink: 0; }
+/* Enlarged text gets its own composition instead of pushing controls below an
+   Edge slot. The smaller regular-browser surface may still need scrolling. */
 :root[data-large-text="true"] .deck { overflow: auto; }
 :root[data-large-text="true"] .player { min-block-size: min-content; }
 :root[data-large-text="true"] .content { max-block-size: none; block-size: auto; flex-shrink: 0; }
+:root[data-large-text="true"][data-bridge="true"] {
+  --control-primary-size: var(--bridge-control-size);
+  --space-pad: calc(var(--layout-unit) * 3);
+}
+:root[data-large-text="true"][data-bridge="true"] .content { gap: calc(var(--layout-unit) * .5); }
+:root[data-large-text="true"][data-bridge="true"] .content > * { flex-shrink: 0; }
+:root[data-large-text="true"][data-bridge="true"] .bridge-panel {
+  grid-template-columns: minmax(0, 2fr) minmax(0, 3fr);
+  column-gap: calc(var(--layout-unit) * 3);
+}
+:root[data-large-text="true"] .target-row { grid-column: 1 / -1; }
+:root[data-large-text="true"] .audio-row { flex-wrap: wrap; justify-content: flex-end; }
+:root[data-large-text="true"] .volume-slider { min-inline-size: calc(var(--bridge-control-size) * 1.7); }
+:root[data-large-text="true"] .bridge-panel:not(:has(.audio-row [data-display-hidden="false"])) .seek-row,
+:root[data-large-text="true"] .bridge-panel:not(:has(.seek-row [data-display-hidden="false"])) .audio-row { grid-column: 1 / -1; }
+@media (max-width: 540px) {
+  :root[data-large-text="true"]:not([data-icue-surface]) .bridge-panel { grid-template-columns: minmax(0, 1fr); }
+}
