@@ -13,6 +13,18 @@ test('iCUE uses proportional host styling on late initialization for preview and
   assert.equal(w.document.documentElement.dataset.icueSurface, 'device');
 });
 
+test('iCUE distinguishes explicit title scrolling from the default OS motion preference', () => {
+  const w = widget(mediaProvider()), song = w.elements.get('songName');
+  assert.equal(song.dataset.scroll, 'true');
+  assert.equal(song.dataset.scrollExplicit, 'false');
+  w.run('let scrollTitle = true; window.icueEvents.onDataUpdated()');
+  assert.equal(song.dataset.scroll, 'true');
+  assert.equal(song.dataset.scrollExplicit, 'true');
+  w.run('scrollTitle = false; window.icueEvents.onDataUpdated()');
+  assert.equal(song.dataset.scroll, 'false');
+  assert.equal(song.dataset.scrollExplicit, 'false');
+});
+
 test('iCUE waits without a provider, initializes late once, and checks each command method', async () => {
   const w = widget();
   assert.equal(w.elements.get('statusText').textContent, 'iCUEメディアを待機中');

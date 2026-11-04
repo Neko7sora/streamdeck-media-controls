@@ -10,7 +10,7 @@ const browser = await chromium.launch({headless:true,
   env:{...process.env, CHROME_LOG_FILE:fileURLToPath(new URL('icue-chromium.log', output))}});
 const errors = [], remote = [];
 try {
-  const context = await browser.newContext({viewport:{width:1280, height:360}});
+  const context = await browser.newContext({viewport:{width:1280, height:360}, hasTouch:true});
   context.on('page', page => page.on('pageerror', error => errors.push(error.message)));
   context.on('request', request => { if (/^https?:/.test(request.url())) remote.push(request.url()); });
   const page = await context.newPage();
@@ -195,10 +195,83 @@ try {
       assert.ok(await live.locator(selector).evaluate(node => {
         const box = node.getBoundingClientRect();
         return box.left >= 0 && box.right <= innerWidth && box.top >= 0 && box.bottom <= innerHeight &&
-          getComputedStyle(node).textOverflow === 'ellipsis';
+          getComputedStyle(node).textOverflow === (node.id === 'songName' ? 'clip' : 'ellipsis');
       }), `${width}x${height}: long text ${selector}`);
     }
   }
+  // Observe elapsed-time motion, not only manually advanced CSS keyframes.
+  // Even this very long title must start within a fixed pause, during host updates.
+  await live.evaluate(() => {window.hostUpdates = setInterval(() => window.icueEvents.onDataUpdated(), 100);});
+  await live.waitForFunction(() => new DOMMatrix(getComputedStyle(document.getElementById('songTitleText')).transform).m41 < -3, null, {timeout:4000});
+  await live.evaluate(() => clearInterval(window.hostUpdates));
+  // Verify the first and last glyphs, including a host that scales the full
+  // widget with a transform instead of changing its CSS viewport dimensions.
+  await live.setViewportSize({width:696, height:840});
+  for (const scale of [1, .5, .25]) {
+    await live.evaluate(scale => {
+      const deck = document.getElementById('deck');
+      deck.style.transformOrigin = 'top left'; deck.style.transform = `scale(${scale})`;
+      window.dispatchEvent(new Event('resize'));
+    }, scale);
+    const endpoints = await live.locator('#songTitleText').evaluate(node => {
+      const animation = node.getAnimations()[0];
+      animation.pause(); animation.currentTime = 0;
+      const parent = node.parentElement.getBoundingClientRect();
+      const start = node.getBoundingClientRect();
+      const {delay, duration} = animation.effect.getTiming();
+      animation.currentTime = delay + duration - .01;
+      const end = node.getBoundingClientRect();
+      animation.currentTime = delay + duration + .01;
+      const restart = node.getBoundingClientRect();
+      return {start:start.left-parent.left, end:end.right-parent.right, restart:restart.left-parent.left};
+    });
+    assert.ok(Math.abs(endpoints.start) < 1 && Math.abs(endpoints.end) < 1,
+      `scaled title must reveal both ends: ${scale} ${JSON.stringify(endpoints)}`);
+    assert.ok(Math.abs(endpoints.restart) < 1, `title must return directly to its start: ${scale}`);
+  }
+  // Real touch input must scrub from the displayed position, even in a scaled host.
+  const touch = await context.newCDPSession(live);
+  for (const scale of [1, .5, .25]) {
+    await live.evaluate(scale => {
+      document.getElementById('deck').style.transform = `scale(${scale})`;
+      const animation = document.getElementById('songTitleText').getAnimations()[0];
+      animation.pause();
+      const distance = document.getElementById('songTitleText').offsetWidth - document.getElementById('songName').offsetWidth;
+      animation.currentTime = 1000 + 60 / distance * (animation.effect.getTiming().duration - 2000);
+    }, scale);
+    const box = await live.locator('#songName').boundingBox();
+    const x = box.x + box.width * .8, y = box.y + box.height / 2;
+    const delta = 40 * scale;
+    await touch.send('Input.dispatchTouchEvent', {type:'touchStart', touchPoints:[{x,y}]});
+    await touch.send('Input.dispatchTouchEvent', {type:'touchMove', touchPoints:[{x:x-delta,y}]});
+    const offset = await live.locator('#songTitleText').evaluate(node => -new DOMMatrix(getComputedStyle(node).transform).m41);
+    assert.ok(Math.abs(offset - 100) < 2, `touch follows local CSS pixels from the displayed position: ${scale} ${offset}`);
+    await touch.send('Input.dispatchTouchEvent', {type:'touchMove', touchPoints:[{x,y}]});
+    await live.waitForFunction(() => Math.abs(new DOMMatrix(getComputedStyle(document.getElementById('songTitleText')).transform).m41 + 60) < 2);
+    await touch.send('Input.dispatchTouchEvent', {type:scale === .5 ? 'touchCancel' : 'touchEnd', touchPoints:[]});
+    await live.waitForFunction(() => !document.getElementById('songName').dataset.manual);
+  }
+  await touch.detach();
+  await live.evaluate(() => {document.getElementById('deck').style.transform = '';});
+  await live.locator('#songName').focus();
+  await live.keyboard.press('End');
+  assert.ok(await live.locator('#songTitleText').evaluate(node => {
+    return Math.abs(node.getBoundingClientRect().right - node.parentElement.getBoundingClientRect().right) < 1;
+  }), 'keyboard can reveal the final characters');
+  await live.evaluate(() => {
+    window.plugins.Mediadataprovider.songName += ' 新しい曲';
+    window.plugins.Mediadataprovider.songNameChanged.emit();
+  });
+  assert.ok(await live.locator('#songTitleText').evaluate(node => node.getAnimations()[0].currentTime < 100), 'new track restarts at its title');
+  await live.evaluate(() => {document.getElementById('deck').style.transform = ''; window.scrollTitle = false; window.icueEvents.onDataUpdated();});
+  assert.equal(await live.locator('#songTitleText').evaluate(node => getComputedStyle(node).animationName), 'none');
+  assert.equal(await live.locator('#songName').evaluate(node => getComputedStyle(node).textOverflow), 'ellipsis');
+  await live.keyboard.press('End');
+  assert.ok(await live.locator('#songTitleText').evaluate(node => {
+    return Math.abs(node.getBoundingClientRect().right - node.parentElement.getBoundingClientRect().right) < 1;
+  }), 'manual scrolling works with automatic scrolling disabled');
+  await live.keyboard.press('Home');
+  await live.waitForFunction(() => !document.getElementById('songName').dataset.manual);
   await live.evaluate(() => { window.plugins.Mediadataprovider.album = 'アルバム'; window.plugins.Mediadataprovider.albumChanged.emit(); });
   await live.setViewportSize({width:320, height:140});
   assert.equal(await live.locator('#songName').evaluate(node => getComputedStyle(node).textOverflow), 'ellipsis');
@@ -209,6 +282,7 @@ try {
   await live.evaluate(() => { window.plugins.Mediadataprovider.songName = ''; window.plugins.Mediadataprovider.songNameChanged.emit(); });
   assert.equal(await live.locator('#playPauseButton').isDisabled(), true);
   assert.equal(await live.locator('#coverPlaceholder').isVisible(), true);
+  await live.screenshot({path:fileURLToPath(new URL('icue-placeholder.png', output))});
   // Delayed async-only providers distinguish loading, an empty session and a lost connection.
   const pending = await context.newPage();
   await pending.addInitScript(() => {window.useBridge = false;});

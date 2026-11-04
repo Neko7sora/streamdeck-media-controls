@@ -4,7 +4,7 @@
   // cannot address them, and catching postMessage does not hide browser errors.
   const origin=window.origin;
   if(!origin || origin==="null" || origin!==location.origin) return;
-  // Read only page-provided Media Session metadata and HTML media element state.
+  // Read only page-provided media metadata and HTML media element state.
   // We do not inspect page text, cookies, credentials, audio/video bytes or DRM streams.
   const TAG = "__streamdeck_media_metadata_v1__";
   let resyncInterval=1000;
@@ -54,6 +54,29 @@
     }
     return a;
   };
+  function youtubeArtwork(player,meta) {
+    // YouTube's Media Session often contains only a scaled thumbnail. Its
+    // current player response can publish the same video's original cover.
+    // Never use generic og:image: it can still belong to the previous SPA page.
+    if(!player || player.tagName!=="VIDEO" || !meta?.title ||
+      !["youtube.com","www.youtube.com","m.youtube.com","music.youtube.com"].includes(location.hostname)) return [];
+    try {
+      const address=new URL(location.href);
+      const id=address.pathname==="/watch"?address.searchParams.get("v"):
+        address.pathname.match(/^\/(?:shorts|live|embed)\/([A-Za-z0-9_-]{11})(?:\/|$)/)?.[1];
+      if(!id || !/^[A-Za-z0-9_-]{11}$/.test(id)) return [];
+      const root=document.getElementById("movie_player");
+      if(!root?.contains(player) || root.classList?.contains("ad-showing")) return [];
+      const details=root.getPlayerResponse?.()?.videoDetails;
+      if(details?.videoId!==id || details.title!==meta.title || !Array.isArray(details.thumbnail?.thumbnails)) return [];
+      return details.thumbnail.thumbnails.slice(0,16).flatMap(image=>{
+        if(!image || typeof image.url!=="string" || image.url.length>2048 ||
+          !Number.isInteger(image.width) || !Number.isInteger(image.height) ||
+          image.width<1 || image.height<1 || image.width>16384 || image.height>16384) return [];
+        return [{src:image.url,sizes:`${image.width}x${image.height}`,type:""}];
+      });
+    } catch {return []; /* Site API unavailable: keep Media Session artwork. */}
+  }
   function snapshot() {
     const observed = Date.now();
     const session = navigator.mediaSession;
@@ -74,9 +97,10 @@
     const playing = active.length===1 ? active[0] : players.length===1 ? players[0] : undefined;
     const target=targetId(playing,meta);
     if(!meta?.title && !playing) return {title:""};
-    const artwork = (meta?.artwork ?? []).slice(0,16).map(a=>({
+    const mediaArtwork = (meta?.artwork ?? []).slice(0,16).map(a=>({
       src:clean(a.src,2048), sizes:clean(a.sizes,50), type:clean(a.type,50)
     }));
+    const artwork=[...youtubeArtwork(playing,meta),...mediaArtwork].slice(0,16);
     const duration = playing && Number.isFinite(playing.duration) && playing.duration>=0 ? playing.duration : lastPositionState?.duration;
     const position = playing && Number.isFinite(playing.currentTime) ? playing.currentTime : lastPositionState?.position;
     return {

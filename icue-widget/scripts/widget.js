@@ -30,6 +30,9 @@
   let commandError = false;
   let loading = false;
   let readError = false;
+  let titleDrag = null;
+  let titleResumeTimer = null;
+  let titleDistance = 0;
   // Keep IDs unique across host reconnections so delayed responses cannot cross bindings.
   let nextRequestId = 1;
 
@@ -51,7 +54,11 @@
     const transparent = setting(() => transparency);
     const artwork = setting(() => showArtwork);
     const album = setting(() => showAlbum);
-    el.song.dataset.scroll = setting(() => scrollTitle) === false ? "false" : "true";
+    const scrolling = setting(() => scrollTitle);
+    el.song.dataset.scroll = scrolling === false ? "false" : "true";
+    // An explicit widget preference takes precedence over the OS motion hint.
+    // With no host setting (e.g. browser demo), keep following that OS hint.
+    el.song.dataset.scrollExplicit = String(scrolling === true);
     for (const [property, value] of [["--accent", accent], ["--base", background], ["--ink", ink]]) {
       if (typeof value === "string" && /^#[0-9a-f]{6}$/i.test(value)) {
         document.documentElement.style.setProperty(property, value);
@@ -79,18 +86,89 @@
   function setText(element, value, fallback) {
     const content = element === el.song ? document.getElementById("songTitleText") || element : element;
     const text = value || fallback;
-    if (content.textContent !== text) content.textContent = text;
+    if (content.textContent !== text) {
+      content.textContent = text;
+      if (element === el.song) {
+        resetTitleScrolling();
+        content.getAnimations?.().forEach(animation => { animation.currentTime = 0; });
+      }
+    }
     element.title = text;
   }
 
   function updateScrolling() {
     const content = document.getElementById("songTitleText");
     if (!content) return;
-    const distance = Math.max(0, content.getBoundingClientRect().width - el.song.getBoundingClientRect().width);
+    // Transformed host previews report scaled client rects, but translateX uses
+    // local CSS pixels. Measure layout widths so the final characters reach view.
+    const distance = Math.max(0, content.offsetWidth - el.song.offsetWidth);
+    if (distance !== titleDistance) resetTitleScrolling();
+    titleDistance = distance;
     el.song.dataset.overflow = distance > 1 ? "true" : "false";
     el.song.style.setProperty("--title-overflow", `${distance}px`);
-    el.song.style.setProperty("--title-duration", `${Math.max(12, distance / 30 + 6)}s`);
+    const duration = Math.max(4, distance / 30) + 2;
+    const pause = 100 / duration;
+    el.song.style.setProperty("--title-duration", `${duration}s`);
+    // A fixed second at each end stays readable even for extremely long titles.
+    el.song.style.setProperty("--title-timing", `linear(0 0%, 0 ${pause}%, 1 ${100 - pause}%, 1 100%)`);
   }
+
+  function resetTitleScrolling() {
+    clearTimeout(titleResumeTimer);
+    titleResumeTimer = null;
+    const drag = titleDrag;
+    titleDrag = null;
+    if (drag && el.song.hasPointerCapture(drag.pointerId)) el.song.releasePointerCapture(drag.pointerId);
+    delete el.song.dataset.manual;
+    document.getElementById("songTitleText")?.style.removeProperty("transform");
+  }
+
+  function titleOffset() {
+    const content = document.getElementById("songTitleText");
+    return content ? -new DOMMatrixReadOnly(getComputedStyle(content).transform).m41 : 0;
+  }
+
+  function moveTitle(offset) {
+    el.song.dataset.manual = "true";
+    document.getElementById("songTitleText").style.transform = `translateX(${-Math.max(0, Math.min(titleDistance, offset))}px)`;
+  }
+
+  function resumeTitleLater() {
+    clearTimeout(titleResumeTimer);
+    titleResumeTimer = setTimeout(resetTitleScrolling, 2000);
+  }
+
+  el.song.addEventListener("pointerdown", event => {
+    if (suspended || event.button !== 0 || !event.isPrimary || titleDrag || titleDistance <= 1) return;
+    clearTimeout(titleResumeTimer);
+    const offset = titleOffset();
+    const scale = el.song.getBoundingClientRect().width / el.song.offsetWidth;
+    if (!(scale > 0)) return;
+    titleDrag = { pointerId: event.pointerId, x: event.clientX, offset, scale };
+    moveTitle(offset);
+    el.song.setPointerCapture(event.pointerId);
+  });
+  el.song.addEventListener("pointermove", event => {
+    if (!titleDrag || event.pointerId !== titleDrag.pointerId) return;
+    moveTitle(titleDrag.offset + (titleDrag.x - event.clientX) / titleDrag.scale);
+  });
+  function endTitleDrag(event) {
+    if (!titleDrag || event.pointerId !== titleDrag.pointerId) return;
+    const { pointerId } = titleDrag;
+    titleDrag = null;
+    if (el.song.hasPointerCapture(pointerId)) el.song.releasePointerCapture(pointerId);
+    resumeTitleLater();
+  }
+  for (const type of ["pointerup", "pointercancel", "lostpointercapture"]) el.song.addEventListener(type, endTitleDrag);
+  el.song.addEventListener("keydown", event => {
+    if (suspended || titleDistance <= 1 || titleDrag) return;
+    const offset = titleOffset();
+    const target = { ArrowLeft: offset - 50, ArrowRight: offset + 50, Home: 0, End: titleDistance }[event.key];
+    if (target === undefined) return;
+    event.preventDefault();
+    moveTitle(target);
+    resumeTitleLater();
+  });
 
   function validArtwork(value) {
     return typeof value === "string" && value.length <= 12_000_000 &&
@@ -300,6 +378,7 @@
 
   function suspend() {
     suspended = true;
+    resetTitleScrolling();
     window.edgeMediaBridge?.suspend();
     clearInterval(pollTimer);
     pollTimer = null;

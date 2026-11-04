@@ -3,19 +3,22 @@ import assert from "node:assert/strict";
 import {readFileSync} from "node:fs";
 import vm from "node:vm";
 import {load} from "./load.mjs";
+import {worker} from './worker-harness.mjs';
+import sharp from 'sharp';
 const {playbackPosition}=await load("media-model");
 const source=readFileSync(new URL("../chrome-extension/page-main.js",import.meta.url),"utf8");
-function page(players=[],icons=[],modern=true) {
+function page(players=[],icons=[],modern=true,options={}) {
   const messages=[],events=new Map(),session={metadata:null,playbackState:"none",setPositionState(){}};
-  const window={origin:"https://example.test",postMessage(v,targetOrigin){assert.equal(targetOrigin,this.origin);messages.push(v);},addEventListener(name,fn){events.set(name,fn);}};
+  const address=new URL(options.url??'https://example.test');
+  const window={origin:address.origin,postMessage(v,targetOrigin){assert.equal(targetOrigin,this.origin);messages.push(v);},addEventListener(name,fn){events.set(name,fn);}};
   let tick,now=10000;
-  const context={window,navigator:{mediaSession:session},document:{title:"Private page title",querySelectorAll(selector){
+  const context={window,navigator:{mediaSession:session},document:{title:"Private page title",getElementById:id=>id==='movie_player'?options.youtubePlayer:undefined,querySelectorAll(selector){
     if(selector==='audio,video') return players;
     const relations=Array.from(selector.matchAll(/\[rel(~?)="([^"]+)"\]/g));
     return icons.filter(icon=>relations.some(([,token,rel])=>token?(icon.rel??'icon').split(/\s+/).includes(rel):(icon.rel??'icon')===rel));
-  },addEventListener(){}},location:{origin:"https://example.test"},setInterval(fn){tick=fn;},Date:{now:()=>now},Number,Array};
+  },addEventListener(){}},location:address,setInterval(fn){tick=fn;},Date:{now:()=>now},Number,Array,URL};
   vm.runInNewContext(source,context);
-  if(modern) events.get('message')({source:window,origin:'https://example.test',data:{kind:'__streamdeck_media_metadata_v1___transport',protocol:2}});
+  if(modern) events.get('message')({source:window,origin:address.origin,data:{kind:'__streamdeck_media_metadata_v1___transport',protocol:2}});
   return {session,messages,events,window,tick:()=>tick(),advance:ms=>{now+=ms;}};
 }
 function player(src='https://media.test/private-a?token=secret') {
@@ -84,6 +87,76 @@ test('page favicons follow link changes without replacing media artwork',()=>{
  assert.equal(p.messages.at(-1).media.artwork_candidates[0].src,'https://example.test/album.png');
  icons[0].href='https://example.test/changed.png';p.tick();
  assert.equal(p.messages.at(-1).media.favicon_candidates[0].src,icons[0].href);
+});
+
+function youtubeFixture() {
+ const element={...player(),tagName:'VIDEO'};
+ const details={videoId:'abcdefghijk',title:'Current video',thumbnail:{thumbnails:[
+  {url:'https://i.ytimg.com/vi/abcdefghijk/hqdefault.jpg?small',width:336,height:188},
+  {url:'https://i.ytimg.com/vi/abcdefghijk/maxresdefault.jpg',width:1280,height:720}
+ ]}};
+ const root={contains:node=>node===element,getPlayerResponse:()=>({videoDetails:details}),classList:{contains:()=>false}};
+ const options={url:'https://www.youtube.com/watch?v=abcdefghijk',youtubePlayer:root};
+ const p=page([element],[],true,options);
+ p.session.metadata={title:details.title,artwork:[{src:details.thumbnail.thumbnails[0].url,sizes:'320x180',type:'image/jpeg'}]};
+ p.tick();
+ return {p,element,details,root,options};
+}
+
+test('YouTube supplies its current video original artwork when Media Session only publishes a thumbnail',()=>{
+ const {p,details}=youtubeFixture();
+ const media=p.messages.at(-1).media;
+ assert.ok(media.artwork_candidates.some(image=>image.src===details.thumbnail.thumbnails[1].url&&image.sizes==='1280x720'));
+ assert.equal(media.title,'Current video');
+ assert.equal(media.artist,'','thumbnail enrichment must not invent metadata');
+});
+
+test('YouTube artwork enrichment rejects stale SPA responses, mismatched titles, ads and unrelated players',()=>{
+ for(const mismatch of ['id','title','owner','ad','missing','throw','ambiguous']) {
+  const {p,details,root,element}=youtubeFixture();
+  if(mismatch==='id') details.videoId='previous123';
+  if(mismatch==='title') details.title='Previous video';
+  if(mismatch==='owner') root.contains=()=>false;
+  if(mismatch==='ad') root.classList.contains=()=>true;
+  if(mismatch==='missing') root.getPlayerResponse=undefined;
+  if(mismatch==='throw') root.getPlayerResponse=()=>{throw Error('Site API changed');};
+  if(mismatch==='ambiguous') {root.contains=()=>true;element.tagName='AUDIO';}
+  p.tick();
+  const candidates=p.messages.at(-1).media.artwork_candidates;
+  assert.equal(candidates.length,1,mismatch);
+  assert.equal(candidates[0].src,p.session.metadata.artwork[0].src,mismatch);
+ }
+});
+
+test('YouTube artwork enrichment is site-specific and bounds untrusted thumbnail metadata',()=>{
+ const {element,details,root}=youtubeFixture();
+ for(const url of ['https://example.test/watch?v=abcdefghijk','https://www.youtube.com/channel/abcdefghijk',
+  'https://www.youtube.com/watch?v=previous123']) {
+  const p=page([element],[],true,{url,youtubePlayer:root});p.session.metadata={title:details.title,artwork:[]};p.tick();
+  assert.equal(p.messages.at(-1).media.artwork_candidates.length,0,url);
+ }
+ details.thumbnail.thumbnails=[{url:'https://cdn.test/x',width:0,height:10},
+  {url:'https://cdn.test/x',width:16385,height:10},{url:'x'.repeat(2049),width:1280,height:720},
+  ...Array.from({length:30},()=>({url:'https://cdn.test/cover.jpg',width:1280,height:720}))];
+ const p=page([element],[],true,{url:'https://www.youtube.com/watch?v=abcdefghijk',youtubePlayer:root});
+ p.session.metadata={title:details.title,artwork:[]};p.tick();
+ const candidates=p.messages.at(-1).media.artwork_candidates;
+ assert.ok(candidates.length>0&&candidates.length<=16);
+ assert.ok(candidates.every(image=>image.src==='https://cdn.test/cover.jpg'));
+});
+
+test('YouTube original artwork reaches the shared bridge without being reduced to the Media Session thumbnail',async()=>{
+ const {p,details}=youtubeFixture();
+ const original=await sharp({create:{width:1280,height:720,channels:3,background:'#226688'}}).jpeg().toBuffer();
+ const w=worker(true,url=>url===details.thumbnail.thumbnails[1].url
+  ?new Response(original,{headers:{'content-type':'image/jpeg'}}):new Response(null,{status:404}));
+ w.send(p.messages.at(-1).media);
+ await new Promise(resolve=>setTimeout(resolve,50));
+ const delivered=w.requests.map(request=>JSON.parse(request.options.body)).map(body=>body.media).filter(media=>media?.artwork_data_url).at(-1);
+ assert.ok(delivered,'completed artwork is published without another page event');
+ const image=await sharp(Buffer.from(delivered.artwork_data_url.split(',')[1],'base64')).metadata();
+ assert.deepEqual([image.width,image.height],[1280,720]);
+ assert.equal(w.images[0].url,details.thumbnail.thumbnails[1].url);
 });
 
 test('TVer style precomposed touch icons are collected for videos without Media Session metadata',()=>{

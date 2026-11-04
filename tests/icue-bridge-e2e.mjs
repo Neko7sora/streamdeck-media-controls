@@ -1,15 +1,19 @@
 import assert from 'node:assert/strict';
 import {once} from 'node:events';
-import {mkdir, readFile, writeFile} from 'node:fs/promises';
+import {mkdir, writeFile} from 'node:fs/promises';
 import {fileURLToPath} from 'node:url';
 import {chromium} from 'playwright';
+import sharp from 'sharp';
 import {load} from './load.mjs';
 import {tls} from './tls-fixture.mjs';
 import {icueBackend} from './icue-backend.mjs';
 import {buildIcueHtml} from '../scripts/icue-widget-html.mjs';
 const {startIcueServer} = await load('icue-server');
 const token = 'd'.repeat(64), fixture = icueBackend();
-fixture.windows.artwork_data_url = 'data:image/png;base64,' + (await readFile(new URL('../icue-widget/resources/icon.png',import.meta.url))).toString('base64');
+// Original test artwork at device resolution, rather than an enlarged app icon.
+fixture.windows.artwork_data_url = 'data:image/png;base64,' + (await sharp(Buffer.from(
+  '<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024"><rect width="1024" height="1024" fill="#172b48"/><circle cx="730" cy="290" r="180" fill="#edbe76"/><path d="M0 750 330 290 1024 1024H0Z" fill="#66b9ae"/><path d="M0 1024 540 510 1024 820V1024Z" fill="#31597b"/></svg>'
+)).png().toBuffer()).toString('base64');
 fixture.backend.native = async command => {
   fixture.calls.push(command);
   if (command.command === 'volume') fixture.backend.audio(command.target).volume = command.value;
@@ -36,7 +40,8 @@ try {
   await context.addInitScript(({token}) => {window.useBridge = true; window.bridgeToken = token; window.uniqueId = 'bridge-test'; window.iCUE = {isPreview:false};}, {token});
   const page = await context.newPage(); await page.goto(entry);
   await page.waitForFunction(() => document.getElementById('songName').textContent === 'Track A');
-  const selectors = ['#songName','#artist','#album','#statusText','#bridgePanel','#mediaTarget','#audioTarget','#seekRange','#volumeRange',
+  await page.waitForFunction(() => document.getElementById('albumArt').naturalWidth === 1024);
+  const selectors = ['#cover','#songName','#artist','#album','#statusText','#bridgePanel','#mediaTarget','#audioTarget','#seekRange','#volumeRange',
     '#muteButton','#rewindButton','#stopButton','#forwardButton','#playPauseButton','#previousButton','#nextButton','#bridgeNotice'];
   const interactive = selectors.filter(s => /Target|Range|Button/.test(s));
   const sizes = [[840,344],[696,416],[840,696],[696,840],[1688,696],[696,1688],[2536,696],[696,2536]];
@@ -49,6 +54,9 @@ try {
   for (const [width,height] of sizes) {
     await page.setViewportSize({width,height});
     const device = await geometry();
+    const cover = device.find(box => box.id === '#cover');
+    assert.ok(cover.w >= Math.min(width * .39, height * .54), `${width}x${height}: cover should use the available area`);
+    assert.ok(Math.abs(cover.w-cover.h) < 1, `${width}x${height}: square cover`);
     for (const box of device) {
       assert.ok(box.x >= -.5 && box.y >= -.5 && box.x+box.w <= width+.5 && box.y+box.h <= height+.5,
         `${width}x${height} clipped ${JSON.stringify(box)}`);
@@ -148,6 +156,15 @@ try {
   assert.notEqual(await page.locator('#songTitleText').evaluate(node => getComputedStyle(node).animationName),'none');
   await page.emulateMedia({reducedMotion:'reduce'});
   assert.equal(await page.locator('#songTitleText').evaluate(node => getComputedStyle(node).animationName),'none');
+  // iCUE injects the switch's true default: that local choice must override
+  // Windows disabling animations, for both preview and device rendering.
+  for (const preview of [true, false]) {
+    await page.evaluate(preview => {window.iCUE.isPreview=preview; window.scrollTitle=true; window.icueEvents.onDataUpdated();}, preview);
+    await page.waitForFunction(() => new DOMMatrix(getComputedStyle(document.getElementById('songTitleText')).transform).m41 < -3, null, {timeout:4000});
+    await page.evaluate(() => {window.scrollTitle=false; window.icueEvents.onDataUpdated();});
+    assert.equal(await page.locator('#songTitleText').evaluate(node => getComputedStyle(node).animationName),'none');
+    assert.equal(await page.locator('#songName').evaluate(node => getComputedStyle(node).textOverflow),'ellipsis');
+  }
   assert.ok(!(await page.evaluate(() => localStorage.getItem('edge-media-deck:bridge-test:targets'))).includes(token));
   const restored = await context.newPage(); await restored.goto(entry);
   await restored.waitForFunction(({selected}) => document.getElementById('mediaTarget').value === selected,{selected});
@@ -159,7 +176,7 @@ try {
   await context.close();
   // iCUE's body scripts can receive properties as function locals, not window globals.
   // Exercise the packaged scripts in that scope rather than mocking window.bridgeToken.
-  const scopedContext = await browser.newContext({ignoreHTTPSErrors:true,viewport:{width:840,height:344}});
+  const scopedContext = await browser.newContext({ignoreHTTPSErrors:true,reducedMotion:'reduce',viewport:{width:840,height:344}});
   await isolateBridge(scopedContext);
   const scopedErrors = [];
   const scoped = await scopedContext.newPage();
@@ -167,19 +184,22 @@ try {
   const html = (await buildIcueHtml(fileURLToPath(new URL('../icue-widget/',import.meta.url))))
     .replace('<link rel="stylesheet" href="styles/style.css" />',`<link rel="stylesheet" href="${new URL('../icue-widget/styles/style.css',import.meta.url).href}" />`)
     .replace(/<script>\n([\s\S]*?)\n  <\/script>/g,(_,code)=>`<script>
-      (function(bridgeToken,useBridge,icueEvents,pluginMediadataproviderEvents){
+      (function(bridgeToken,useBridge,scrollTitle,icueEvents,pluginMediadataproviderEvents){
         ${code}
         window.hostEvents=icueEvents;window.hostMediaEvents=pluginMediadataproviderEvents;
-      })(${JSON.stringify(token)},true,{},{});
+      })(${JSON.stringify(token)},true,true,{},{});
     </script>`);
   const hostEntry = new URL('.generated/icue-host-scope.html',import.meta.url);
   await writeFile(hostEntry,html);
   await scoped.goto(hostEntry.href);
   await scoped.waitForFunction(()=>!document.getElementById('playPauseButton').disabled);
   assert.equal(await scoped.evaluate(()=>typeof window.bridgeToken),'undefined');
+  assert.equal(await scoped.evaluate(()=>typeof window.scrollTitle),'undefined');
   assert.equal(await scoped.evaluate(()=>window.hostEvents===window.icueEvents),true);
   assert.equal(await scoped.evaluate(()=>window.hostMediaEvents===window.pluginMediadataproviderEvents),true);
   assert.equal(await scoped.locator('#songName').textContent(),fixture.windows.title);
+  fixture.windows.title = 'Packaged host-local scrolling title '.repeat(20); fixture.emit();
+  await scoped.waitForFunction(() => new DOMMatrix(getComputedStyle(document.getElementById('songTitleText')).transform).m41 < -3, null, {timeout:4000});
   assert.deepEqual(scopedErrors,[]);
   await scopedContext.close();
   console.log('OK packaged iCUE scripts read host-local credentials and register host-local event handlers');

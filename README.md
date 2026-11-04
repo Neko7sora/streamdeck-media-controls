@@ -48,7 +48,7 @@ v1.0.1 では、ダイヤルを連続して回した際のシーク取りこぼ�
 
 | 情報・機能 | Windows | Chrome | Stream Deck での利用 |
 |---|---|---|---|
-| アートワーク | GSMTC Thumbnail | Media Session artwork、サイズ・MIME 候補 | 通常キー / + に縦横比を維持して表示。Chrome 画像失敗時は Windows 画像、それもない場合は既定アイコン |
+| アートワーク | GSMTC Thumbnail | Media Session artwork、サイズ・MIME 候補。YouTubeは現在の動画ID・曲名・要素が一致するプレーヤーの画像候補も使用 | 通常キー / + に縦横比を維持して表示。Chrome 画像失敗時は Windows 画像、それもない場合は既定アイコン |
 | アプリ / サイトアイコン | AUMID の登録ロゴ / Shell アイコン。実行ファイル名が一致する Audio Session があれば、その実行ファイルも参照 | ページの icon / apple-touch-icon / apple-touch-icon-precomposed と同じオリジンの /favicon.ico | Now Playing の右上 / + の状態表示の横に表示。favicon を優先し、欠損・取得失敗・デコード失敗時は Windows のアプリアイコン |
 | 曲名・アーティスト | GSMTC | Media Session | 通常キー / +。曲名の表示は欠損時にページ名へフォールバック。曲名メタデータとアーティストは推測しない |
 | アルバム | GSMTC | Media Session | 設定画面の取得情報 |

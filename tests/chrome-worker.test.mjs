@@ -346,13 +346,19 @@ for(const protocol2 of [false,true]) {
  });
 }
 
-test('artwork tries the smallest sufficient thumbnail before oversized originals',async()=>{
- const w=worker(true,url=>url.endsWith('/192.png')
+test('artwork tries the smallest image sufficient for an Edge cover before oversized originals',async()=>{
+ const w=worker(true,url=>url.endsWith('/768.png')
   ?new Response(new Uint8Array([1]),{headers:{'content-type':'image/png'}})
   :new Response(null,{status:404}),{protocol2:true});
  await flush();
- w.send({title:'Video',artwork_candidates:[512,128,384,192,256].map(size=>({src:`https://cdn.test/${size}.png`,sizes:`${size}x${size}`}))});await settle();
- assert.deepEqual(w.images.filter(x=>x.url.startsWith('https://cdn.test/')).map(x=>x.url),['https://cdn.test/192.png']);
+ w.send({title:'Video',artwork_candidates:[1024,512,192,768,2048].map(size=>({src:`https://cdn.test/${size}.png`,sizes:`${size}x${size}`}))});await settle();
+ assert.deepEqual(w.images.filter(x=>x.url.startsWith('https://cdn.test/')).map(x=>x.url),['https://cdn.test/768.png']);
+});
+
+test('artwork uses the largest available thumbnail when all images are smaller than Edge covers',async()=>{
+ const w=worker(true,()=>new Response(new Uint8Array([1]),{headers:{'content-type':'image/png'}}));
+ w.send({title:'Video',artwork_candidates:[192,512,384].map(size=>({src:`https://cdn.test/${size}.png`,sizes:`${size}x${size}`}))});await settle();
+ assert.equal(w.images[0].url,'https://cdn.test/512.png');
 });
 
 test('artwork retains smaller and unspecified candidates when no sufficient thumbnail exists',async()=>{

@@ -204,13 +204,13 @@ function artworkFor(tab,media,icon=false,fallback) {
     const sizes=String(x.sizes??"").slice(0,100).matchAll(/(\d+)x(\d+)/gi);
     return Math.max(0,...Array.from(sizes,s=>Math.min(16384,Number(s[1]))*Math.min(16384,Number(s[2]))));
   };
-  // Stream Deck needs at most 144px. Prefer the smallest sufficient artwork,
-  // rather than downloading a large original before trying its thumbnails.
+  // The shared bridge also feeds XENEON EDGE covers up to 696px wide.
+  // Prefer the smallest sufficient image within the existing download limits.
   // Favicons retain their existing ranking and conventional fallback.
   const ranked=[...candidates].sort((a,b)=>{
     const x=parseSize(a),y=parseSize(b);
     if(icon) return y-x;
-    const sufficient=size=>size>=144*144;
+    const sufficient=size=>size>=696*696;
     if(sufficient(x)!==sufficient(y)) return sufficient(x)?-1:1;
     return sufficient(x)?x-y:y-x;
   });
