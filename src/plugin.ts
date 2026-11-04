@@ -8,6 +8,7 @@ import {ANIMATION_INTERVAL_MS} from "./scrolling-text.js";
 import {PlayPause,Previous,Next,Stop,Mute,VolumeUp,VolumeDown,VolumeDial} from "./control-actions.js";
 import {NowPlaying,NowPlayingDial} from "./now-playing-actions.js";
 import {startPropertyInspector,refreshInspectorConnection} from "./property-inspector.js";
+import {startStreamDeckKeepalive} from "./streamdeck-keepalive.js";
 
 setLanguage(streamDeck.info.application.language);
 const visualActions=[
@@ -27,12 +28,16 @@ let closeBridge=()=>{};
 try {const server=startChromeServer(msg=>streamDeck.logger.info(msg));closeBridge=()=>{server.close();server.closeAllConnections();};}
 catch(e) {streamDeck.logger.error(`Chrome bridge: ${String(e)}`);}
 let stopped=false;
+let stopKeepalive=()=>{};
 function shutdown() {
   if(stopped) return;
   stopped=true;
-  clearInterval(animation);stop();stopChromeRegistration();stopIcueIntegration();closeBridge();
+  stopKeepalive();clearInterval(animation);stop();stopChromeRegistration();stopIcueIntegration();closeBridge();
 }
 process.once("exit",shutdown);
 for(const signal of ["SIGINT","SIGTERM"] as const) process.once(signal,()=>{shutdown();process.exit(0);});
 await streamDeck.connect();
+// With hidden actions there may be no SDK traffic for hours. A read-only
+// round trip prevents the host's idle watchdog from disabling the whole plugin.
+stopKeepalive=startStreamDeckKeepalive(()=>streamDeck.settings.getGlobalSettings(),msg=>streamDeck.logger.warn(msg));
 await initializeIcueIntegration();
