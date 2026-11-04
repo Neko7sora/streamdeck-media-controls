@@ -5,6 +5,7 @@ import vm from "node:vm";
 import {load} from "./load.mjs";
 import {worker} from './worker-harness.mjs';
 import sharp from 'sharp';
+import {rasterWorkerHooks} from './raster-worker-harness.mjs';
 const {playbackPosition}=await load("media-model");
 const source=readFileSync(new URL("../chrome-extension/page-main.js",import.meta.url),"utf8");
 function page(players=[],icons=[],modern=true,options={}) {
@@ -12,14 +13,18 @@ function page(players=[],icons=[],modern=true,options={}) {
   const address=new URL(options.url??'https://example.test');
   const window={origin:address.origin,postMessage(v,targetOrigin){assert.equal(targetOrigin,this.origin);messages.push(v);},addEventListener(name,fn){events.set(name,fn);}};
   let tick,now=10000;
-  const context={window,navigator:{mediaSession:session},document:{title:"Private page title",getElementById:id=>id==='movie_player'?options.youtubePlayer:undefined,querySelectorAll(selector){
+  const context={window,navigator:{mediaSession:session},document:{title:"Private page title",baseURI:options.baseURI??address.href,
+    head:{querySelectorAll(selector){
+      assert.equal(selector,'meta[property^="og:"]');
+      return (options.og??[]).map(([property,content])=>({getAttribute:name=>({property,content})[name]}));
+    }},querySelectorAll(selector){
     if(selector==='audio,video') return players;
     const relations=Array.from(selector.matchAll(/\[rel(~?)="([^"]+)"\]/g));
     return icons.filter(icon=>relations.some(([,token,rel])=>token?(icon.rel??'icon').split(/\s+/).includes(rel):(icon.rel??'icon')===rel));
   },addEventListener(){}},location:address,setInterval(fn){tick=fn;},Date:{now:()=>now},Number,Array,URL};
   vm.runInNewContext(source,context);
   if(modern) events.get('message')({source:window,origin:address.origin,data:{kind:'__streamdeck_media_metadata_v1___transport',protocol:2}});
-  return {session,messages,events,window,tick:()=>tick(),advance:ms=>{now+=ms;}};
+  return {session,messages,events,window,address,tick:()=>tick(),advance:ms=>{now+=ms;}};
 }
 function player(src='https://media.test/private-a?token=secret') {
   return {currentSrc:src,tagName:'AUDIO',readyState:4,paused:false,ended:false,seeking:false,
@@ -89,38 +94,50 @@ test('page favicons follow link changes without replacing media artwork',()=>{
  assert.equal(p.messages.at(-1).media.favicon_candidates[0].src,icons[0].href);
 });
 
-function youtubeFixture() {
+function openGraphFixture(url='https://example.test/watch?v=current',tagName='VIDEO') {
  const element={...player(),tagName:'VIDEO'};
- const details={videoId:'abcdefghijk',title:'Current video',thumbnail:{thumbnails:[
-  {url:'https://i.ytimg.com/vi/abcdefghijk/hqdefault.jpg?small',width:336,height:188},
-  {url:'https://i.ytimg.com/vi/abcdefghijk/maxresdefault.jpg',width:1280,height:720}
- ]}};
- const root={contains:node=>node===element,getPlayerResponse:()=>({videoDetails:details}),classList:{contains:()=>false}};
- const options={url:'https://www.youtube.com/watch?v=abcdefghijk',youtubePlayer:root};
- const p=page([element],[],true,options);
- p.session.metadata={title:details.title,artwork:[{src:details.thumbnail.thumbnails[0].url,sizes:'320x180',type:'image/jpeg'}]};
+ element.tagName=tagName;
+ const og=[['og:title','Current video'],['og:url',url],
+  ['og:image','https://cdn.test/original.jpg'],['og:image:width','1280'],['og:image:height','720'],['og:image:type','image/jpeg']];
+ const players=[element],options={url,og},p=page(players,[],true,options);
+ p.session.metadata={title:'Current video',artwork:[{src:'https://cdn.test/thumbnail.jpg',sizes:'320x180',type:'image/jpeg'}]};
  p.tick();
- return {p,element,details,root,options};
+ return {p,element,players,og,options};
 }
 
-test('YouTube supplies its current video original artwork when Media Session only publishes a thumbnail',()=>{
- const {p,details}=youtubeFixture();
- const media=p.messages.at(-1).media;
- assert.ok(media.artwork_candidates.some(image=>image.src===details.thumbnail.thumbnails[1].url&&image.sizes==='1280x720'));
- assert.equal(media.title,'Current video');
- assert.equal(media.artist,'','thumbnail enrichment must not invent metadata');
+test('Open Graph supplies artwork across sites and audio/video without site-specific APIs',()=>{
+ for(const url of ['https://example.test/watch?v=current','https://www.youtube.com/watch?v=abcdefghijk']) for(const tagName of ['AUDIO','VIDEO']) {
+  const {p}=openGraphFixture(url,tagName),media=p.messages.at(-1).media;
+  assert.equal(media.artwork_candidates[0].src,p.session.metadata.artwork[0].src);
+  assert.deepEqual({...media.artwork_candidates[1]},{src:'https://cdn.test/original.jpg',sizes:'1280x720',type:'image/jpeg',source:'opengraph'});
+  assert.equal(media.title,'Current video');
+  assert.equal(media.artist,'','artwork enrichment must not invent metadata');
+ }
 });
 
-test('YouTube artwork enrichment rejects stale SPA responses, mismatched titles, ads and unrelated players',()=>{
- for(const mismatch of ['id','title','owner','ad','missing','throw','ambiguous']) {
-  const {p,details,root,element}=youtubeFixture();
-  if(mismatch==='id') details.videoId='previous123';
-  if(mismatch==='title') details.title='Previous video';
-  if(mismatch==='owner') root.contains=()=>false;
-  if(mismatch==='ad') root.classList.contains=()=>true;
-  if(mismatch==='missing') root.getPlayerResponse=undefined;
-  if(mismatch==='throw') root.getPlayerResponse=()=>{throw Error('Site API changed');};
-  if(mismatch==='ambiguous') {root.contains=()=>true;element.tagName='AUDIO';}
+test('canonical OGP URLs permit extra playback parameters but reject different video identities',()=>{
+ const canonical='https://www.youtube.com/watch?v=abcdefghijk';
+ for(const suffix of ['&t=90s','&list=playlist&index=2','&feature=shared']) {
+  const {p,og}=openGraphFixture(canonical+suffix);og[1][1]=canonical;p.tick();
+  assert.equal(p.messages.at(-1).media.artwork_candidates.length,2,suffix);
+ }
+ for(const url of ['https://www.youtube.com/watch?v=other123456&t=90s',canonical+'&v=other123456',
+  'https://other.test/watch?v=abcdefghijk','https://www.youtube.com/playlist?v=abcdefghijk']) {
+  const {p,og}=openGraphFixture(url);og[1][1]=canonical;p.tick();
+  assert.equal(p.messages.at(-1).media.artwork_candidates.length,1,url);
+ }
+});
+
+test('Open Graph rejects stale SPA URLs, mismatched or missing titles and ambiguous players',()=>{
+ for(const mismatch of ['url','title','missing-url','missing-title','missing-media-title','no-player','ambiguous']) {
+  const {p,og,players}=openGraphFixture();
+  if(mismatch==='url') p.address.search='?v=next';
+  if(mismatch==='title') og[0][1]='Previous video';
+  if(mismatch==='missing-url') og.splice(1,1);
+  if(mismatch==='missing-title') og.shift();
+  if(mismatch==='missing-media-title') p.session.metadata.title='';
+  if(mismatch==='no-player') players.length=0;
+  if(mismatch==='ambiguous') players.push(player('other'));
   p.tick();
   const candidates=p.messages.at(-1).media.artwork_candidates;
   assert.equal(candidates.length,1,mismatch);
@@ -128,35 +145,76 @@ test('YouTube artwork enrichment rejects stale SPA responses, mismatched titles,
  }
 });
 
-test('YouTube artwork enrichment is site-specific and bounds untrusted thumbnail metadata',()=>{
- const {element,details,root}=youtubeFixture();
- for(const url of ['https://example.test/watch?v=abcdefghijk','https://www.youtube.com/channel/abcdefghijk',
-  'https://www.youtube.com/watch?v=previous123']) {
-  const p=page([element],[],true,{url,youtubePlayer:root});p.session.metadata={title:details.title,artwork:[]};p.tick();
-  assert.equal(p.messages.at(-1).media.artwork_candidates.length,0,url);
- }
- details.thumbnail.thumbnails=[{url:'https://cdn.test/x',width:0,height:10},
-  {url:'https://cdn.test/x',width:16385,height:10},{url:'x'.repeat(2049),width:1280,height:720},
-  ...Array.from({length:30},()=>({url:'https://cdn.test/cover.jpg',width:1280,height:720}))];
- const p=page([element],[],true,{url:'https://www.youtube.com/watch?v=abcdefghijk',youtubePlayer:root});
- p.session.metadata={title:details.title,artwork:[]};p.tick();
- const candidates=p.messages.at(-1).media.artwork_candidates;
- assert.ok(candidates.length>0&&candidates.length<=16);
- assert.ok(candidates.every(image=>image.src==='https://cdn.test/cover.jpg'));
+test('Open Graph groups structured image properties and resolves relative and secure URLs',()=>{
+ const {p,og}=openGraphFixture();
+ og.splice(2,Infinity,
+  ['og:image:width','999'], // Orphan structured properties are ignored.
+  ['og:image','http://cdn.test/insecure.jpg'],['og:image:secure_url','https://cdn.test/secure.jpg'],
+  ['og:image:width','800'],['og:image:height','600'],['og:image:type','image/png'],
+  ['og:image:url','/relative.jpg'],
+  ['og:image','/last.jpg'],['og:image:width','400'],['og:image:height','300'],
+  ['og:video','https://cdn.test/video.mp4'],['og:image:width','100']);
+ p.tick();
+ assert.deepEqual(Array.from(p.messages.at(-1).media.artwork_candidates,a=>({...a})),[
+  {...p.session.metadata.artwork[0]},
+  {src:'https://cdn.test/secure.jpg',sizes:'800x600',type:'image/png',source:'opengraph'},
+  {src:'https://example.test/relative.jpg',sizes:'',type:'',source:'opengraph'},
+  {src:'https://example.test/last.jpg',sizes:'400x300',type:'',source:'opengraph'}
+ ]);
+ p.address.hash='#chapter';p.tick();
+ assert.equal(p.messages.at(-1).media.artwork_candidates.length,4,'fragments do not change page identity');
 });
 
-test('YouTube original artwork reaches the shared bridge without being reduced to the Media Session thumbnail',async()=>{
- const {p,details}=youtubeFixture();
+test('Open Graph ignores invalid image URLs and bounds dimensions, strings and candidates',()=>{
+ const {p,og}=openGraphFixture();
+ for(const src of ['', 'https://[', 'http://cdn.test/plain.jpg', 'javascript:alert(1)', 'data:image/png;base64,AA==',
+  'https://user:password@cdn.test/private.jpg','https://cdn.test/'+ 'x'.repeat(2048)]) {
+  og.splice(2,Infinity,['og:image',src]);p.tick();
+  assert.equal(p.messages.at(-1).media.artwork_candidates.length,1,src);
+ }
+ for(const dimension of ['0','-1','16385','1.5','1e3','Infinity','100junk']) {
+  og.splice(2,Infinity,['og:image','/valid.jpg'],['og:image:width',dimension],['og:image:height','720']);p.tick();
+  assert.equal(p.messages.at(-1).media.artwork_candidates[1].sizes,'',dimension);
+ }
+ og.splice(2,Infinity,['og:image','/valid.jpg'],['og:image:secure_url','https://['],['og:image:type','x'.repeat(100)]);p.tick();
+ assert.equal(p.messages.at(-1).media.artwork_candidates[1].src,'https://example.test/valid.jpg');
+ assert.equal(p.messages.at(-1).media.artwork_candidates[1].type.length,50);
+ og.splice(2,Infinity,...Array.from({length:30},(_,i)=>['og:image',`/cover-${i}.jpg`]));p.tick();
+ const candidates=p.messages.at(-1).media.artwork_candidates;
+ assert.equal(candidates.length,16);
+ assert.equal(candidates[0].src,p.session.metadata.artwork[0].src,'Media Session retains its slot at the candidate limit');
+ assert.equal(candidates.at(-1).src,'https://example.test/cover-14.jpg');
+ og.splice(2,Infinity,...Array.from({length:126},()=>['og:description','unused']),['og:image','/beyond-limit.jpg']);p.tick();
+ assert.equal(p.messages.at(-1).media.artwork_candidates.length,1,'only the first 128 OGP tags are inspected');
+});
+
+test('Open Graph missing or malformed metadata leaves Media Session artwork available',()=>{
+ for(const url of [undefined,'','https://[','https://other.test/watch?v=current','/watch?v=previous','x'.repeat(2049)]) {
+  const {p,og}=openGraphFixture();og[1][1]=url;p.tick();
+  assert.equal(p.messages.at(-1).media.artwork_candidates.length,1);
+ }
+ const {p,og}=openGraphFixture();og.length=0;p.tick();
+ assert.equal(p.messages.at(-1).media.artwork_candidates[0].src,p.session.metadata.artwork[0].src);
+ const idle=page([],[],true,{og:[['og:title','Unrelated page'],['og:url','https://example.test'],['og:image','/cover.jpg']]});
+ assert.deepEqual({...idle.messages.at(-1).media},{title:''},'OGP does not create a media session');
+});
+
+test('Open Graph original artwork reaches the shared bridge without being reduced to the Media Session thumbnail',async()=>{
+ const {p}=openGraphFixture();
  const original=await sharp({create:{width:1280,height:720,channels:3,background:'#226688'}}).jpeg().toBuffer();
- const w=worker(true,url=>url===details.thumbnail.thumbnails[1].url
-  ?new Response(original,{headers:{'content-type':'image/jpeg'}}):new Response(null,{status:404}));
+ const thumbnail=await sharp(original).resize(320,180).jpeg().toBuffer();
+ const hooks=rasterWorkerHooks();
+ const w=worker(true,url=>url==='https://cdn.test/original.jpg'||url==='https://cdn.test/thumbnail.jpg'
+  ?new Response(url.endsWith('/original.jpg')?original:thumbnail,{headers:{'content-type':'image/jpeg'}}):new Response(null,{status:404}),hooks);
  w.send(p.messages.at(-1).media);
  await new Promise(resolve=>setTimeout(resolve,50));
  const delivered=w.requests.map(request=>JSON.parse(request.options.body)).map(body=>body.media).filter(media=>media?.artwork_data_url).at(-1);
  assert.ok(delivered,'completed artwork is published without another page event');
  const image=await sharp(Buffer.from(delivered.artwork_data_url.split(',')[1],'base64')).metadata();
  assert.deepEqual([image.width,image.height],[1280,720]);
- assert.equal(w.images[0].url,details.thumbnail.thumbnails[1].url);
+ assert.deepEqual(w.images.filter(image=>image.url.startsWith('https://cdn.test/')).map(image=>image.url),
+  ['https://cdn.test/thumbnail.jpg','https://cdn.test/original.jpg']);
+ hooks.assertClosed();
 });
 
 test('TVer style precomposed touch icons are collected for videos without Media Session metadata',()=>{

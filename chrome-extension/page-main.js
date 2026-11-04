@@ -54,28 +54,54 @@
     }
     return a;
   };
-  function youtubeArtwork(player,meta) {
-    // YouTube's Media Session often contains only a scaled thumbnail. Its
-    // current player response can publish the same video's original cover.
-    // Never use generic og:image: it can still belong to the previous SPA page.
-    if(!player || player.tagName!=="VIDEO" || !meta?.title ||
-      !["youtube.com","www.youtube.com","m.youtube.com","music.youtube.com"].includes(location.hostname)) return [];
+  function openGraphArtwork(player,meta) {
+    if(!player || !meta?.title) return [];
     try {
-      const address=new URL(location.href);
-      const id=address.pathname==="/watch"?address.searchParams.get("v"):
-        address.pathname.match(/^\/(?:shorts|live|embed)\/([A-Za-z0-9_-]{11})(?:\/|$)/)?.[1];
-      if(!id || !/^[A-Za-z0-9_-]{11}$/.test(id)) return [];
-      const root=document.getElementById("movie_player");
-      if(!root?.contains(player) || root.classList?.contains("ad-showing")) return [];
-      const details=root.getPlayerResponse?.()?.videoDetails;
-      if(details?.videoId!==id || details.title!==meta.title || !Array.isArray(details.thumbnail?.thumbnails)) return [];
-      return details.thumbnail.thumbnails.slice(0,16).flatMap(image=>{
-        if(!image || typeof image.url!=="string" || image.url.length>2048 ||
-          !Number.isInteger(image.width) || !Number.isInteger(image.height) ||
-          image.width<1 || image.height<1 || image.width>16384 || image.height>16384) return [];
-        return [{src:image.url,sizes:`${image.width}x${image.height}`,type:""}];
+      const tags=Array.from(document.head?.querySelectorAll('meta[property^="og:"]')??[]).slice(0,128)
+        .map(tag=>({property:tag.getAttribute("property"),content:tag.getAttribute("content")??""}));
+      const value=property=>tags.find(tag=>tag.property===property)?.content;
+      // OGP can lag behind SPA navigation. Require both page identity and the
+      // observed media title; page metadata never supplies a missing track title.
+      if(value("og:title")!==meta.title) return [];
+      const pageUrl=value("og:url");
+      if(!pageUrl || pageUrl.length>2048) return [];
+      const address=new URL(location.href),canonical=new URL(pageUrl,document.baseURI);
+      address.hash="";canonical.hash="";
+      if(canonical.href!==address.href) {
+        // Canonical OGP URLs can omit playback/navigation parameters. Preserve
+        // every canonical identity parameter (including duplicate values).
+        if(canonical.origin!==address.origin || canonical.pathname!==address.pathname ||
+          canonical.username!==address.username || canonical.password!==address.password || !canonical.search) return [];
+        for(const key of canonical.searchParams.keys()) {
+          if(JSON.stringify(canonical.searchParams.getAll(key))!==JSON.stringify(address.searchParams.getAll(key))) return [];
+        }
+      }
+      const images=[];
+      let image;
+      for(const tag of tags) {
+        if(tag.property==="og:image" || tag.property==="og:image:url") {
+          if(images.length>=16) break;
+          image={src:tag.content};images.push(image);
+        } else if(tag.property.startsWith("og:image:") && image) {
+          const field=tag.property.slice(9);
+          if(["secure_url","width","height","type"].includes(field) && image[field]===undefined) image[field]=tag.content;
+        } else if(!tag.property.slice(3).includes(":")) image=undefined;
+      }
+      const imageUrl=value=>{
+        if(!value || value.length>2048) return "";
+        try {
+          const url=new URL(value,document.baseURI);
+          return url.protocol==="https:" && !url.username && !url.password && url.href.length<=2048 ? url.href : "";
+        } catch {return "";}
+      };
+      const dimension=value=>/^\d{1,5}$/.test(value??"") && Number(value)>0 && Number(value)<=16384 ? Number(value) : undefined;
+      return images.flatMap(image=>{
+        const src=imageUrl(image.secure_url)||imageUrl(image.src);
+        if(!src) return [];
+        const width=dimension(image.width),height=dimension(image.height);
+        return [{src,sizes:width&&height?`${width}x${height}`:"",type:clean(image.type,50)}];
       });
-    } catch {return []; /* Site API unavailable: keep Media Session artwork. */}
+    } catch {return []; /* OGP unavailable: keep Media Session artwork. */}
   }
   function snapshot() {
     const observed = Date.now();
@@ -100,7 +126,8 @@
     const mediaArtwork = (meta?.artwork ?? []).slice(0,16).map(a=>({
       src:clean(a.src,2048), sizes:clean(a.sizes,50), type:clean(a.type,50)
     }));
-    const artwork=[...youtubeArtwork(playing,meta),...mediaArtwork].slice(0,16);
+    // Keep the sources distinct: only the worker can compare decoded images.
+    const artwork=[...mediaArtwork,...openGraphArtwork(playing,meta).map(image=>({...image,source:"opengraph"}))].slice(0,16);
     const duration = playing && Number.isFinite(playing.duration) && playing.duration>=0 ? playing.duration : lastPositionState?.duration;
     const position = playing && Number.isFinite(playing.currentTime) ? playing.currentTime : lastPositionState?.position;
     return {

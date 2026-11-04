@@ -183,11 +183,12 @@ void checkConnection();
 setInterval(()=>{if(connectionState!=="disabled") void checkConnection();},5000);
 function artworkFor(tab,media,icon=false,fallback) {
   const images=icon?media.favicon_candidates:media.artwork_candidates;
-  const allowed=["image/png","image/jpeg","image/webp",...(icon?["image/x-icon","image/vnd.microsoft.icon"]:[])];
+  const allowed=["image/png","image/jpeg","image/webp","image/avif",...(icon?["image/x-icon","image/vnd.microsoft.icon"]:[])];
   const declared=Array.isArray(images)?images.slice(0,16):[];
   if(fallback) declared.push(fallback);
   const seen=new Set();
-  const candidates=declared.flatMap(art=>{
+  const ordered=icon?declared:[...declared.filter(art=>art?.source!=="opengraph"),...declared.filter(art=>art?.source==="opengraph")];
+  const candidates=ordered.flatMap(art=>{
     if(!art||typeof art.src!=="string"||art.src.length>2048) return [];
     const type=typeof art.type==="string"?art.type.split(";")[0].trim().toLowerCase():"";
     if(type&&!allowed.includes(type)) return [];
@@ -215,16 +216,25 @@ function artworkFor(tab,media,icon=false,fallback) {
     return sufficient(x)?x-y:y-x;
   });
   let top=ranked.slice(0,3);
+  const compareMedia=!icon && declared.some(art=>art && art.source!=="opengraph") && candidates.some(art=>art.source==="opengraph");
+  if(compareMedia) {
+    // Reserve the baseline before considering OGP, regardless of declared sizes.
+    // Compare the largest published Media Session image, retaining its three
+    // fallback attempts. At most one additional OGP image is downloaded.
+    const largest=(a,b)=>parseSize(b)-parseSize(a);
+    top=[...ranked.filter(art=>art.source!=="opengraph").sort(largest).slice(0,3),
+      ...ranked.filter(art=>art.source==="opengraph").sort(largest).slice(0,1)];
+  }
   // Reserve one of the bounded attempts for the conventional favicon, even when
   // the page declares many larger icons that fail to load.
   const conventional=fallback&&candidates.find(art=>art.src===fallback.src);
   if(conventional&&!top.includes(conventional)) top=[...ranked.slice(0,2),conventional];
-  const signature=JSON.stringify([media.title,media.artist,media.album,top.map(x=>x.src)]);
+  const signature=JSON.stringify([media.title,media.artist,media.album,compareMedia,top.map(x=>[x.src,x.source==="opengraph"])]);
   const cached=cachedArtwork.get(tab);
   if(cached?.signature===signature && (cached.pending || Date.now()<cached.expires)) return cached.data;
   // Images must not delay metadata or command polling. Keep a matching cached
   // image during refresh; completion publishes it without waiting for playback.
-  const entry={key:tab,signature,top,icon,allowed,data:cached?.signature===signature?cached.data:undefined,pending:true};
+  const entry={key:tab,signature,top,icon,allowed,compareMedia,data:cached?.signature===signature?cached.data:undefined,pending:true};
   discardArtwork(tab);
   cachedArtwork.set(tab,entry);
   queuedArtwork.push(entry);
@@ -239,20 +249,98 @@ async function loadArtwork(entry) {
   const key=JSON.stringify([entry.icon,entry.signature]);
   let asset=sharedArtwork.get(key);
   if(asset&&(asset.pending||asset.expires>Date.now())) {
+    entry.data=asset.data??entry.data;
     asset.users.add(entry);entry.asset=asset;return asset.promise;
   }
-  asset={key,users:new Set([entry]),top:entry.top,icon:entry.icon,allowed:entry.allowed,pending:true};
+  asset={key,users:new Set([entry]),top:entry.top,icon:entry.icon,allowed:entry.allowed,compareMedia:entry.compareMedia,pending:true};
   entry.asset=asset;sharedArtwork.set(key,asset);
   asset.promise=downloadArtwork(asset).then(data=>{asset.data=data;asset.expires=Date.now()+(data?300000:5000);return data;}).finally(()=>{asset.pending=false;trimSharedArtwork();});
   trimSharedArtwork();
   return asset.promise;
 }
 function validArtwork(entry) {return entry.users?sharedArtwork.get(entry.key)===entry&&entry.users.size>0:cachedArtwork.get(entry.key)===entry;}
+function publishArtworkBaseline(entry,data) {
+  if(!validArtwork(entry)) return;
+  entry.data=data;
+  for(const user of entry.users??[entry]) {
+    if(cachedArtwork.get(user.key)!==user) continue;
+    user.data=data;
+    const state=frames.get(user.key);
+    if(state) replayFrame(state);
+  }
+  drainFrames();
+}
+// Only the lowest 8 frequencies are needed from a separable 32x32 DCT.
+const artworkCosines=Array.from({length:8},(_,frequency)=>
+  Array.from({length:32},(_,position)=>Math.cos(Math.PI*(2*position+1)*frequency/64)*(frequency?1:Math.SQRT1_2)));
+function artworkFingerprint(pixels) {
+  const luminance=new Float64Array(32*32),color=[0,0,0,0];
+  for(let i=0;i<luminance.length;i++) {
+    const offset=i*4,alpha=pixels[offset+3]/255;
+    // Composite on white so invisible RGB does not affect image identity.
+    const rgb=[0,1,2].map(channel=>pixels[offset+channel]*alpha+255*(1-alpha));
+    luminance[i]=0.299*rgb[0]+0.587*rgb[1]+0.114*rgb[2];
+    for(let channel=0;channel<3;channel++) color[channel]+=rgb[channel]/luminance.length;
+    color[3]+=pixels[offset+3]/luminance.length;
+  }
+  const rows=new Float64Array(32*8),coefficients=[];
+  for(let y=0;y<32;y++) for(let u=0;u<8;u++) {
+    let sum=0;
+    for(let x=0;x<32;x++) sum+=luminance[y*32+x]*artworkCosines[u][x];
+    rows[y*8+u]=sum;
+  }
+  for(let v=0;v<8;v++) for(let u=0;u<8;u++) {
+    if(!u&&!v) continue; // DC carries overall brightness, not composition.
+    let sum=0;
+    for(let y=0;y<32;y++) sum+=rows[y*8+u]*artworkCosines[v][y];
+    // Quantize sub-level noise, including floating-point residuals on flat art.
+    coefficients.push(Math.round(sum/16));
+  }
+  const median=[...coefficients].sort((a,b)=>a-b)[31];
+  // 64 bits with a fixed zero DC bit; 63 AC bits describe the composition.
+  const hash=Uint8Array.from([0,...coefficients.map(value=>Number(value>median))]);
+  return {hash,color,detail:coefficients.some(value=>Math.abs(value)>1)};
+}
+async function artworkSample(blob) {
+  const bitmap=await createImageBitmap(blob);
+  try {
+    if(!bitmap.width || !bitmap.height || bitmap.width>16384 || bitmap.height>16384 || bitmap.width*bitmap.height>16_777_216) return;
+    const canvas=new OffscreenCanvas(32,32),ctx=canvas.getContext("2d",{willReadFrequently:true});
+    if(!ctx) return;
+    ctx.imageSmoothingQuality="high";
+    ctx.drawImage(bitmap,0,0,32,32);
+    return {width:bitmap.width,height:bitmap.height,...artworkFingerprint(ctx.getImageData(0,0,32,32).data)};
+  } finally {bitmap.close();}
+}
+function artworkUpgrade(reference,candidate) {
+  // Compare actual decoded dimensions, never page-declared sizes. Crops and
+  // uncertain matches keep Media Session.
+  if(!reference || !candidate || candidate.width<reference.width || candidate.height<reference.height ||
+    candidate.width*candidate.height<=reference.width*reference.height ||
+    Math.abs(candidate.width/candidate.height/(reference.width/reference.height)-1)>0.01) return false;
+  // pHash tolerates resampling, compression and modest brightness changes.
+  // Use a conservative Hamming limit; this is image identity, not search.
+  let distance=0;
+  for(let i=1;i<64;i++) distance+=reference.hash[i]^candidate.hash[i];
+  if(distance>10 || reference.detail!==candidate.detail) return false;
+  // Luminance hashes discard color/alpha. Reject large changes and require
+  // near-identical colors for flat images whose hashes carry little evidence.
+  return reference.color.every((value,channel)=>
+    Math.abs(value-candidate.color[channel])<=(channel===3?8:reference.detail?24:4));
+}
 async function downloadArtwork(entry) {
   const {top,icon,allowed}=entry;
-  let data;
+  let data,referenceBlob,reference;
   for(const art of top) {
     if(!validArtwork(entry)) break;
+    if(entry.compareMedia) {
+      if(art.source!=="opengraph" && data) continue;
+      if(art.source==="opengraph") {
+        if(!data) break; // An unavailable baseline cannot establish image identity.
+        try {reference??=await artworkSample(referenceBlob);} catch {break;}
+        if(!reference || !validArtwork(entry)) break;
+      }
+    }
     const controller=new AbortController();entry.controller=controller;
     const timeout=setTimeout(()=>controller.abort(),2500);
     try {
@@ -275,23 +363,33 @@ async function downloadArtwork(entry) {
       const raw=new Uint8Array(n);
       let offset=0;
       for(const piece of chunks) {raw.set(piece,offset);offset+=piece.length;}
+      const blob=new Blob([raw],{type:mime});
+      if(entry.compareMedia && art.source==="opengraph" && !artworkUpgrade(reference,await artworkSample(blob))) continue;
       let output=raw,outputMime=mime;
-      if(icon) {
-        // Chrome decodes ICO as well as raster favicons; only bounded PNG leaves the worker.
-        const bitmap=await createImageBitmap(new Blob([raw],{type:mime}));
+      if(icon || mime==="image/avif") {
+        // YouTube can serve AVIF from a .jpg URL. Decode it here and keep the
+        // wire's PNG/JPEG/WebP contract; favicons still leave as bounded PNG.
+        const bitmap=await createImageBitmap(blob);
         try {
-          if(!bitmap.width||!bitmap.height||bitmap.width*bitmap.height>16_777_216) continue;
-          const canvas=new OffscreenCanvas(32,32),ctx=canvas.getContext("2d");
-          const scale=Math.min(32/bitmap.width,32/bitmap.height),w=bitmap.width*scale,h=bitmap.height*scale;
-          ctx.drawImage(bitmap,(32-w)/2,(32-h)/2,w,h);
-          output=new Uint8Array(await (await canvas.convertToBlob({type:"image/png"})).arrayBuffer());
-          outputMime="image/png";
+          if(!bitmap.width||!bitmap.height||bitmap.width>16384||bitmap.height>16384||bitmap.width*bitmap.height>16_777_216) continue;
+          const size=icon?32:1024,scale=Math.min(size/bitmap.width,size/bitmap.height,icon?Infinity:1);
+          const w=Math.max(1,Math.round(bitmap.width*scale)),h=Math.max(1,Math.round(bitmap.height*scale));
+          const canvas=new OffscreenCanvas(icon?32:w,icon?32:h),ctx=canvas.getContext("2d");
+          if(!ctx) continue;
+          ctx.drawImage(bitmap,(canvas.width-w)/2,(canvas.height-h)/2,w,h);
+          const encoded=await canvas.convertToBlob({type:icon?"image/png":"image/webp",quality:0.85});
+          if(!["image/png","image/webp"].includes(encoded.type)||encoded.size>350000) continue;
+          output=new Uint8Array(await encoded.arrayBuffer());
+          outputMime=encoded.type;
         } finally {bitmap.close();}
       }
       let binary="";
       for(let i=0;i<output.length;i+=8192) binary+=String.fromCharCode(...output.subarray(i,i+8192));
       data=`data:${outputMime};base64,${btoa(binary)}`;
-      break;
+      if(!entry.compareMedia || art.source==="opengraph") break;
+      referenceBlob=blob;
+      // Show the baseline while the optional higher-resolution image is pending.
+      publishArtworkBaseline(entry,data);
     } catch { /* image unavailable: Windows image is fallback */ }
     finally {
       // fetch resolves at the headers. Rejecting those headers must also stop

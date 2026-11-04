@@ -2,12 +2,263 @@ import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {load} from './load.mjs';
 import {worker} from './worker-harness.mjs';
+import {rasterWorkerHooks} from './raster-worker-harness.mjs';
+import sharp from 'sharp';
 const {ChromeWire}=await load('chrome-wire');
 const settle=()=>new Promise(resolve=>setTimeout(resolve,30));
 const flush=()=>new Promise(setImmediate);
 const deferred=()=>{let resolve;const promise=new Promise(done=>{resolve=done;});return {promise,resolve};};
 const updates=w=>w.requests.filter(x=>!x.url.endsWith('/result')).map(x=>JSON.parse(x.options.body));
 const mediaUpdates=w=>updates(w).filter(body=>body.media!==null);
+
+const coverPixels=Buffer.alloc(320*180*3);
+for(let y=0;y<180;y++) for(let x=0;x<320;x++) {
+  const offset=(y*320+x)*3,block=x>20&&x<100&&y>30&&y<90;
+  coverPixels[offset]=block?180:40+Math.floor(x/2);
+  coverPixels[offset+1]=block?40:50+y;
+  coverPixels[offset+2]=block?20:160;
+}
+const cover=await sharp(coverPixels,{raw:{width:320,height:180,channels:3}}).png().toBuffer();
+const thumbnail=await sharp(cover).resize(160,90).jpeg({quality:80}).toBuffer();
+const avifThumbnail=await sharp(cover).resize(336,188,{fit:'fill'}).avif({quality:60}).toBuffer();
+const dataUrl=(data,mime='image/png')=>`data:${mime};base64,${data.toString('base64')}`;
+
+for(const protocol2 of [false,true]) {
+ test(`Media Session displays before a slow OGP response in protocol ${protocol2?2:1}`,async()=>{
+  const pending=deferred(),received=[],wire=new ChromeWire(),hooks=rasterWorkerHooks();
+  const w=worker(true,async url=>{
+    if(url.endsWith('/ogp.png')) {await pending.promise;return new Response(cover,{headers:{'content-type':'image/png'}});}
+    return url.endsWith('/media.jpg')?new Response(thumbnail,{headers:{'content-type':'image/jpeg'}}):new Response(null,{status:404});
+  },{...hooks,protocol2,async bridgeResponse(_url,body){
+    if(body.media) received.push(protocol2?wire.decode(body).media:body.media);
+    return {json:async()=>({ok:true,commands:[]})};
+  }});
+  await flush();
+  w.send({title:'Track',artwork_candidates:[{src:'https://cdn.test/media.jpg'},{src:'https://cdn.test/ogp.png',source:'opengraph'}]});
+  try {
+    for(let i=0;i<100&&!received.at(-1)?.artwork_data_url;i++) await new Promise(resolve=>setTimeout(resolve,10));
+    assert.ok(received.at(-1)?.artwork_data_url===dataUrl(thumbnail,'image/jpeg'),'baseline is visible before OGP completes');
+  } finally {pending.resolve();}
+  for(let i=0;i<100&&w.busy();i++) await new Promise(resolve=>setTimeout(resolve,10));
+  assert.ok(received.at(-1)?.artwork_data_url===dataUrl(cover),'matching higher-resolution OGP replaces the baseline');
+  hooks.assertClosed();
+ });
+}
+
+for(const protocol2 of [false,true]) {
+ test(`AVIF from a .jpg URL reaches pHash comparison and higher-resolution OGP in protocol ${protocol2?2:1}`,async()=>{
+  const pending=deferred(),received=[],wire=new ChromeWire(),hooks=rasterWorkerHooks();
+  const large=await sharp(cover).resize(1280,720).jpeg().toBuffer();
+  const w=worker(true,async url=>{
+    if(url.endsWith('/ogp.jpg')) {await pending.promise;return new Response(large,{headers:{'content-type':'image/jpeg'}});}
+    return url.endsWith('/hqdefault.jpg')?new Response(avifThumbnail,{headers:{'content-type':'image/avif'}}):new Response(null,{status:404});
+  },{...hooks,protocol2,async bridgeResponse(_url,body){
+    if(body.media) received.push(protocol2?wire.decode(body).media:body.media);
+    return {json:async()=>({ok:true,commands:[]})};
+  }});
+  w.send({title:'YouTube fixture',artwork_candidates:[
+    {src:'https://cdn.test/hqdefault.jpg',sizes:'320x180',type:'image/jpeg'},
+    {src:'https://cdn.test/ogp.jpg',sizes:'1280x720',source:'opengraph'}
+  ]});
+  try {
+    for(let i=0;i<100&&!received.at(-1)?.artwork_data_url;i++) await new Promise(resolve=>setTimeout(resolve,10));
+    const baseline=received.at(-1)?.artwork_data_url;
+    assert.match(baseline,/^data:image\/webp;base64,/,'AVIF is normalized for the existing wire');
+    const metadata=await sharp(Buffer.from(baseline.split(',')[1],'base64')).metadata();
+    assert.equal(metadata.width,336);assert.equal(metadata.height,188);
+  } finally {pending.resolve();}
+  for(let i=0;i<100&&w.busy();i++) await new Promise(resolve=>setTimeout(resolve,10));
+  assert.equal(w.busy(),0);
+  assert.equal(received.at(-1).artwork_data_url,dataUrl(large,'image/jpeg'));
+  hooks.assertClosed();
+ });
+}
+
+test('AVIF OGP and standalone artwork are normalized, bounded, and decode failures retain a usable image',async()=>{
+ const avifCover=await sharp(cover).avif({quality:60}).toBuffer();
+ const largeAvif=await sharp(cover).resize(1280,720).avif({quality:60}).toBuffer();
+ for(const scenario of ['upgrade','standalone','large-standalone','broken','oversized-output','oversized-decode']) {
+  const hooks=rasterWorkerHooks();
+  if(scenario==='oversized-output') hooks.OffscreenCanvas=class {
+    constructor(width,height) {this.width=width;this.height=height;}
+    getContext(){return {drawImage(){}};}
+    async convertToBlob(){return new Blob([new Uint8Array(350001)],{type:'image/webp'});}
+  };
+  if(scenario==='oversized-decode') hooks.createImageBitmap=async()=>({width:16385,height:1,close(){}});
+  const wire=new ChromeWire(),received=[];
+  const w=worker(true,url=>url.endsWith('/media.jpg')||url.endsWith('/ogp.avif')
+    ?new Response(url.endsWith('/media.jpg')?thumbnail:scenario==='broken'?Buffer.from('invalid AVIF'):scenario==='large-standalone'?largeAvif:avifCover,
+      {headers:{'content-type':url.endsWith('/media.jpg')?'image/jpeg':'image/avif'}})
+    :new Response(null,{status:404}),{...hooks,protocol2:true,async bridgeResponse(_url,body){
+      if(body.media) received.push(wire.decode(body).media);
+      return {json:async()=>({ok:true,commands:[]})};
+    }});
+  w.send({title:scenario,artwork_candidates:[
+    ...(scenario.endsWith('standalone')||scenario.startsWith('oversized')?[]:[{src:'https://cdn.test/media.jpg'}]),
+    {src:'https://cdn.test/ogp.avif',source:'opengraph',type:'image/avif'}
+  ]});
+  for(let i=0;i<100&&(!received.length||w.busy());i++) await new Promise(resolve=>setTimeout(resolve,10));
+  assert.equal(w.busy(),0,scenario);
+  const data=received.at(-1).artwork_data_url;
+  if(scenario==='broken') assert.equal(data,dataUrl(thumbnail,'image/jpeg'));
+  else if(scenario.startsWith('oversized')) assert.equal(data??undefined,undefined,scenario);
+  else {
+    assert.match(data,/^data:image\/webp;base64,/,scenario);
+    const bytes=Buffer.from(data.split(',')[1],'base64'),metadata=await sharp(bytes).metadata();
+    assert.ok(bytes.length<=350000);
+    assert.equal(metadata.width,scenario==='large-standalone'?1024:320);
+    assert.equal(metadata.height,scenario==='large-standalone'?576:180);
+  }
+  hooks.assertClosed();
+ }
+});
+
+for(const protocol2 of [false,true]) {
+ test(`OGP replaces Media Session only for matching content at higher decoded resolution in protocol ${protocol2?2:1}`,async()=>{
+  const variations=[
+    ['same image, higher resolution',cover,true],
+    ['same image after strong JPEG compression',await sharp(cover).jpeg({quality:25}).toBuffer(),true],
+    ['same image with a modest brightness change',await sharp(cover).linear(1,16).png().toBuffer(),true],
+    ['same image after slight blur',await sharp(cover).blur(1).png().toBuffer(),true],
+    ['same composition with different colors',await sharp(cover).tint('#ef2211').png().toBuffer(),false],
+    ['different composition with the same colors',await sharp(cover).flop().png().toBuffer(),false],
+    ['cropped composition at the same aspect ratio',await sharp(cover).extract({left:80,top:45,width:160,height:90}).resize(320,180).png().toBuffer(),false],
+    ['different image with the same title',await sharp({create:{width:320,height:180,channels:3,background:'#246688'}}).png().toBuffer(),false],
+    ['same resolution',await sharp(cover).resize(160,90).png().toBuffer(),false],
+    ['lower resolution despite a larger declared size',await sharp(cover).resize(80,45).png().toBuffer(),false],
+    ['different aspect ratio',await sharp(cover).resize(320,320,{fit:'fill'}).png().toBuffer(),false],
+    ['wider but shorter',await sharp(cover).resize(320,60,{fit:'fill'}).png().toBuffer(),false],
+    ['malformed OGP image',Buffer.from('not an image'),false]
+  ];
+  for(const [name,ogp,upgrade] of variations) {
+    const hooks=rasterWorkerHooks(),received=[],wire=new ChromeWire();
+    const w=worker(true,url=>url.endsWith('/media.jpg')||url.endsWith('/ogp.png')
+      ?new Response(url.endsWith('/media.jpg')?thumbnail:ogp,{headers:{'content-type':url.endsWith('.jpg')?'image/jpeg':'image/png'}})
+      :new Response(null,{status:404}),{...hooks,protocol2,async bridgeResponse(_url,body){
+        if(body.media) received.push(protocol2?wire.decode(body).media:body.media);
+        return {json:async()=>({ok:true,commands:[]})};
+      }});
+    await flush();
+    w.send({title:'Same title',artwork_candidates:[
+      {src:'https://cdn.test/ogp.png',sizes:'4096x4096',source:'opengraph'},
+      {src:'https://cdn.test/media.jpg',sizes:'1x1'}
+    ]});
+    // Wait for the image queue to drain rather than depending on decode speed.
+    for(let i=0;i<100&&(!received.length||w.busy());i++) await new Promise(resolve=>setTimeout(resolve,10));
+    assert.equal(w.busy(),0,name);
+    assert.ok(received.at(-1).artwork_data_url===(upgrade?dataUrl(ogp):dataUrl(thumbnail,'image/jpeg')),name);
+    assert.deepEqual(w.images.filter(image=>image.url.startsWith('https://cdn.test/')).map(image=>image.url),
+      ['https://cdn.test/media.jpg','https://cdn.test/ogp.png'],name);
+    hooks.assertClosed();
+  }
+ });
+}
+
+test('flat pHash collisions and transparency changes cannot promote different OGP artwork',async()=>{
+ const solid=async(width,height,color)=>sharp({create:{width,height,channels:4,background:color}}).png().toBuffer();
+ const baseline=await solid(160,90,'#246688');
+ for(const [name,ogp,upgrade] of [
+   ['identical flat image',await solid(320,180,'#246688'),true],
+   ['different flat color',await solid(320,180,'#347698'),false],
+   ['different opacity',await solid(320,180,{r:36,g:102,b:136,alpha:0.5}),false]
+ ]) {
+  const hooks=rasterWorkerHooks();
+  const w=worker(true,url=>url.endsWith('/media.png')||url.endsWith('/ogp.png')
+    ?new Response(url.endsWith('/media.png')?baseline:ogp,{headers:{'content-type':'image/png'}})
+    :new Response(null,{status:404}),hooks);
+  w.send({title:'Flat',artwork_candidates:[{src:'https://cdn.test/media.png'},{src:'https://cdn.test/ogp.png',source:'opengraph'}]});
+  for(let i=0;i<100&&(!w.requests.length||w.busy());i++) await new Promise(resolve=>setTimeout(resolve,10));
+  assert.equal(w.busy(),0,name);
+  assert.equal(mediaUpdates(w).at(-1).media.artwork_data_url,dataUrl(upgrade?ogp:baseline),name);
+  hooks.assertClosed();
+ }
+});
+
+test('unavailable comparison keeps Media Session and never promotes an unverified OGP image',async()=>{
+ for(const failure of ['baseline-download','baseline-decode','pixel-read','oversized','missing-canvas']) {
+  const hooks=rasterWorkerHooks();
+  if(failure==='pixel-read') hooks.OffscreenCanvas=class {getContext(){return {drawImage(){},getImageData(){throw Error('Canvas unavailable');}};}};
+  if(failure==='missing-canvas') hooks.OffscreenCanvas=class {getContext(){return null;}};
+  if(failure==='oversized') hooks.createImageBitmap=async()=>({width:16384,height:16384,close(){}});
+  const media=failure==='baseline-decode'?Buffer.from('invalid'):thumbnail;
+  const w=worker(true,url=>url.endsWith('/ogp.png')
+    ?new Response(cover,{headers:{'content-type':'image/png'}})
+    :url.endsWith('/media.jpg')&&failure!=='baseline-download'
+      ?new Response(media,{headers:{'content-type':'image/jpeg'}}):new Response(null,{status:404}),hooks);
+  w.send({title:'Track',artwork_candidates:[{src:'https://cdn.test/media.jpg'},{src:'https://cdn.test/ogp.png',source:'opengraph'}]});
+  for(let i=0;i<100&&(!w.requests.length||w.busy());i++) await new Promise(resolve=>setTimeout(resolve,10));
+  assert.equal(w.busy(),0,failure);
+  assert.equal(mediaUpdates(w).at(-1).media.artwork_data_url,failure==='baseline-download'?undefined:dataUrl(media,'image/jpeg'),failure);
+  assert.equal(w.images.some(image=>image.url.endsWith('/ogp.png')),false,failure);
+  hooks.assertClosed();
+ }
+});
+
+test('OGP remains a fallback when Media Session publishes no artwork',async()=>{
+ const w=worker(true,url=>url.endsWith('/ogp.png')?new Response(cover,{headers:{'content-type':'image/png'}}):new Response(null,{status:404}));
+ w.send({title:'Track',artwork_candidates:[{src:'https://cdn.test/ogp.png',source:'opengraph'}]});await settle();
+ assert.equal(mediaUpdates(w).at(-1).media.artwork_data_url,dataUrl(cover));
+});
+
+test('OGP must improve on the largest published Media Session image',async()=>{
+ const large=await sharp(cover).resize(1920,1080).jpeg().toBuffer();
+ const ogp=await sharp(cover).resize(1600,900).png().toBuffer(),hooks=rasterWorkerHooks();
+ const w=worker(true,url=>url.endsWith('/large.jpg')||url.endsWith('/ogp.png')
+   ?new Response(url.endsWith('/large.jpg')?large:ogp,{headers:{'content-type':url.endsWith('.jpg')?'image/jpeg':'image/png'}})
+   :new Response(null,{status:404}),hooks);
+ w.send({title:'Track',artwork_candidates:[
+   {src:'https://cdn.test/medium.jpg',sizes:'1280x720'},
+   {src:'https://cdn.test/large.jpg',sizes:'1920x1080'},
+   {src:'https://cdn.test/ogp.png',sizes:'1600x900',source:'opengraph'}
+ ]});
+ for(let i=0;i<100&&(!w.requests.length||w.busy());i++) await new Promise(resolve=>setTimeout(resolve,10));
+ assert.equal(w.busy(),0);
+ assert.ok(mediaUpdates(w).at(-1).media.artwork_data_url===dataUrl(large,'image/jpeg'));
+ assert.deepEqual(w.images.filter(image=>image.url.startsWith('https://cdn.test/')).map(image=>image.url),
+   ['https://cdn.test/large.jpg','https://cdn.test/ogp.png']);
+ hooks.assertClosed();
+});
+
+test('OGP keeps all three Media Session fallback attempts and cannot displace an identical URL',async()=>{
+ const hooks=rasterWorkerHooks();
+ const w=worker(true,url=>url.endsWith('/working.jpg')||url.endsWith('/ogp.png')
+   ?new Response(url.endsWith('/working.jpg')?thumbnail:cover,{headers:{'content-type':url.endsWith('.jpg')?'image/jpeg':'image/png'}})
+   :new Response(null,{status:404}),hooks);
+ w.send({title:'Track',artwork_candidates:[
+   {src:'https://cdn.test/broken-1.jpg'},{src:'https://cdn.test/broken-2.jpg'},
+   {src:'https://cdn.test/working.jpg'},{src:'https://cdn.test/ogp.png',source:'opengraph'}
+ ]});
+ for(let i=0;i<100&&(!w.requests.length||w.busy());i++) await new Promise(resolve=>setTimeout(resolve,10));
+ assert.equal(w.busy(),0);
+ assert.ok(mediaUpdates(w).at(-1).media.artwork_data_url===dataUrl(cover));
+ assert.deepEqual(w.images.filter(image=>image.url.startsWith('https://cdn.test/')).map(image=>image.url),
+   ['https://cdn.test/broken-1.jpg','https://cdn.test/broken-2.jpg','https://cdn.test/working.jpg','https://cdn.test/ogp.png']);
+ hooks.assertClosed();
+ const same=worker(true,url=>url.endsWith('/working.jpg')
+   ?new Response(thumbnail,{headers:{'content-type':'image/jpeg'}}):new Response(null,{status:404}));
+ same.send({title:'Track',artwork_candidates:[
+   {src:'https://cdn.test/working.jpg',source:'opengraph',sizes:'4096x4096'},
+   {src:'https://cdn.test/working.jpg',sizes:'160x90'}
+ ]});await settle();
+ assert.ok(mediaUpdates(same).at(-1).media.artwork_data_url===dataUrl(thumbnail,'image/jpeg'));
+ assert.equal(same.images.filter(image=>image.url.endsWith('/working.jpg')).length,1);
+});
+
+test('a late OGP comparison cannot replace artwork after a track change',async()=>{
+ const pending=deferred(),hooks=rasterWorkerHooks();
+ const w=worker(true,async url=>{
+   if(url.endsWith('/ogp.png')) {await pending.promise;return new Response(cover,{headers:{'content-type':'image/png'}});}
+   return url.endsWith('.jpg')?new Response(thumbnail,{headers:{'content-type':'image/jpeg'}}):new Response(null,{status:404});
+ },hooks);
+ w.send({title:'Old',artwork_candidates:[{src:'https://cdn.test/old.jpg'},{src:'https://cdn.test/ogp.png',source:'opengraph'}]});
+ for(let i=0;i<100&&!w.images.some(image=>image.url.endsWith('/ogp.png'));i++) await new Promise(resolve=>setTimeout(resolve,10));
+ assert.ok(w.images.some(image=>image.url.endsWith('/ogp.png')));
+ w.send({title:'New',artwork_candidates:[{src:'https://cdn.test/new.jpg'}]});await settle();
+ pending.resolve();await settle();
+ assert.equal(mediaUpdates(w).at(-1).media.title,'New');
+ assert.ok(mediaUpdates(w).at(-1).media.artwork_data_url===dataUrl(thumbnail,'image/jpeg'));
+ hooks.assertClosed();
+});
 
 for(const protocol2 of [false,true]) {
   test(`closing a tab immediately removes its completed frames in protocol ${protocol2?2:1}`,async()=>{
