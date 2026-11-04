@@ -76,6 +76,37 @@
     }
     document.documentElement.style.setProperty("--art-display", artwork === false ? "none" : "block");
     document.documentElement.style.setProperty("--album-display", album === false ? "none" : "block");
+    // A separate attribute preserves provider-owned hidden flags (icons and bridge-only UI).
+    // Read lexical globals explicitly: packaged iCUE scripts share the host's property scope.
+    for (const [getValue, ids] of [
+      [() => showArtwork, ["cover"]], [() => showTitle, ["songName"]],
+      [() => showArtist, ["artist"]], [() => showAlbum, ["album"]],
+      [() => showStatus, ["playbackStatus"]], [() => showAppIcon, ["appIcon"]],
+      [() => showMediaTarget, ["mediaTargetField"]], [() => showAudioTarget, ["audioTargetField"]],
+      [() => showSeekBar, ["seekLabel", "seekRange"]], [() => showPosition, ["positionText"]],
+      [() => showVolumeSlider, ["volumeSlider"]], [() => showVolumeValue, ["volumeText"]],
+      [() => showMute, ["muteButton"]], [() => showPrevious, ["previousButton"]],
+      [() => showPlayPause, ["playPauseButton"]], [() => showNext, ["nextButton"]],
+      [() => showRewind, ["rewindButton"]], [() => showStop, ["stopButton"]],
+      [() => showForward, ["forwardButton"]], [() => showConnectionInfo, ["bridgeNotice"]],
+      [() => showBrand, ["brandLabel", "footerBrand"]],
+    ]) {
+      const hidden = setting(getValue) === false;
+      for (const id of ids) document.getElementById(id).dataset.displayHidden = String(hidden);
+    }
+    el.deck.dataset.decoration = String(setting(() => showDecoration) !== false);
+    let largeText = false;
+    for (const [property, getValue] of [
+      ["--title-scale", () => titleSize], ["--artist-scale", () => artistSize],
+      ["--album-scale", () => albumSize], ["--label-scale", () => labelSize],
+    ]) {
+      const value = setting(getValue);
+      const scale = typeof value === "number" && Number.isFinite(value) ? Math.min(150, Math.max(75, value)) / 100 : 1;
+      document.documentElement.style.setProperty(property, String(scale));
+      if (scale > 1) largeText = true;
+    }
+    document.documentElement.dataset.largeText = String(largeText);
+    window.edgeMediaBridge?.refreshDisplay();
   }
 
   function setting(getValue) {
@@ -99,6 +130,7 @@
   function updateScrolling() {
     const content = document.getElementById("songTitleText");
     if (!content) return;
+    if (getComputedStyle(el.song).display === "none") { resetTitleScrolling(); return; }
     // Transformed host previews report scaled client rects, but translateX uses
     // local CSS pixels. Measure layout widths so the final characters reach view.
     const distance = Math.max(0, content.offsetWidth - el.song.offsetWidth);

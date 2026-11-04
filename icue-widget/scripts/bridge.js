@@ -121,7 +121,7 @@
     window.addEventListener("resize", close);
     window.addEventListener("pagehide", close);
     document.getElementById("deck").addEventListener("scroll", close);
-    targetPickers.set(select, {sync}); sync();
+    targetPickers.set(select, {sync, close}); sync();
   }
   const appIcon = document.getElementById("appIcon");
   let fallbackIcon = "";
@@ -134,7 +134,18 @@
   let persistenceKey = "", lastTrack = "", errorUntil = 0, failedArtwork = "";
   const gestures = new Map();
   const setting = read => {try {return read();} catch {return undefined;}};
-  const api = window.edgeMediaBridge = {enabled: false, provider: null, message: "Windowsブリッジを待機中", configure, resume, suspend};
+  const api = window.edgeMediaBridge = {enabled: false, provider: null, message: "Windowsブリッジを待機中", configure, resume, suspend, refreshDisplay};
+  function refreshDisplay() {
+    // Popovers live in the top layer, so hiding their field alone cannot close them.
+    for (const [select, picker] of targetPickers) {
+      if (select.parentElement.dataset.displayHidden === "true") picker.close();
+    }
+    let cancelled = false;
+    for (const slider of gestures.keys()) {
+      if (!slider.getClientRects().length) {gestures.delete(slider); cancelled = true;}
+    }
+    if (cancelled && data) apply(data);
+  }
   api.artworkFailed = source => {
     failedArtwork = source;
     const fallback = data?.media?.fallback_artwork_data_url;

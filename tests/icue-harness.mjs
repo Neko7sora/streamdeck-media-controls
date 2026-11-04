@@ -37,7 +37,9 @@ export function mediaProvider(values = {}, {asyncOnly = false, autoRespond = tru
 export function widget(provider) {
   const elements = new Map();
   for (const id of ['deck', 'songName', 'artist', 'album', 'albumArt', 'coverPlaceholder', 'cover', 'statusText',
-    'playPauseButton', 'previousButton', 'nextButton']) {
+    'playPauseButton', 'previousButton', 'nextButton', 'playbackStatus', 'appIcon', 'mediaTargetField',
+    'audioTargetField', 'seekLabel', 'seekRange', 'positionText', 'volumeSlider', 'volumeText', 'muteButton',
+    'rewindButton', 'stopButton', 'forwardButton', 'bridgeNotice', 'brandLabel', 'footerBrand']) {
     const attributes = new Map(), listeners = new Map(), children = new Map();
     elements.set(id, {
       dataset:{}, hidden:false, disabled:false, textContent:'', title:'',
@@ -65,7 +67,7 @@ export function widget(provider) {
     addEventListener:(event, callback) => windowEvents.set(event, callback),
   };
   const context = vm.createContext({window, document,
-    getComputedStyle(node) { return {display:node === elements.get('cover') ? styles.get('--art-display') ?? 'block'
+    getComputedStyle(node) { return {display:node.dataset.displayHidden === 'true' ? 'none' : node === elements.get('cover') ? styles.get('--art-display') ?? 'block'
       : node === elements.get('album') ? styles.get('--album-display') ?? 'block' : 'block'}; },
     setTimeout(callback, delay) { timers.set(++nextTimer, {callback, delay}); return nextTimer; },
     clearTimeout:id => timers.delete(id),

@@ -8,6 +8,7 @@ import {load} from './load.mjs';
 import {tls} from './tls-fixture.mjs';
 import {icueBackend} from './icue-backend.mjs';
 import {buildIcueHtml} from '../scripts/icue-widget-html.mjs';
+import {checkDisplayPreferences} from './icue-display-checks.mjs';
 const {startIcueServer} = await load('icue-server');
 const token = 'd'.repeat(64), fixture = icueBackend();
 // Original test artwork at device resolution, rather than an enlarged app icon.
@@ -75,6 +76,9 @@ try {
     await page.evaluate(() => {window.iCUE.isPreview = false; window.icueEvents.onDataUpdated();});
     console.log(`OK extended iCUE controls, touch targets and preview scaling: ${width}x${height}`);
   }
+  const callsBeforeSettings = fixture.calls.length;
+  await checkDisplayPreferences(page, {bridge:true,sizes});
+  assert.equal(fixture.calls.length, callsBeforeSettings, 'display preferences never issue media commands');
   await page.setViewportSize({width:840,height:344});
   assert.equal(await page.locator('#deck').evaluate(node => node.scrollHeight > node.clientHeight), false);
   assert.equal(await page.locator('.connection-badge[data-connected="true"]').count(), 2);
@@ -246,6 +250,11 @@ try {
   await legacy.keyboard.press('Escape');
   assert.equal(await legacy.locator('#audioTarget').inputValue(), 'master');
   assert.equal(await audioPicker.getAttribute('aria-expanded'), 'false');
+  await audioPicker.click();
+  await legacy.evaluate(() => {window.showAudioTarget=false;window.icueEvents.onDataUpdated();});
+  assert.equal(await audioOptions.isVisible(), false, 'hiding a selector also closes its top-layer popup');
+  assert.equal(await audioPicker.isVisible(), false);
+  await legacy.evaluate(() => {window.showAudioTarget=true;window.icueEvents.onDataUpdated();});
   await legacy.keyboard.press('Space'); await legacy.keyboard.press('p'); await legacy.keyboard.press('Enter');
   await legacy.waitForFunction(() => document.getElementById('audioTarget').value === 'audio:player' && !document.getElementById('audioTargetPicker').disabled);
   await audioPicker.tap();

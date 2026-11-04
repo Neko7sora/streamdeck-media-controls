@@ -10,13 +10,37 @@
   <meta name="x-icue-property" content="bridgeToken" data-label="tr('Bridge Token')" data-type="textfield" data-default="''" />
   <meta name="x-icue-property" content="showArtwork" data-label="tr('Show Artwork')" data-type="switch" data-default="true" />
   <meta name="x-icue-property" content="showAlbum" data-label="tr('Show Album')" data-type="switch" data-default="true" />
+  <meta name="x-icue-property" content="showTitle" data-label="tr('Show Title')" data-type="switch" data-default="true" />
+  <meta name="x-icue-property" content="showArtist" data-label="tr('Show Artist')" data-type="switch" data-default="true" />
+  <meta name="x-icue-property" content="showStatus" data-label="tr('Show Playback Status')" data-type="switch" data-default="true" />
+  <meta name="x-icue-property" content="showAppIcon" data-label="tr('Show App Icon')" data-type="switch" data-default="true" />
+  <meta name="x-icue-property" content="showMediaTarget" data-label="tr('Show Player Selector')" data-type="switch" data-default="true" />
+  <meta name="x-icue-property" content="showAudioTarget" data-label="tr('Show Audio Target Selector')" data-type="switch" data-default="true" />
+  <meta name="x-icue-property" content="showSeekBar" data-label="tr('Show Seek Bar')" data-type="switch" data-default="true" />
+  <meta name="x-icue-property" content="showPosition" data-label="tr('Show Playback Time')" data-type="switch" data-default="true" />
+  <meta name="x-icue-property" content="showVolumeSlider" data-label="tr('Show Volume Slider')" data-type="switch" data-default="true" />
+  <meta name="x-icue-property" content="showVolumeValue" data-label="tr('Show Volume Percentage')" data-type="switch" data-default="true" />
+  <meta name="x-icue-property" content="showMute" data-label="tr('Show Mute Button')" data-type="switch" data-default="true" />
+  <meta name="x-icue-property" content="showPrevious" data-label="tr('Show Previous Button')" data-type="switch" data-default="true" />
+  <meta name="x-icue-property" content="showPlayPause" data-label="tr('Show Play Pause Button')" data-type="switch" data-default="true" />
+  <meta name="x-icue-property" content="showNext" data-label="tr('Show Next Button')" data-type="switch" data-default="true" />
+  <meta name="x-icue-property" content="showRewind" data-label="tr('Show Rewind Button')" data-type="switch" data-default="true" />
+  <meta name="x-icue-property" content="showStop" data-label="tr('Show Stop Button')" data-type="switch" data-default="true" />
+  <meta name="x-icue-property" content="showForward" data-label="tr('Show Forward Button')" data-type="switch" data-default="true" />
+  <meta name="x-icue-property" content="showConnectionInfo" data-label="tr('Show Connection Info')" data-type="switch" data-default="true" />
+  <meta name="x-icue-property" content="showBrand" data-label="tr('Show Branding')" data-type="switch" data-default="true" />
+  <meta name="x-icue-property" content="showDecoration" data-label="tr('Show Decorations')" data-type="switch" data-default="true" />
   <meta name="x-icue-property" content="scrollTitle" data-label="tr('Scroll Long Titles')" data-type="switch" data-default="true" />
+  <meta name="x-icue-property" content="titleSize" data-label="tr('Title Text Size')" data-type="slider" data-default="100" data-min="75" data-max="150" data-step="5" data-unit-label="'%'" />
+  <meta name="x-icue-property" content="artistSize" data-label="tr('Artist Text Size')" data-type="slider" data-default="100" data-min="75" data-max="150" data-step="5" data-unit-label="'%'" />
+  <meta name="x-icue-property" content="albumSize" data-label="tr('Album Text Size')" data-type="slider" data-default="100" data-min="75" data-max="150" data-step="5" data-unit-label="'%'" />
+  <meta name="x-icue-property" content="labelSize" data-label="tr('Supporting Text Size')" data-type="slider" data-default="100" data-min="75" data-max="150" data-step="5" data-unit-label="'%'" />
   <meta name="x-icue-property" content="textColor" data-label="tr('Text Color')" data-type="color" data-default="'#F8FAFC'" />
   <meta name="x-icue-property" content="accentColor" data-label="tr('Accent Color')" data-type="color" data-default="'#22D3EE'" />
   <meta name="x-icue-property" content="backgroundColor" data-label="tr('Background Color')" data-type="color" data-default="'#070B16'" />
   <meta name="x-icue-property" content="transparency" data-label="tr('Background Transparency')" data-type="slider" data-default="0" data-min="0" data-max="100" data-step="1" data-unit-label="'%'" />
   <script type="application/json" id="x-icue-groups">
-  [{"title":"tr('Connection')","properties":["useBridge","bridgeToken"]},{"title":"tr('Display')","properties":["showArtwork","showAlbum","scrollTitle"]},{"title":"tr('Appearance')","properties":["textColor","accentColor","backgroundColor","transparency"]}]
+  [{"title":"tr('Connection')","properties":["useBridge","bridgeToken"]},{"title":"tr('Display')","properties":["showArtwork","showTitle","showArtist","showAlbum","showStatus","showAppIcon","scrollTitle"]},{"title":"tr('Playback Controls')","properties":["showMediaTarget","showSeekBar","showPosition","showPrevious","showPlayPause","showNext","showRewind","showStop","showForward"]},{"title":"tr('Audio Controls')","properties":["showAudioTarget","showVolumeSlider","showVolumeValue","showMute"]},{"title":"tr('Text Sizes')","properties":["titleSize","artistSize","albumSize","labelSize"]},{"title":"tr('Appearance')","properties":["textColor","accentColor","backgroundColor","transparency","showConnectionInfo","showBrand","showDecoration"]}]
   </script>
   <link rel="stylesheet" href="styles/style.css" />
 </head>
@@ -40,8 +64,8 @@
 
       <div class="content">
         <div class="topline">
-          <span class="now-label" role="status"><img id="appIcon" alt="" hidden /><span class="dot" id="statusDot" aria-hidden="true"></span> <span id="statusText">iCUEに接続しています</span></span>
-          <span class="brand">EDGE <span class="brand-sep">/</span> MEDIA</span>
+          <span class="now-label" role="status"><img id="appIcon" alt="" hidden /><span id="playbackStatus"><span class="dot" id="statusDot" aria-hidden="true"></span> <span id="statusText">iCUEに接続しています</span></span></span>
+          <span class="brand" id="brandLabel">EDGE <span class="brand-sep">/</span> MEDIA</span>
           <p id="bridgeNotice" class="bridge-notice" role="status">Windowsブリッジを待機中</p>
         </div>
 
@@ -53,15 +77,15 @@
 
         <div class="bridge-panel" id="bridgePanel" hidden>
           <div class="target-row">
-            <div class="target-field"><label for="mediaTarget">プレーヤー</label><select id="mediaTarget" disabled><option value="auto">自動選択</option></select></div>
-            <div class="target-field"><label for="audioTarget">音量の対象</label><select id="audioTarget" disabled><option value="master">マスター音量</option></select></div>
+            <div class="target-field" id="mediaTargetField"><label for="mediaTarget">プレーヤー</label><select id="mediaTarget" disabled><option value="auto">自動選択</option></select></div>
+            <div class="target-field" id="audioTargetField"><label for="audioTarget">音量の対象</label><select id="audioTarget" disabled><option value="master">マスター音量</option></select></div>
           </div>
           <div class="seek-row">
-            <label for="seekRange">再生位置</label><span id="positionText">--:-- / --:--</span>
+            <label for="seekRange" id="seekLabel">再生位置</label><span id="positionText">--:-- / --:--</span>
             <input id="seekRange" type="range" min="0" max="1" step="0.1" value="0" disabled />
           </div>
           <div class="audio-row">
-            <label for="volumeRange" class="volume-label"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 4 5 9H2v6h3l6 5V4Z"/><path d="M15 8a6 6 0 0 1 0 8m3-11a10 10 0 0 1 0 14"/></svg><span class="visually-hidden">音量</span></label><input id="volumeRange" type="range" min="0" max="100" step="1" value="0" disabled />
+            <div class="volume-slider" id="volumeSlider"><label for="volumeRange" class="volume-label"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 4 5 9H2v6h3l6 5V4Z"/><path d="M15 8a6 6 0 0 1 0 8m3-11a10 10 0 0 1 0 14"/></svg><span class="visually-hidden">音量</span></label><input id="volumeRange" type="range" min="0" max="100" step="1" value="0" disabled /></div>
             <span id="volumeText">--%</span><button id="muteButton" type="button" disabled>ミュート</button>
           </div>
         </div>
@@ -82,7 +106,7 @@
           <div id="bridgeExtra" hidden class="extra-controls" role="group" aria-label="追加の再生操作">
             <button id="rewindButton" type="button" disabled>−10秒</button><button id="stopButton" type="button" disabled>停止</button><button id="forwardButton" type="button" disabled>＋10秒</button>
           </div>
-          <div class="hint">CORSAIR iCUE <span class="hint-separator">•</span> MEDIA CONTROLS</div>
+          <div class="hint" id="footerBrand">CORSAIR iCUE <span class="hint-separator">•</span> MEDIA CONTROLS</div>
         </div>
       </div>
     </section>

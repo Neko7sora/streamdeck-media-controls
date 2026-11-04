@@ -4,6 +4,30 @@ import vm from 'node:vm';
 import {readFileSync} from 'node:fs';
 import {widget, mediaProvider, keys} from './icue-harness.mjs';
 
+test('iCUE display preferences read late lexical properties and keep updating hidden metadata', () => {
+  const p = mediaProvider(), w = widget(p);
+  assert.equal(w.elements.get('artist').dataset.displayHidden, 'false');
+  assert.equal(w.styles.get('--title-scale'), '1');
+  w.run('let showTitle = false, showArtist = false, showPlayPause = false, showSeekBar = false; let titleSize = 150, artistSize = 75; window.icueEvents.onDataUpdated()');
+  for (const id of ['songName','artist','playPauseButton','seekLabel','seekRange']) {
+    assert.equal(w.elements.get(id).dataset.displayHidden, 'true', id);
+  }
+  assert.equal(w.styles.get('--title-scale'), '1.5');
+  assert.equal(w.styles.get('--artist-scale'), '0.75');
+  p.data.songName = 'New track'; p.data.artist = 'New artist'; p.emit();
+  w.run('showTitle = true; showArtist = true; showPlayPause = true; window.icueEvents.onDataUpdated()');
+  assert.equal(w.elements.get('artist').textContent, 'New artist');
+  assert.equal(w.elements.get('songName').textContent, 'New track');
+  assert.equal(w.elements.get('playPauseButton').dataset.displayHidden, 'false');
+  w.click('playPauseButton');
+  assert.deepEqual(p.calls, ['triggerPlayPause']);
+  w.run('titleSize = Infinity; artistSize = -40; let albumSize = 999, labelSize = "150"; window.icueEvents.onDataUpdated()');
+  assert.equal(w.styles.get('--title-scale'), '1');
+  assert.equal(w.styles.get('--artist-scale'), '0.75');
+  assert.equal(w.styles.get('--album-scale'), '1.5');
+  assert.equal(w.styles.get('--label-scale'), '1');
+});
+
 test('iCUE uses proportional host styling on late initialization for preview and device', () => {
   const w = widget();
   assert.equal(w.document.documentElement.dataset.icueSurface, undefined);

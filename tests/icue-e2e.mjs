@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import {mkdir} from 'node:fs/promises';
 import {fileURLToPath} from 'node:url';
 import {chromium} from 'playwright';
+import {checkDisplayPreferences} from './icue-display-checks.mjs';
 
 const entry = new URL('../icue-widget/index.html', import.meta.url).href;
 const output = new URL('./.generated/', import.meta.url);
@@ -145,6 +146,9 @@ try {
   assert.equal(await page.locator('#album').innerText(), 'Offline Preview • Vol. 1');
 
   // Keyboard operation uses native buttons and visible focus.
+  await page.evaluate(() => {window.iCUE = {isPreview:false}; window.icueEvents.onDataUpdated();});
+  await checkDisplayPreferences(page, {bridge:false,sizes:sizes.slice(0,8)});
+  await page.screenshot({path:fileURLToPath(new URL('icue-display-settings.png',output))});
   await page.setViewportSize({width:1280, height:360});
   await page.locator('#playPauseButton').focus();
   await page.keyboard.press('Space');
