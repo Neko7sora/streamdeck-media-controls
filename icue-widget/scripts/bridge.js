@@ -5,6 +5,124 @@
   const ids = ["bridgePanel", "mediaTarget", "audioTarget", "seekRange", "positionText", "volumeRange", "volumeText",
     "muteButton", "rewindButton", "stopButton", "forwardButton", "bridgeNotice"];
   const el = Object.fromEntries(ids.map(id => [id, document.getElementById(id)]));
+  const targetPickers = new Map();
+  // Chromium 130 (iCUE) cannot style the native option popup. Keep the select
+  // as the source of truth and dispatch its existing change event on commit.
+  function enhanceTargetPicker(select) {
+    if (CSS.supports("appearance", "base-select") || typeof HTMLElement.prototype.showPopover !== "function") return;
+    const label = document.querySelector(`label[for="${select.id}"]`);
+    const button = document.createElement("button"), list = document.createElement("div");
+    label.id = `${select.id}Label`;
+    button.id = `${select.id}Picker`; button.type = "button"; button.className = "target-picker";
+    button.setAttribute("role", "combobox"); button.setAttribute("aria-haspopup", "listbox");
+    button.setAttribute("aria-labelledby", label.id); button.setAttribute("aria-expanded", "false");
+    list.id = `${select.id}Options`; list.className = "target-options"; list.popover = "auto";
+    list.setAttribute("role", "listbox"); list.setAttribute("aria-labelledby", label.id);
+    button.setAttribute("aria-controls", list.id);
+    label.htmlFor = button.id;
+    select.hidden = true;
+    select.after(button, list);
+    let active = 0, search = "", lastKey = 0;
+    const opened = () => list.matches(":popover-open");
+    const close = () => {if (opened()) list.hidePopover();};
+    function position() {
+      if (!opened()) return;
+      const rect = button.getBoundingClientRect(), gap = rect.height / 12;
+      const below = innerHeight - rect.bottom - gap, above = rect.top - gap;
+      const down = below >= Math.min(list.scrollHeight, rect.height * 3.75) || below >= above;
+      list.style.inlineSize = `${Math.min(rect.width, innerWidth - gap * 2)}px`;
+      list.style.maxBlockSize = `${Math.max(0, (down ? below : above) - gap)}px`;
+      list.style.left = `${Math.max(gap, Math.min(rect.left, innerWidth - rect.width - gap))}px`;
+      list.style.top = `${down ? rect.bottom + gap : Math.max(gap, rect.top - gap - list.getBoundingClientRect().height)}px`;
+    }
+    function highlight(index) {
+      active = Math.max(0, Math.min(list.children.length - 1, index));
+      for (const [i, node] of [...list.children].entries()) {
+        node.dataset.active = String(i === active);
+        node.setAttribute("aria-selected", String(i === active));
+      }
+      const option = list.children[active];
+      if (option && opened()) {
+        button.setAttribute("aria-activedescendant", option.id);
+        option.scrollIntoView({block:"nearest"});
+      }
+    }
+    function sync() {
+      button.disabled = select.disabled;
+      button.textContent = select.selectedOptions[0]?.textContent || "";
+      button.title = button.textContent;
+      const signature = JSON.stringify([...select.options].map(option => [option.value, option.textContent]));
+      if (list.dataset.options !== signature) {
+        close();
+        list.replaceChildren(...[...select.options].map((option, index) => {
+          const node = document.createElement("div");
+          node.id = `${list.id}-${index}`; node.className = "target-option";
+          node.setAttribute("role", "option"); node.textContent = option.textContent; node.title = option.textContent;
+          node.dataset.value = option.value;
+          return node;
+        }));
+        list.dataset.options = signature;
+      }
+      if (select.disabled) close();
+      if (!opened()) highlight(select.selectedIndex);
+    }
+    function open() {
+      if (button.disabled) return;
+      if (!opened()) {list.showPopover(); button.setAttribute("aria-expanded", "true"); position(); highlight(select.selectedIndex);}
+    }
+    function commit() {
+      const option = list.children[active];
+      close();
+      if (button.disabled || !option || select.value === option.dataset.value) return;
+      select.value = option.dataset.value;
+      button.textContent = option.textContent;
+      select.dispatchEvent(new Event("change", {bubbles:true}));
+    }
+    button.addEventListener("click", () => {if (opened()) close(); else open();});
+    button.addEventListener("keydown", event => {
+      const wasOpen = opened(), key = event.key;
+      if (key === "Tab") {if (wasOpen) commit(); return;}
+      if (key === "Escape") {if (wasOpen) {event.preventDefault(); close();} return;}
+      if (["ArrowDown", "ArrowUp", "Home", "End", "PageDown", "PageUp", "Enter", " "].includes(key)) {
+        event.preventDefault();
+        if ((key === "Enter" || key === " " || (event.altKey && key === "ArrowUp")) && wasOpen) {commit(); return;}
+        open();
+        if (key === "Home") highlight(0);
+        else if (key === "End") highlight(list.children.length - 1);
+        else if (wasOpen && key === "ArrowDown") highlight(active + 1);
+        else if (wasOpen && key === "ArrowUp") highlight(active - 1);
+        else if (key === "PageDown") highlight(active + 10);
+        else if (key === "PageUp") highlight(active - 10);
+      } else if (key.length === 1 && !event.ctrlKey && !event.metaKey && !event.altKey) {
+        event.preventDefault(); open();
+        const now = Date.now(); search = now - lastKey < 700 ? search + key : key; lastKey = now;
+        const repeated = [...search].every(character => character === search[0]);
+        const prefix = (repeated ? key : search).toLocaleLowerCase();
+        const nodes = [...list.children];
+        const start = repeated ? active + 1 : active;
+        for (let offset = 0; offset < nodes.length; offset++) {
+          const index = (start + offset) % nodes.length;
+          if (nodes[index].textContent.toLocaleLowerCase().startsWith(prefix)) {highlight(index); break;}
+        }
+      }
+    });
+    list.addEventListener("pointerdown", event => {if (event.target.closest(".target-option")) event.preventDefault();});
+    list.addEventListener("click", event => {
+      const option = event.target.closest(".target-option");
+      if (!option) return;
+      highlight([...list.children].indexOf(option)); commit(); button.focus();
+    });
+    list.addEventListener("beforetoggle", event => {
+      if (event.newState === "closed") {button.setAttribute("aria-expanded", "false"); button.removeAttribute("aria-activedescendant"); search = "";}
+    });
+    button.addEventListener("blur", close);
+    select.addEventListener("change", sync);
+    new MutationObserver(sync).observe(select, {attributes:true, attributeFilter:["disabled"]});
+    window.addEventListener("resize", close);
+    window.addEventListener("pagehide", close);
+    document.getElementById("deck").addEventListener("scroll", close);
+    targetPickers.set(select, {sync}); sync();
+  }
   const appIcon = document.getElementById("appIcon");
   let fallbackIcon = "";
   appIcon.addEventListener("error", () => {
@@ -26,6 +144,12 @@
   };
   function notify() {window.pluginMediadataproviderEvents?.onInitialized();}
   function notice(text) {if (el.bridgeNotice.textContent !== text) el.bridgeNotice.textContent = text;}
+  // Paint only: the range's native value and existing gesture handling remain authoritative.
+  function paintRange(slider) {
+    const min = Number(slider.min), max = Number(slider.max);
+    const progress = max > min ? (Number(slider.value) - min) / (max - min) * 100 : 0;
+    slider.style.setProperty("--range-progress", `${Math.max(0, Math.min(100, progress))}%`);
+  }
   function saveTargets() {
     if (!persistenceKey) return;
     try {localStorage.setItem(persistenceKey, JSON.stringify({mediaTarget, audioTarget}));} catch { /* Host can disable storage. */ }
@@ -58,6 +182,7 @@
     el.positionText.textContent = "--:-- / --:--"; el.volumeText.textContent = "--%";
     el.seekRange.setAttribute("aria-valuetext", "再生位置不明");
     el.volumeRange.setAttribute("aria-valuetext", "音量不明");
+    for (const slider of [el.seekRange, el.volumeRange]) slider.style.setProperty("--range-progress", "0%");
     el.muteButton.textContent = "ミュート";
     el.muteButton.removeAttribute("aria-pressed");
     appIcon.hidden = true; appIcon.removeAttribute("src"); fallbackIcon = "";
@@ -131,6 +256,7 @@
       select.dataset.options = fingerprint;
     }
     select.value = selected; select.disabled = false;
+    targetPickers.get(select)?.sync();
   }
   function apply(message) {
     const previous = data; data = message;
@@ -168,6 +294,7 @@
       el.volumeRange.value = String(Math.round((audio?.volume ?? 0) * 100));
       el.volumeText.textContent = Number.isFinite(audio?.volume) ? `${Math.round(audio.volume * 100)}%` : "--%";
       el.volumeRange.setAttribute("aria-valuetext", el.volumeText.textContent);
+      paintRange(el.volumeRange);
     }
     el.stopButton.disabled = busy || !allowed("stop");
     updatePosition();
@@ -198,11 +325,22 @@
       el.seekRange.value = String(current ?? 0);
       el.positionText.textContent = `${time(current === null ? null : current - (t?.start_sec ?? 0))} / ${time(Number.isFinite(t?.end_sec) ? t.end_sec - (t.start_sec ?? 0) : null)}`;
       el.seekRange.setAttribute("aria-valuetext", el.positionText.textContent);
+      paintRange(el.seekRange);
     }
     if (errorUntil && Date.now() > errorUntil) {errorUntil = 0; showConnection();}
   }
   function showConnection() {
-    notice(data?.chrome?.state === "connected" ? "Windows接続済み · Chrome接続済み" : "Windows接続済み · Chrome未接続（任意）");
+    const connected = data?.chrome?.state === "connected";
+    const text = connected ? "Windows接続済み · Chrome接続済み" : "Windows接続済み · Chrome未接続（任意）";
+    if (el.bridgeNotice.textContent === text) return;
+    const badges = [["Windows接続済み", true], [connected ? "Chrome接続済み" : "Chrome未接続（任意）", connected]].map(([label, active]) => {
+      const badge = document.createElement("span");
+      badge.className = "connection-badge";
+      badge.dataset.connected = String(active);
+      badge.textContent = label;
+      return badge;
+    });
+    el.bridgeNotice.replaceChildren(badges[0], " · ", badges[1]);
   }
   async function send(command, value, view = data?.view, expectedTrack) {
     if (busy || !view || !data || suspended || !stream) throw new Error("unavailable");
@@ -235,6 +373,7 @@
       if (!slider.disabled && data && !gestures.has(slider)) gestures.set(slider, data.view);
       const text = command === "volume" ? `${slider.value}%` : time(Number(slider.value) - (data?.media?.timeline?.start_sec ?? 0));
       slider.setAttribute("aria-valuetext", text);
+      paintRange(slider);
       (command === "volume" ? el.volumeText : el.positionText).textContent = text;
     });
     slider.addEventListener("change", () => {
@@ -247,4 +386,5 @@
   el.stopButton.addEventListener("click", () => attempt("stop"));
   el.rewindButton.addEventListener("click", () => {const p = position(); if (p !== null) attempt("seek", p - 10);});
   el.forwardButton.addEventListener("click", () => {const p = position(); if (p !== null) attempt("seek", p + 10);});
+  for (const select of [el.mediaTarget, el.audioTarget]) enhanceTargetPicker(select);
 })();

@@ -58,7 +58,7 @@ try {
     assert.equal(await page.locator('.player').evaluate(node => getComputedStyle(node).flexDirection), width / height <= 1.05 ? 'column' : 'row');
     await page.locator('#playPauseButton').click();
     await page.locator('#playPauseButton').click();
-    if (width === 1280 || width === 280 || width === 696 || width === 840 || width === 2536) {
+    if (width === 1280 || width === 280 || width === 696 || width === 840 || width === 2536 || width === 2560) {
       await page.screenshot({path:fileURLToPath(new URL(`icue-${width}x${height}.png`, output))});
     }
     console.log(`OK iCUE layout and controls: ${width}x${height}`);

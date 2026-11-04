@@ -11,9 +11,9 @@
   <meta name="x-icue-property" content="showArtwork" data-label="tr('Show Artwork')" data-type="switch" data-default="true" />
   <meta name="x-icue-property" content="showAlbum" data-label="tr('Show Album')" data-type="switch" data-default="true" />
   <meta name="x-icue-property" content="scrollTitle" data-label="tr('Scroll Long Titles')" data-type="switch" data-default="true" />
-  <meta name="x-icue-property" content="textColor" data-label="tr('Text Color')" data-type="color" data-default="'#F7F8FC'" />
-  <meta name="x-icue-property" content="accentColor" data-label="tr('Accent Color')" data-type="color" data-default="'#66E6CE'" />
-  <meta name="x-icue-property" content="backgroundColor" data-label="tr('Background Color')" data-type="color" data-default="'#111827'" />
+  <meta name="x-icue-property" content="textColor" data-label="tr('Text Color')" data-type="color" data-default="'#F8FAFC'" />
+  <meta name="x-icue-property" content="accentColor" data-label="tr('Accent Color')" data-type="color" data-default="'#22D3EE'" />
+  <meta name="x-icue-property" content="backgroundColor" data-label="tr('Background Color')" data-type="color" data-default="'#070B16'" />
   <meta name="x-icue-property" content="transparency" data-label="tr('Background Transparency')" data-type="slider" data-default="0" data-min="0" data-max="100" data-step="1" data-unit-label="'%'" />
   <script type="application/json" id="x-icue-groups">
   [{"title":"tr('Connection')","properties":["useBridge","bridgeToken"]},{"title":"tr('Display')","properties":["showArtwork","showAlbum","scrollTitle"]},{"title":"tr('Appearance')","properties":["textColor","accentColor","backgroundColor","transparency"]}]
@@ -42,6 +42,7 @@
         <div class="topline">
           <span class="now-label" role="status"><img id="appIcon" alt="" hidden /><span class="dot" id="statusDot" aria-hidden="true"></span> <span id="statusText">iCUEに接続しています</span></span>
           <span class="brand">EDGE <span class="brand-sep">/</span> MEDIA</span>
+          <p id="bridgeNotice" class="bridge-notice" role="status">Windowsブリッジを待機中</p>
         </div>
 
         <div class="metadata" aria-live="polite" aria-atomic="true">
@@ -60,10 +61,9 @@
             <input id="seekRange" type="range" min="0" max="1" step="0.1" value="0" disabled />
           </div>
           <div class="audio-row">
-            <label for="volumeRange">音量</label><input id="volumeRange" type="range" min="0" max="100" step="1" value="0" disabled />
+            <label for="volumeRange" class="volume-label"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 4 5 9H2v6h3l6 5V4Z"/><path d="M15 8a6 6 0 0 1 0 8m3-11a10 10 0 0 1 0 14"/></svg><span class="visually-hidden">音量</span></label><input id="volumeRange" type="range" min="0" max="100" step="1" value="0" disabled />
             <span id="volumeText">--%</span><button id="muteButton" type="button" disabled>ミュート</button>
           </div>
-          <p id="bridgeNotice" class="bridge-notice" role="status">Windowsブリッジを待機中</p>
         </div>
 
         <div class="bottomline">

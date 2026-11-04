@@ -49,6 +49,6 @@
   window.plugins = Object.assign({}, window.plugins, { Mediadataprovider: media });
   window.pluginMediadataprovider_initialized = true;
   window.iCUE_initialized = true;
-  window.accentColor = "#66E6CE";
-  window.backgroundColor = "#111827";
+  window.accentColor = "#22D3EE";
+  window.backgroundColor = "#070B16";
 })();

@@ -55,7 +55,8 @@ try {
     await page.setViewportSize({width,height});
     const device = await geometry();
     const cover = device.find(box => box.id === '#cover');
-    assert.ok(cover.w >= Math.min(width * .39, height * .54), `${width}x${height}: cover should use the available area`);
+    assert.ok(cover.w >= Math.min(width * .25, height * .54), `${width}x${height}: cover should use the available area`);
+    if (width / height > 1.05) assert.ok(cover.w <= width * .3, `${width}x${height}: leave room for media controls`);
     assert.ok(Math.abs(cover.w-cover.h) < 1, `${width}x${height}: square cover`);
     for (const box of device) {
       assert.ok(box.x >= -.5 && box.y >= -.5 && box.x+box.w <= width+.5 && box.y+box.h <= height+.5,
@@ -75,6 +76,17 @@ try {
     console.log(`OK extended iCUE controls, touch targets and preview scaling: ${width}x${height}`);
   }
   await page.setViewportSize({width:840,height:344});
+  assert.equal(await page.locator('#deck').evaluate(node => node.scrollHeight > node.clientHeight), false);
+  assert.equal(await page.locator('.connection-badge[data-connected="true"]').count(), 2);
+  await page.locator('#audioTarget').click();
+  assert.equal(await page.locator('#audioTarget').evaluate(node => node.matches(':open')), true);
+  await page.screenshot({path:fileURLToPath(new URL('icue-native-picker.png',output))});
+  await page.keyboard.press('Escape');
+  fixture.backend.chromeStatus = () => ({state:'disconnected'}); fixture.emit();
+  await page.waitForFunction(() => document.querySelector('.connection-badge[data-connected="false"]')?.textContent === 'Chrome未接続（任意）');
+  fixture.backend.chromeStatus = () => ({state:'connected'}); fixture.emit();
+  await page.waitForFunction(() => document.querySelectorAll('.connection-badge[data-connected="true"]').length === 2);
+  assert.ok(parseFloat(await page.locator('#volumeRange').evaluate(node => node.style.getPropertyValue('--range-progress'))) > 0);
   await page.locator('#playPauseButton').focus(); await page.keyboard.press('Space');
   await page.waitForFunction(() => document.getElementById('statusText').textContent === '一時停止');
   assert.notEqual(await page.locator('#playPauseButton').evaluate(node => getComputedStyle(node).outlineStyle),'none');
@@ -89,6 +101,7 @@ try {
   await page.locator('#volumeRange').evaluate(node => {node.value='73';node.dispatchEvent(new Event('input'));});
   fixture.audio.volume = .31; fixture.emit();
   await page.waitForFunction(() => document.getElementById('volumeRange').value === '73' && document.getElementById('volumeText').textContent === '73%');
+  assert.equal(await page.locator('#volumeRange').evaluate(node => node.style.getPropertyValue('--range-progress')), '73%');
   // Wait for an observable change from this snapshot, not merely the local input event.
   fixture.audio.muted = true; fixture.emit();
   await page.waitForFunction(() => document.getElementById('muteButton').getAttribute('aria-pressed') === 'true');
@@ -102,6 +115,7 @@ try {
   const volumeResponse = page.waitForResponse(response => response.url().endsWith('/command'));
   await page.keyboard.press('End'); assert.equal((await volumeResponse).status(),200);
   await page.waitForFunction(() => document.getElementById('volumeText').textContent === '100%');
+  assert.equal(await page.locator('#volumeRange').evaluate(node => node.style.getPropertyValue('--range-progress')), '100%');
   assert.ok(fixture.calls.some(call => call.command === 'volume' && call.target === fixture.audio.id && call.value === 1));
   await page.locator('#muteButton').click(); await page.waitForFunction(() => document.getElementById('muteButton').getAttribute('aria-pressed') === 'true');
   await page.locator('#mediaTarget').selectOption(fixture.chrome.session_id);
@@ -169,11 +183,95 @@ try {
   const restored = await context.newPage(); await restored.goto(entry);
   await restored.waitForFunction(({selected}) => document.getElementById('mediaTarget').value === selected,{selected});
   await restored.close();
+  // A regular browser keeps touch controls reachable when the window is smaller
+  // than a device slot; iCUE's proportional preview is covered separately above.
+  const compact = await context.newPage(); await compact.goto(entry);
+  await compact.waitForFunction(() => !document.getElementById('mediaTarget').disabled);
+  await compact.evaluate(() => {delete window.iCUE; window.icueEvents.onDataUpdated();});
+  for (const [width,height] of [[540,360],[320,568],[320,180],[280,320]]) {
+    await compact.setViewportSize({width,height});
+    const layout = await compact.locator('#deck').evaluate(node => ({width:node.clientWidth, content:node.scrollWidth}));
+    assert.ok(layout.content <= layout.width + 1, `${width}x${height}: no horizontal scrolling`);
+    for (const selector of interactive) {
+      const node = compact.locator(selector);
+      await node.scrollIntoViewIfNeeded();
+      const box = await node.boundingBox();
+      assert.ok(box.x >= -.5 && box.y >= -.5 && box.x+box.width <= width+.5 && box.y+box.height <= height+.5,
+        `${width}x${height}: unreachable ${selector} ${JSON.stringify(box)}`);
+      assert.ok(box.width >= 47.5 && box.height >= 47.5, `${width}x${height}: touch target ${selector}`);
+    }
+  }
+  await compact.setViewportSize({width:320,height:568});
+  await compact.locator('#deck').evaluate(node => {node.scrollTop=0;});
+  await compact.screenshot({path:fileURLToPath(new URL('icue-bridge-compact.png',output))});
+  await compact.emulateMedia({forcedColors:'active'});
+  assert.equal(await compact.locator('#mediaTarget').evaluate(node => getComputedStyle(node).appearance), 'auto');
+  await compact.close();
   assert.deepEqual(errors,[]);
   assert.ok(requests.every(url => url.startsWith('https://127.0.0.1:39762/')));
   assert.ok(requests.every(url => !url.includes(token)));
+  console.log('OK compact browser reflow, native range fill and text-labelled connection indicators');
   console.log('OK bridge keyboard, player/audio selection, absolute volume, mute, Chrome seeking, stale gesture rejection, disconnect/resume and token recovery');
   await context.close();
+  // Exercise iCUE Chromium 130's fallback even on the newer CI browser.
+  fixture.audio.volume = .25; fixture.audio.muted = false;
+  const legacyContext = await browser.newContext({ignoreHTTPSErrors:true,hasTouch:true,viewport:{width:840,height:344}});
+  await isolateBridge(legacyContext);
+  await legacyContext.addInitScript(({token}) => {
+    const supports = CSS.supports.bind(CSS);
+    CSS.supports = (...args) => args[0] === 'appearance' && args[1] === 'base-select' ? false : supports(...args);
+    window.useBridge = true; window.bridgeToken = token; window.uniqueId = 'picker-test'; window.iCUE = {isPreview:false};
+  }, {token});
+  const legacy = await legacyContext.newPage();
+  const pickerErrors = []; legacy.on('pageerror', error => pickerErrors.push(error.message));
+  await legacy.goto(entry);
+  const audioPicker = legacy.locator('#audioTargetPicker'), audioOptions = legacy.locator('#audioTargetOptions');
+  await legacy.waitForFunction(() => !document.getElementById('audioTargetPicker').disabled);
+  for (const [width,height] of sizes) {
+    await legacy.setViewportSize({width,height});
+    for (const selector of interactive.map(selector => selector.endsWith('Target') ? `${selector}Picker` : selector)) {
+      const box = await legacy.locator(selector).boundingBox();
+      assert.ok(box.x >= -.5 && box.y >= -.5 && box.x+box.width <= width+.5 && box.y+box.height <= height+.5,
+        `${width}x${height}: compatible picker layout ${selector}`);
+      assert.ok(box.width >= 47.5 && box.height >= 47.5, `${width}x${height}: compatible touch target ${selector}`);
+    }
+  }
+  await legacy.setViewportSize({width:840,height:344});
+  await legacy.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
+  assert.equal(await audioPicker.getAttribute('aria-labelledby'), 'audioTargetLabel');
+  await audioPicker.focus(); await legacy.keyboard.press('Enter');
+  assert.equal(await audioPicker.getAttribute('aria-expanded'), 'true');
+  await legacy.keyboard.press('End');
+  assert.equal(await legacy.locator('#audioTargetOptions [data-active="true"]').textContent(), 'Player');
+  await legacy.keyboard.press('Escape');
+  assert.equal(await legacy.locator('#audioTarget').inputValue(), 'master');
+  assert.equal(await audioPicker.getAttribute('aria-expanded'), 'false');
+  await legacy.keyboard.press('Space'); await legacy.keyboard.press('p'); await legacy.keyboard.press('Enter');
+  await legacy.waitForFunction(() => document.getElementById('audioTarget').value === 'audio:player' && !document.getElementById('audioTargetPicker').disabled);
+  await audioPicker.tap();
+  await legacy.screenshot({path:fileURLToPath(new URL('icue-compatible-picker.png',output))});
+  const box = await audioOptions.boundingBox();
+  assert.ok(box.x >= 0 && box.y >= 0 && box.x + box.width <= 840 && box.y + box.height <= 344);
+  await audioOptions.getByRole('option', {name:'マスター音量'}).tap();
+  await legacy.waitForFunction(() => document.getElementById('audioTarget').value === 'master' && !document.getElementById('audioTargetPicker').disabled);
+  await audioPicker.click(); await legacy.locator('#songName').click();
+  assert.equal(await audioPicker.getAttribute('aria-expanded'), 'false');
+  await audioPicker.click();
+  fixture.audio.name = 'Renamed <player>'; fixture.emit();
+  await legacy.waitForFunction(() => document.getElementById('audioTargetOptions').textContent.includes('Renamed <player>'));
+  assert.equal(await audioPicker.getAttribute('aria-expanded'), 'false');
+  assert.equal(await audioOptions.locator('player').count(), 0);
+  await legacy.locator('#mediaTargetPicker').click();
+  await legacy.locator('#mediaTargetOptions').getByRole('option', {name:'自動選択',exact:true}).click();
+  await legacy.waitForFunction(() => !document.getElementById('mediaTargetPicker').disabled);
+  await audioPicker.click();
+  await legacy.evaluate(() => {window.bridgeToken='e'.repeat(64);window.icueEvents.onDataUpdated();});
+  await legacy.waitForFunction(() => document.getElementById('audioTargetPicker').disabled);
+  assert.equal(await audioPicker.getAttribute('aria-expanded'), 'false');
+  assert.deepEqual(pickerErrors, []);
+  fixture.audio.name = 'Player';
+  await legacyContext.close();
+  console.log('OK native styled picker and Chromium 130 fallback: keyboard, touch, cancel, live choices and disconnect');
   // iCUE's body scripts can receive properties as function locals, not window globals.
   // Exercise the packaged scripts in that scope rather than mocking window.bridgeToken.
   const scopedContext = await browser.newContext({ignoreHTTPSErrors:true,reducedMotion:'reduce',viewport:{width:840,height:344}});
