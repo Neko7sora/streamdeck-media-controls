@@ -4,13 +4,14 @@ import {createHash} from "node:crypto";
 import {mkdirSync,readFileSync,writeFileSync} from "node:fs";
 import {resolve} from "node:path";
 import {fileURLToPath} from "node:url";
+import {marketplaceImagePaths,marketplaceOutputPaths} from "./marketplace-paths.mjs";
 
 // Render original vector artwork and the real key renderer. No device mockups,
 // third-party album covers, captured user metadata or generative image assets.
 export const root=fileURLToPath(new URL("../",import.meta.url));
 export const mediaSources=[
   "assets/plugin-icon.svg", "dev.n7s.media-controls.sdPlugin/manifest.json",
-  "docs/marketplace/listing.en.json", "scripts/build-marketplace.mjs",
+  "docs/marketplace/listing.en.json", "scripts/build-marketplace.mjs", "scripts/marketplace-paths.mjs",
   "src/now-playing-image.ts", "src/scrolling-text.ts", "src/display-font.ts",
   "src/display-guidelines.ts", "src/plugin.ts",
   "src/configured-action.ts", "src/control-actions.ts", "src/now-playing-actions.ts", "src/action-settings.ts",
@@ -30,7 +31,9 @@ const svg=(width,height,body)=>Buffer.from(`<svg xmlns="http://www.w3.org/2000/s
 
 export async function buildMarketplace() {
   const listing=JSON.parse(read("docs/marketplace/listing.en.json"));
+  const images=marketplaceImagePaths(listing);
   const out=resolve(root,"assets/marketplace");mkdirSync(out,{recursive:true});
+  const outputPaths=marketplaceOutputPaths(root,images);
   // An in-memory bundle resolves the renderer's .js TypeScript imports without
   // starting Stream Deck, the native helper or the browser bridge.
   const bundled=await build({stdin:{contents:'export {nowPlayingImage} from "./src/now-playing-image.ts"; export {ScrollingText} from "./src/scrolling-text.ts";',resolveDir:root},bundle:true,platform:"node",format:"cjs",packages:"external",write:false,logLevel:"silent"});
@@ -54,10 +57,10 @@ export async function buildMarketplace() {
     text:decode(await nowPlayingImage(undefined,title,artist,playing))
   };
   const outputHashes={};
-  async function write(path,buffer) {
-    writeFileSync(resolve(root,path),buffer);outputHashes[path]=digest(buffer);
+  async function write(index,buffer) {
+    writeFileSync(outputPaths[index],buffer);outputHashes[images[index]]=digest(buffer);
   }
-  await write(listing.appIcon,await sharp(read("assets/plugin-icon.svg")).resize(288,288).png().toBuffer());
+  await write(0,await sharp(read("assets/plugin-icon.svg")).resize(288,288).png().toBuffer());
   const chip=(x,y,label)=>rect(x,y,230,52,"#193446",26)+text(x+22,y+35,label,24,"#a2ebef",600);
   const frame=(number,title,subtitle,body="")=>svg(1920,960,
     rect(0,0,1920,960,"#0b1422",0)+`<circle cx="1810" cy="50" r="470" fill="#102537"/>`+
@@ -79,12 +82,12 @@ export async function buildMarketplace() {
     text(100,818,"Optional Chrome integration",28,"#c8d6e6")+
     text(100,865,"Stream Deck 7.1+  ·  Dials require Stream Deck +",24,"#8fa6c0")+
     text(1136,870,"Rendered preview · Sample media",24,"#8fa6c0"));
-  await write(listing.thumbnail,await sharp(hero).composite([
+  await write(1,await sharp(hero).composite([
     {input:await scaled(previews.playing,504),left:1164,top:188},
     ...await Promise.all(["previous","play-pause","next","volume-up"].map(async(name,i)=>({input:await scaled(key(name),96),left:1156+i*140,top:742})))
   ]).png().toBuffer());
 
-  await write(listing.gallery[0],await sharp(frame("01","See what is playing","Artwork, title, artist and playback state on a key.",
+  await write(2,await sharp(frame("01","See what is playing","Artwork, title, artist and playback state on a key.",
     rect(280,312,520,520)+rect(1120,312,520,520)+text(470,806,"Playing",28,"#b3c4d8")+text(1310,806,"Paused",28,"#b3c4d8")))
     .composite([{input:await scaled(previews.playing,432),left:324,top:340},{input:await scaled(previews.paused,432),left:1164,top:340}]).png().toBuffer());
 
@@ -95,7 +98,7 @@ export async function buildMarketplace() {
     cards+=rect(x-32,y-16,300,252)+text(x-4,y+215,label,27,"#c8d6e6");
     overlays.push({input:await scaled(key(name),160),left:x+38,top:y});
   }
-  await write(listing.gallery[1],await sharp(frame("02","Playback and volume","Choose playback and audio targets separately. Shown: bundled action icons.",cards)).composite(overlays).png().toBuffer());
+  await write(3,await sharp(frame("02","Playback and volume","Choose playback and audio targets separately. Shown: bundled action icons.",cards)).composite(overlays).png().toBuffer());
 
   let variants="";const variantOverlays=[];
   for(const [i,[name,label]] of [["playing","Full details"],["artwork","Artwork only"],["text","Text only"]].entries()) {
@@ -103,7 +106,7 @@ export async function buildMarketplace() {
     variants+=rect(x-24,318,468,498)+text(x+56,785,label,30,"#c8d6e6");
     variantOverlays.push({input:await scaled(previews[name],396),left:x+12,top:344});
   }
-  await write(listing.gallery[2],await sharp(frame("03","Make each key your own","Show or hide information per action. Configure text scrolling in settings.",variants)).composite(variantOverlays).png().toBuffer());
+  await write(4,await sharp(frame("03","Make each key your own","Show or hide information per action. Configure text scrolling in settings.",variants)).composite(variantOverlays).png().toBuffer());
   writeFileSync(resolve(root,"docs/marketplace/description.en.txt"),listing.description+"\n");
   writeFileSync(resolve(out,"provenance.json"),JSON.stringify({sources:sourceHashes(),outputs:outputHashes,sample:{title:"Daylight",artist:"Sample",artwork:"Original geometric SVG in scripts/build-marketplace.mjs"},method:"Plugin nowPlayingImage + ScrollingText; original bundled control icons. Enlarged key previews, no physical device representation.",aiDisclosure:listing.aiDisclosure},null,2)+"\n");
   console.log(`Marketplace media: 288 × 288 icon, thumbnail and ${listing.gallery.length} gallery images (1920 × 960)`);

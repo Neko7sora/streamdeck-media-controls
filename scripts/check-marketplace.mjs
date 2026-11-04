@@ -3,6 +3,7 @@ import {resolve} from "node:path";
 import {fileURLToPath} from "node:url";
 import sharp from "sharp";
 import {digest,sourceHashes,root} from "./build-marketplace.mjs";
+import {marketplaceImagePaths} from "./marketplace-paths.mjs";
 
 // Local, structural checks only. No claim of Marketplace approval, IP clearance,
 // name availability, human contribution or live device validation.
@@ -25,13 +26,10 @@ export async function checkMarketplace() {
   require(description.includes("plugin development"),"AI disclosure must include known development assistance");
   require(listing.pricing?.type==="free"||(listing.pricing?.type==="paid"&&Number.isFinite(listing.pricing.amount)&&listing.pricing.amount>0&&/^[A-Z]{3}$/.test(listing.pricing.currency??"")),"Specify free or paid pricing with amount and currency");
   require(read("docs/marketplace/description.en.txt").toString("utf8").replaceAll("\r\n","\n").trimEnd()===description,"Stale description.en.txt; run npm run marketplace:build");
-  require(Array.isArray(listing.gallery)&&listing.gallery.length>=3&&listing.gallery.length<=10,"Provide 3–10 gallery items");
-  const images=[listing.appIcon,listing.thumbnail,...listing.gallery];
-  require(new Set(images).size===images.length,"Provide separate app icon, thumbnail and gallery files");
+  const images=marketplaceImagePaths(listing);
   const provenance=JSON.parse(read("assets/marketplace/provenance.json"));
   require(JSON.stringify(provenance.sources)===JSON.stringify(sourceHashes()),"Marketplace source changed; run npm run marketplace:build and review images again");
   for(const [i,path] of images.entries()) {
-    require(typeof path==="string"&&/^assets\/marketplace\/[a-z0-9-]+\.png$/.test(path),"Marketplace media must be local PNG assets");
     const bytes=read(path),meta=await sharp(bytes).metadata();
     const [width,height]=i===0?[288,288]:[1920,960];
     require(meta.format==="png"&&meta.width===width&&meta.height===height&&(meta.pages??1)===1,`${path}: expected static ${width} × ${height} PNG`);
