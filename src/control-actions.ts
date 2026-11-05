@@ -12,7 +12,7 @@ import {mediaTargetName,audioTargetName} from "./control-display.js";
 
 abstract class MediaButton extends ConfiguredAction {
   protected abstract readonly command:MediaCommand;
-  protected override async render(a:Instance,s:Settings,isCurrent:()=>boolean=()=>true):Promise<void> {
+  protected override async render(a:Instance,s:Settings,isCurrent:()=>boolean=()=>true,isVisible:()=>boolean=isCurrent):Promise<void> {
     if(!a.isKey()) return;
     const isVolume=this.command==="mute"||this.command.startsWith("volume-");
     const m=isVolume||s.globalKeys?null:currentMedia(s.mediaTarget);
@@ -37,9 +37,10 @@ abstract class MediaButton extends ConfiguredAction {
       if(!isCurrent()) return;
       await a.setImage(image);
     }
-    if(!isCurrent()) return;
+    if(!isVisible()) return;
     if(!isVolume&&!s.globalKeys) this.displaySession(a,m?.session_id);
     this.displayRouting(a,s);
+    if(!isCurrent()) return;
     if(this.changed(a,"","title")) await a.setTitle("");
   }
   override async onKeyDown(ev:KeyDownEvent<Settings>):Promise<void> {
@@ -71,7 +72,7 @@ export class VolumeDial extends ConfiguredAction {
     const settings=this.displayedSettings(instance,current);
     return settings.globalKeys?sendMediaKey("mute"):volume(settings,0,true);
   }
-  protected override async render(a:Instance,s:Settings,isCurrent:()=>boolean=()=>true):Promise<void> {
+  protected override async render(a:Instance,s:Settings,isCurrent:()=>boolean=()=>true,isVisible:()=>boolean=isCurrent):Promise<void> {
     if(!a.isDial()) return;
     const selected=s.globalKeys?"master":s.audioTarget??"master",v=audioTarget(selected);
     const [scope,targetName,status]=await Promise.all([
@@ -88,6 +89,6 @@ export class VolumeDial extends ConfiguredAction {
       indicator:{value:v?.volume==null?0:v.volume*100,enabled:s.showVolumeBar!==false&&v?.volume!=null,bar_fill_c:v?.muted?"#ffc46b":"#55ce91"}};
     const changes=Object.fromEntries(Object.entries(payload).filter(([key,value])=>this.changed(a,value,`feedback:${key}`)));
     if(Object.keys(changes).length) await a.setFeedback(changes);
-    if(isCurrent()) this.displayRouting(a,s);
+    if(isVisible()) this.displayRouting(a,s);
   }
 }

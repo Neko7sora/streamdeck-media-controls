@@ -18,7 +18,7 @@ export abstract class ConfiguredAction extends SingletonAction<Settings> {
   override async onWillAppear(ev:WillAppearEvent<Settings>):Promise<void> {this.appearances.set(ev.action.id,Symbol());this.settings.set(ev.action.id,ev.payload.settings);this.hashes.delete(ev.action.id);this.displayedSessions.delete(ev.action.id);this.displayedRouting.delete(ev.action.id);this.scrolling.clear(ev.action.id);this.refresh();}
   override onWillDisappear(ev:WillDisappearEvent<Settings>):void {this.appearances.delete(ev.action.id);this.settings.delete(ev.action.id);this.hashes.delete(ev.action.id);this.renderedAt.delete(ev.action.id);this.displayedSessions.delete(ev.action.id);this.displayedRouting.delete(ev.action.id);this.scrolling.clear(ev.action.id);}
   override onDidReceiveSettings(ev:DidReceiveSettingsEvent<Settings>):void {this.settings.set(ev.action.id,ev.payload.settings);this.hashes.delete(ev.action.id);this.refresh();}
-  protected async render(_instance:Instance,_settings:Settings,_isCurrent:()=>boolean=()=>true):Promise<unknown> {return null;}
+  protected async render(_instance:Instance,_settings:Settings,_isCurrent:()=>boolean=()=>true,_isVisible:()=>boolean=_isCurrent):Promise<unknown> {return null;}
   protected displaySession(instance:Instance,session:string|undefined):void {this.displayedSessions.set(instance.id,session??"unavailable");}
   protected displayRouting(instance:Instance,settings:Settings):void {
     const {audioTarget,globalKeys,dialMode,seekStep,showProgress}=settings;
@@ -58,7 +58,10 @@ export abstract class ConfiguredAction extends SingletonAction<Settings> {
         }
         if(this.appearances.get(instance.id)!==appearance) continue;
         const settings=this.settings.get(instance.id);
-        try {await this.render(instance,settings??{},()=>this.appearances.get(instance.id)===appearance&&this.settings.get(instance.id)===settings);} catch(e) {this.hashes.delete(instance.id);streamDeck.logger.warn(`Display update: ${String(e)}`);}
+        // A completed send still determines the visible target if settings changed
+        // in flight. Only a different appearance invalidates that successful send.
+        const isVisible=()=>this.appearances.get(instance.id)===appearance;
+        try {await this.render(instance,settings??{},()=>isVisible()&&this.settings.get(instance.id)===settings,isVisible);} catch(e) {this.hashes.delete(instance.id);streamDeck.logger.warn(`Display update: ${String(e)}`);}
         if(this.appearances.get(instance.id)===appearance) this.renderedAt.set(instance.id,performance.now());
       }
     }} finally {this.refreshing=false;}})();

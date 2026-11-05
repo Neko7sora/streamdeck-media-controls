@@ -19,7 +19,7 @@ const playbackLabel=(state?:string)=>({playing:t("playback.playing"),paused:t("p
 const seekStep=(s:Settings)=>typeof s.seekStep==="number"&&Number.isFinite(s.seekStep)&&s.seekStep>=1&&s.seekStep<=60?s.seekStep:5;
 @action({UUID:`${UUID}.now-playing`})
 export class NowPlaying extends ConfiguredAction {
-  protected override async render(a:Instance,s:Settings,isCurrent:()=>boolean=()=>true):Promise<void> {
+  protected override async render(a:Instance,s:Settings,isCurrent:()=>boolean=()=>true,isVisible:()=>boolean=isCurrent):Promise<void> {
     if(!a.isKey()) return;
     const m=currentMedia(s.mediaTarget),image=s.showArtwork===false?undefined:(await artwork(m?.artwork_data_url))??await artwork(m?.fallback_artwork_data_url)??(m?.artwork_loading?await artworkLoadingImage(t("artwork.loading")):undefined);
     const appIcon=s.showAppIcon===false?undefined:await applicationIcon(m);
@@ -37,8 +37,9 @@ export class NowPlaying extends ConfiguredAction {
       if(!isCurrent()) return;
       await a.setImage(rendered);
     }
-    if(!isCurrent()) return;
+    if(!isVisible()) return;
     this.displaySession(a,m?.session_id);this.displayRouting(a,s);
+    if(!isCurrent()) return;
     if(this.changed(a,"","title")) await a.setTitle("");
   }
   override async onKeyDown(ev:KeyDownEvent<Settings>):Promise<void> {await guarded(ev.action,()=>transport(this.displayedSettings(ev.action,ev.payload.settings),"play-pause"));}
@@ -53,7 +54,7 @@ export class NowPlayingDial extends ConfiguredAction {
   }
   override onWillDisappear(ev:WillDisappearEvent<Settings>):void {this.seeking.clear(ev.action.id);super.onWillDisappear(ev);}
   override onDidReceiveSettings(ev:DidReceiveSettingsEvent<Settings>):void {this.seeking.clear(ev.action.id);super.onDidReceiveSettings(ev);}
-  protected override async render(a:Instance,s:Settings,isCurrent:()=>boolean=()=>true):Promise<void> {
+  protected override async render(a:Instance,s:Settings,isCurrent:()=>boolean=()=>true,isVisible:()=>boolean=isCurrent):Promise<void> {
     if(!a.isDial()) return;
     const m=currentMedia(s.mediaTarget), p=progress(m), v=audioTarget(s.audioTarget);
     const identity=m?trackIdentity(m):"unavailable";
@@ -73,7 +74,7 @@ export class NowPlayingDial extends ConfiguredAction {
     if(!isCurrent()) return;
     const changes=Object.fromEntries(Object.entries(payload).filter(([key,value])=>this.changed(a,value,`feedback:${key}`)));
     if(Object.keys(changes).length) await a.setFeedback(changes);
-    if(isCurrent()) {this.displaySession(a,m?.session_id);this.displayRouting(a,s);}
+    if(isVisible()) {this.displaySession(a,m?.session_id);this.displayRouting(a,s);}
   }
   override async onDialRotate(ev:DialRotateEvent<Settings>):Promise<void> {
     if(!ev.payload.ticks) return;

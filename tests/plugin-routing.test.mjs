@@ -400,6 +400,59 @@ test("Now Playing operates the session last sent to the display, and never falls
     visual.onWillDisappear({action:instance});
     visual.actions.splice(visual.actions.indexOf(instance),1);
   }
+  // Settings can change while a frame is already being sent. A successful send
+  // still defines the visible target, unless that action appearance has ended.
+  for(const name of ["PlayPause","NowPlaying","Mute","VolumeDial","NowPlayingDial"]) {
+    const visual=driver.instances.find(x=>x.constructor.name===name),dial=name.endsWith("Dial");
+    const first={mediaTarget:"A",audioTarget:"old-app",dialMode:"volume",globalKeys:false};
+    const second={...first,mediaTarget:"B",audioTarget:"new-app"};
+    const third={...first,mediaTarget:"C",audioTarget:"master",dialMode:"seek",globalKeys:true};
+    driver.sessions=[routingMedia,{...routingMedia,session_id:"B",title:"Second track"},{...routingMedia,session_id:"C",title:"Third track"}];
+    let fail=false,pending,started,frames=0;
+    async function send(){if(fail) throw Error("Display disconnected");if(pending) {started();await pending;}frames++;}
+    const instance={id:`sending-settings-${name}`,isKey:()=>!dial,isDial:()=>dial,
+      async setImage(){await send();},async setFeedback(){await send();},async setTitle(){},async setFeedbackLayout(){},async showAlert(){alerts++;}};
+    const settle=async()=>{while(visual.refreshing) await new Promise(resolve=>setTimeout(resolve,1));};
+    const block=()=>{
+      let release;
+      const sending=new Promise(resolve=>{started=resolve;});
+      pending=new Promise(resolve=>{release=resolve;});
+      return {sending,release(){pending=undefined;release();}};
+    };
+    const invoke=async()=>{
+      for(const handler of dial?["onDialDown","onDialRotate"]:["onKeyDown"])
+        await visual[handler]({action:instance,payload:{settings:third,ticks:1}});
+    };
+    visual.actions.push(instance);
+    await visual.onWillAppear({action:instance,payload:{settings:first}});await settle();
+    const blocked=block();
+    visual.onDidReceiveSettings({action:instance,payload:{settings:second}});await blocked.sending;
+    visual.onDidReceiveSettings({action:instance,payload:{settings:third}});
+    fail=true;blocked.release();await settle();
+    assert.equal(frames,2,`${name}: the second frame succeeded before the latest settings failed`);
+    const commands=driver.commands.length,keys=driver.mediaKeys.length;
+    await invoke();
+    const targets=driver.commands.slice(commands).map(command=>command.target??command.session_id);
+    assert.deepEqual(targets,name==="NowPlayingDial"?["B","new-app"]:name==="VolumeDial"?["new-app","new-app"]:[name==="Mute"?"new-app":"B"],`${name}: gestures follow the frame sent during a settings change`);
+    assert.equal(driver.mediaKeys.length,keys,`${name}: unsent settings cannot enable global keys`);
+    visual.onWillDisappear({action:instance});
+    for(const reappear of [false,true]) {
+      fail=false;
+      await visual.onWillAppear({action:instance,payload:{settings:first}});await settle();
+      const blocked=block();
+      visual.onDidReceiveSettings({action:instance,payload:{settings:second}});await blocked.sending;
+      visual.onWillDisappear({action:instance});
+      if(reappear) await visual.onWillAppear({action:instance,payload:{settings:third}});
+      fail=true;blocked.release();await settle();
+      const commands=driver.commands.length,keys=driver.mediaKeys.length,previousAlerts=alerts;
+      await invoke();
+      assert.equal(driver.commands.length,commands,`${name}: a completed send cannot revive an ended appearance (${reappear})`);
+      assert.equal(driver.mediaKeys.length,keys,`${name}: an ended appearance cannot restore global routing (${reappear})`);
+      assert.equal(alerts,previousAlerts+(dial?2:1),`${name}: gestures without a current displayed frame are rejected (${reappear})`);
+      visual.onWillDisappear({action:instance});
+    }
+    visual.actions.splice(visual.actions.indexOf(instance),1);
+  }
   // The visible seek step and progress hit area stay in sync with the screen.
   {
     const visual=driver.instances.find(x=>x.constructor.name==="NowPlayingDial");
