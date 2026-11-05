@@ -38,14 +38,16 @@ abstract class MediaButton extends ConfiguredAction {
       await a.setImage(image);
     }
     if(!isCurrent()) return;
+    if(!isVolume&&!s.globalKeys) this.displaySession(a,m?.session_id);
+    this.displayRouting(a,s);
     if(this.changed(a,"","title")) await a.setTitle("");
-    if(isCurrent()&&!isVolume&&!s.globalKeys) this.displaySession(a,m?.session_id);
   }
   override async onKeyDown(ev:KeyDownEvent<Settings>):Promise<void> {
     await guarded(ev.action,async()=>{
-      if(ev.payload.settings.globalKeys) {await sendMediaKey(this.command);return;}
-      if(this.command==="mute"||this.command.startsWith("volume-")) await volume(ev.payload.settings,this.command==="volume-down"?-1:1,this.command==="mute");
-      else await transport(this.displayedSettings(ev.action,ev.payload.settings),this.command);
+      const settings=this.displayedSettings(ev.action,ev.payload.settings);
+      if(settings.globalKeys) {await sendMediaKey(this.command);return;}
+      if(this.command==="mute"||this.command.startsWith("volume-")) await volume(settings,this.command==="volume-down"?-1:1,this.command==="mute");
+      else await transport(settings,this.command);
     });
   }
 }
@@ -59,9 +61,16 @@ abstract class MediaButton extends ConfiguredAction {
 
 @action({UUID:`${UUID}.volume-dial`})
 export class VolumeDial extends ConfiguredAction {
-  override async onDialRotate(ev:DialRotateEvent<Settings>):Promise<void> {if(ev.payload.ticks) await guarded(ev.action,()=>ev.payload.settings.globalKeys?sendMediaKey(ev.payload.ticks>0?"volume-up":"volume-down",Math.min(32,Math.abs(ev.payload.ticks))):volume(ev.payload.settings,ev.payload.ticks));}
-  override async onDialDown(ev:DialDownEvent<Settings>):Promise<void> {await guarded(ev.action,()=>ev.payload.settings.globalKeys?sendMediaKey("mute"):volume(ev.payload.settings,0,true));}
-  override async onTouchTap(ev:TouchTapEvent<Settings>):Promise<void> {await guarded(ev.action,()=>ev.payload.settings.globalKeys?sendMediaKey("mute"):volume(ev.payload.settings,0,true));}
+  override async onDialRotate(ev:DialRotateEvent<Settings>):Promise<void> {if(ev.payload.ticks) await guarded(ev.action,()=>{
+    const settings=this.displayedSettings(ev.action,ev.payload.settings);
+    return settings.globalKeys?sendMediaKey(ev.payload.ticks>0?"volume-up":"volume-down",Math.min(32,Math.abs(ev.payload.ticks))):volume(settings,ev.payload.ticks);
+  });}
+  override async onDialDown(ev:DialDownEvent<Settings>):Promise<void> {await guarded(ev.action,()=>this.mute(ev.action,ev.payload.settings));}
+  override async onTouchTap(ev:TouchTapEvent<Settings>):Promise<void> {await guarded(ev.action,()=>this.mute(ev.action,ev.payload.settings));}
+  private mute(instance:Instance,current:Settings):Promise<void> {
+    const settings=this.displayedSettings(instance,current);
+    return settings.globalKeys?sendMediaKey("mute"):volume(settings,0,true);
+  }
   protected override async render(a:Instance,s:Settings,isCurrent:()=>boolean=()=>true):Promise<void> {
     if(!a.isDial()) return;
     const selected=s.globalKeys?"master":s.audioTarget??"master",v=audioTarget(selected);
@@ -79,5 +88,6 @@ export class VolumeDial extends ConfiguredAction {
       indicator:{value:v?.volume==null?0:v.volume*100,enabled:s.showVolumeBar!==false&&v?.volume!=null,bar_fill_c:v?.muted?"#ffc46b":"#55ce91"}};
     const changes=Object.fromEntries(Object.entries(payload).filter(([key,value])=>this.changed(a,value,`feedback:${key}`)));
     if(Object.keys(changes).length) await a.setFeedback(changes);
+    if(isCurrent()) this.displayRouting(a,s);
   }
 }

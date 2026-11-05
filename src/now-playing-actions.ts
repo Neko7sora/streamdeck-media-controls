@@ -38,8 +38,8 @@ export class NowPlaying extends ConfiguredAction {
       await a.setImage(rendered);
     }
     if(!isCurrent()) return;
+    this.displaySession(a,m?.session_id);this.displayRouting(a,s);
     if(this.changed(a,"","title")) await a.setTitle("");
-    if(isCurrent()) this.displaySession(a,m?.session_id);
   }
   override async onKeyDown(ev:KeyDownEvent<Settings>):Promise<void> {await guarded(ev.action,()=>transport(this.displayedSettings(ev.action,ev.payload.settings),"play-pause"));}
 }
@@ -73,13 +73,14 @@ export class NowPlayingDial extends ConfiguredAction {
     if(!isCurrent()) return;
     const changes=Object.fromEntries(Object.entries(payload).filter(([key,value])=>this.changed(a,value,`feedback:${key}`)));
     if(Object.keys(changes).length) await a.setFeedback(changes);
-    if(isCurrent()) this.displaySession(a,m?.session_id);
+    if(isCurrent()) {this.displaySession(a,m?.session_id);this.displayRouting(a,s);}
   }
   override async onDialRotate(ev:DialRotateEvent<Settings>):Promise<void> {
     if(!ev.payload.ticks) return;
     await guarded(ev.action,async()=>{
-      if(ev.payload.settings.dialMode==="volume") {await volume(ev.payload.settings,ev.payload.ticks);return;}
-      const settings=this.displayedSettings(ev.action,ev.payload.settings),media=currentMedia(settings.mediaTarget);
+      const settings=this.displayedSettings(ev.action,ev.payload.settings);
+      if(settings.dialMode==="volume") {await volume(settings,ev.payload.ticks);return;}
+      const media=currentMedia(settings.mediaTarget);
       if(!media) throw new Error("Selected media session unavailable");
       const track=trackIdentity(media);
       await this.seeking.rotate(ev.action.id,media,ev.payload.ticks*seekStep(settings),position=>this.sendSeek(settings,track,position));

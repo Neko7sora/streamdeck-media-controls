@@ -12,14 +12,24 @@ export abstract class ConfiguredAction extends SingletonAction<Settings> {
   private readonly renderedAt=new Map<string,number>();
   protected readonly scrolling=new ScrollingText();
   private readonly displayedSessions=new Map<string,string>();
+  private readonly displayedRouting=new Map<string,Pick<Settings,"audioTarget"|"globalKeys"|"dialMode"|"seekStep"|"showProgress">>();
   private refreshing=false;
   private dirty=false;
-  override async onWillAppear(ev:WillAppearEvent<Settings>):Promise<void> {this.appearances.set(ev.action.id,Symbol());this.settings.set(ev.action.id,ev.payload.settings);this.hashes.delete(ev.action.id);this.displayedSessions.delete(ev.action.id);this.scrolling.clear(ev.action.id);this.refresh();}
-  override onWillDisappear(ev:WillDisappearEvent<Settings>):void {this.appearances.delete(ev.action.id);this.settings.delete(ev.action.id);this.hashes.delete(ev.action.id);this.renderedAt.delete(ev.action.id);this.displayedSessions.delete(ev.action.id);this.scrolling.clear(ev.action.id);}
+  override async onWillAppear(ev:WillAppearEvent<Settings>):Promise<void> {this.appearances.set(ev.action.id,Symbol());this.settings.set(ev.action.id,ev.payload.settings);this.hashes.delete(ev.action.id);this.displayedSessions.delete(ev.action.id);this.displayedRouting.delete(ev.action.id);this.scrolling.clear(ev.action.id);this.refresh();}
+  override onWillDisappear(ev:WillDisappearEvent<Settings>):void {this.appearances.delete(ev.action.id);this.settings.delete(ev.action.id);this.hashes.delete(ev.action.id);this.renderedAt.delete(ev.action.id);this.displayedSessions.delete(ev.action.id);this.displayedRouting.delete(ev.action.id);this.scrolling.clear(ev.action.id);}
   override onDidReceiveSettings(ev:DidReceiveSettingsEvent<Settings>):void {this.settings.set(ev.action.id,ev.payload.settings);this.hashes.delete(ev.action.id);this.refresh();}
   protected async render(_instance:Instance,_settings:Settings,_isCurrent:()=>boolean=()=>true):Promise<unknown> {return null;}
   protected displaySession(instance:Instance,session:string|undefined):void {this.displayedSessions.set(instance.id,session??"unavailable");}
-  protected displayedSettings(instance:Instance,settings:Settings):Settings {return {...settings,mediaTarget:this.displayedSessions.get(instance.id)??"unavailable"};}
+  protected displayRouting(instance:Instance,settings:Settings):void {
+    const {audioTarget,globalKeys,dialMode,seekStep,showProgress}=settings;
+    this.displayedRouting.set(instance.id,{audioTarget,globalKeys,dialMode,seekStep,showProgress});
+  }
+  protected displayedSettings(instance:Instance,settings:Settings):Settings {
+    const routing=this.displayedRouting.get(instance.id);
+    if(!routing) throw new Error("Displayed action unavailable");
+    // Commit targets and command modes only after their display update succeeds.
+    return {...settings,...routing,mediaTarget:this.displayedSessions.get(instance.id)??"unavailable"};
+  }
   protected async saveSettings(instance:Instance,settings:Settings):Promise<void> {await instance.setSettings(settings);this.settings.set(instance.id,settings);this.hashes.delete(instance.id);this.refresh();await notifySettingsChanged(instance,settings);}
   protected changed(instance:Instance,payload:unknown,part="default"):boolean {
     let hashes=this.hashes.get(instance.id);

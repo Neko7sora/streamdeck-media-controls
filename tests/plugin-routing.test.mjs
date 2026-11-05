@@ -5,19 +5,20 @@ import {readFileSync} from "node:fs";
 import {load} from "./load.mjs";
 test("Now Playing operates the session last sent to the display, and never falls back after removal",async()=>{
   const a={source:"windows",session_id:"A",title:"Track",controls:{toggle:true}},b={...a,session_id:"B"};
-  const driver={instances:[],commands:[],audioRequests:[],inspectorReplies:[],current:a,sessions:[a,b]};globalThis.__mediaTest=driver;
+  const driver={instances:[],commands:[],mediaKeys:[],audioRequests:[],inspectorReplies:[],current:a,sessions:[a,b]};globalThis.__mediaTest=driver;
   const mocks={
     sdk:`const d=globalThis.__mediaTest;export class SingletonAction{actions=[];} export function action(){return c=>c;} export default {info:{application:{language:"ja"}},actions:{registerAction(a){d.instances.push(a);}},ui:{get action(){return d.inspectorAction;},onSendToPlugin(fn){d.onSendToPlugin=fn;},async sendToPropertyInspector(payload){d.inspectorReplies.push(payload);}},settings:{async getGlobalSettings(){return d.globalSettings??{};},async setGlobalSettings(value){d.globalSettings=value;},onDidReceiveGlobalSettings(fn){d.onGlobalSettings=fn;return {dispose(){}};}},logger:{warn(){},error(){},info(){}},async connect(){}};`,
-    state:`const d=globalThis.__mediaTest;export function currentMedia(id="auto"){return id==="auto"?d.current:d.sessions.find(x=>x.session_id===id)??null;}export function availableSessions(){return d.sessions;}export function audioTarget(id){d.audioRequests.push(id);return "audio" in d?d.audio:{name:id,volume:0.5,muted:false};}export function audioTargets(){return [];}export function subscribe(){}export function subscribeChanges(fn){d.onStateChanged=fn;}export function startMediaPolling(){return ()=>{};}`,
+    state:`const d=globalThis.__mediaTest;export function currentMedia(id="auto"){return id==="auto"?d.current:d.sessions.find(x=>x.session_id===id)??null;}export function availableSessions(){return d.sessions;}export function audioTarget(id){d.audioRequests.push(id);return d.audioById?d.audioById[id??"master"]??null:"audio" in d?d.audio:{name:id,volume:0.5,muted:false};}export function audioTargets(){return [];}export function subscribe(){}export function subscribeChanges(fn){d.onStateChanged=fn;}export function startMediaPolling(){return ()=>{};}`,
     native:`export async function nativeCommand(c){const d=globalThis.__mediaTest;d.commands.push(c);await d.command?.(c);}`,
     chrome:`export function chromeConnectionStatus(){return {state:"connected",lastSeen:123,sessions:0};}export function startChromeServer(){return {close(){},closeAllConnections(){}};}export async function chromeCommand(...args){const d=globalThis.__mediaTest;if(!d.chromeCommands) throw Error("Unexpected Chrome command");d.chromeCommands.push(args);await d.chromeCommand?.(...args);}`,
     icue:`import {EventEmitter} from 'node:events';export function startIcueBridge(){const d=globalThis.__mediaTest;d.icueStarts=(d.icueStarts??0)+1;d.icueServer=new EventEmitter();d.icueServer.close=callback=>{d.icueServer.listening=false;d.icueCloses=(d.icueCloses??0)+1;callback?.();};d.icueServer.closeAllConnections=()=>{d.icueConnectionsClosed=true;};queueMicrotask(()=>{d.icueServer.listening=true;d.icueServer.emit('listening');});return {server:d.icueServer,tokenFile:'test-token-path'};}`,
     registration:`export function registerChromeHost(){const d=globalThis.__mediaTest;d.registrations=(d.registrations??0)+1;return d.registration??Promise.resolve({status:"registered",message:"Registered"});}export function stopChromeRegistration(){}`,
-    art:`export async function artworkLoadingImage(){return undefined;} export async function artwork(){await globalThis.__mediaTest.artwork?.();return undefined;} export async function applicationIcon(m){return m?.favicon_data_url??m?.app_icon_data_url;}`
+    art:`export async function artworkLoadingImage(){return undefined;} export async function artwork(){await globalThis.__mediaTest.artwork?.();return undefined;} export async function applicationIcon(m){return m?.favicon_data_url??m?.app_icon_data_url;}`,
+    keys:`export async function sendMediaKey(command,count=1){globalThis.__mediaTest.mediaKeys.push({command,count});}`
   };
   const plugin={name:"test-ports",setup(build){
     build.onLoad({filter:/control-image\.ts$/},args=>({contents:readFileSync(args.path,"utf8").replaceAll("import.meta.url",JSON.stringify(new URL("../dev.n7s.media-controls.sdPlugin/bin/plugin.js",import.meta.url).href)),loader:"ts"}));
-    build.onResolve({filter:/@elgato\/streamdeck$|\.\/media-state\.js$|\.\/native-client\.js$|\.\/chrome-server\.js$|\.\/icue-runtime\.js$|\.\/chrome-registration\.js$|\.\/artwork\.js$/},args=>({path:args.path==="@elgato/streamdeck"?"sdk":args.path.includes("media-state")?"state":args.path.includes("native-client")?"native":args.path.includes("chrome-server")?"chrome":args.path.includes("icue-runtime")?"icue":args.path.includes("chrome-registration")?"registration":"art",namespace:"test"}));
+    build.onResolve({filter:/@elgato\/streamdeck$|\.\/media-state\.js$|\.\/native-client\.js$|\.\/chrome-server\.js$|\.\/icue-runtime\.js$|\.\/chrome-registration\.js$|\.\/artwork\.js$|\.\/windows-media\.js$/},args=>({path:args.path==="@elgato/streamdeck"?"sdk":args.path.includes("media-state")?"state":args.path.includes("native-client")?"native":args.path.includes("chrome-server")?"chrome":args.path.includes("icue-runtime")?"icue":args.path.includes("chrome-registration")?"registration":args.path.includes("windows-media")?"keys":"art",namespace:"test"}));
     build.onLoad({filter:/.*/,namespace:"test"},args=>({contents:mocks[args.path],loader:"js"}));
   }};
   await load("plugin",[plugin]);
@@ -130,9 +131,10 @@ test("Now Playing operates the session last sent to the display, and never falls
   await basic.render(basicKey,{mediaTarget:"A"});
   assert.equal(basic.displayedSessions.get(basicKey.id),"unavailable");
   const mute=driver.instances.find(x=>x.constructor.name==="Mute");
-  await mute.render({...basicKey,id:"mute"},{audioTarget:"per-app"});
+  const muteKey={...basicKey,id:"mute"};
+  await mute.render(muteKey,{audioTarget:"per-app"});
   assert.equal(driver.audioRequests.at(-1),"per-app");
-  await mute.onKeyDown({action:basicKey,payload:{settings:{audioTarget:"per-app"}}});
+  await mute.onKeyDown({action:muteKey,payload:{settings:{audioTarget:"per-app"}}});
   assert.deepEqual(driver.commands.at(-1),{command:"mute",target:"per-app",delta:0.02});
   const volume=driver.instances.find(x=>x.constructor.name==="VolumeDial");
   const volumeLayouts=[],volumeUpdates=[],volumeText=[];
@@ -286,6 +288,155 @@ test("Now Playing operates the session last sent to the display, and never falls
     visual.onWillDisappear({action:instance});
     visual.actions.splice(visual.actions.indexOf(instance),1);
   }
+  // Audio targets and routing modes change only after their display succeeds.
+  // Otherwise a settings edit could mute another app or send global keys while
+  // the screen still identifies the previously selected target.
+  const routingMedia={...a,playback_state:"paused",controls:{toggle:true,seek:true},
+    timeline:{position_sec:50,start_sec:0,end_sec:100,min_seek_sec:0,max_seek_sec:100}};
+  driver.current=routingMedia;driver.sessions=[routingMedia];
+  driver.audioById={
+    "old-app":{name:"Old app",volume:0.25,muted:false},
+    "new-app":{name:"New app",volume:0.75,muted:false},
+    master:{name:"System",volume:0.5,muted:false}
+  };
+  for(const name of ["Mute","VolumeUp","VolumeDown","VolumeDial","NowPlayingDial"]) {
+    const visual=driver.instances.find(x=>x.constructor.name===name);
+    const dial=name.endsWith("Dial"),nowPlaying=name==="NowPlayingDial";
+    const oldSettings={audioTarget:"old-app",globalKeys:false,...(nowPlaying?{dialMode:"volume"}:{})};
+    const newSettings={...oldSettings,audioTarget:"new-app"};
+    let fail=false,pending,started;
+    const instance={id:`routing-${name}`,isKey:()=>!dial,isDial:()=>dial,
+      async setImage(){await send();},async setTitle(){await send();},
+      async setFeedbackLayout(){await send();},async setFeedback(){await send();},async showAlert(){alerts++;}};
+    async function send(){if(fail) throw Error("Display disconnected");if(pending) {started();await pending;}}
+    const handlers=dial?(nowPlaying?["onDialRotate"]:["onDialRotate","onDialDown","onTouchTap"]):["onKeyDown"];
+    const invoke=async settings=>{
+      for(const handler of handlers) await visual[handler]({action:instance,payload:{settings,ticks:1,tapPos:[0,0],hold:false}});
+    };
+    const settle=async()=>{while(visual.refreshing) await new Promise(resolve=>setTimeout(resolve,1));};
+    const expectAudio=async(settings,target,stage)=>{
+      const commands=driver.commands.length,keys=driver.mediaKeys.length;
+      await invoke(settings);
+      assert.equal(driver.commands.length,commands+handlers.length,`${name}: ${stage} sends one command per gesture`);
+      assert.ok(driver.commands.slice(commands).every(command=>command.target===target),`${name}: ${stage} retains the displayed audio target`);
+      assert.equal(driver.mediaKeys.length,keys,`${name}: ${stage} must not send global keys`);
+    };
+    const expectUnavailable=async stage=>{
+      const commands=driver.commands.length,keys=driver.mediaKeys.length,previousAlerts=alerts;
+      await invoke({...newSettings,globalKeys:true});
+      assert.equal(driver.commands.length,commands,`${name}: ${stage} has no displayed command target`);
+      assert.equal(driver.mediaKeys.length,keys,`${name}: ${stage} cannot bypass the display with global keys`);
+      assert.equal(alerts,previousAlerts+handlers.length,`${name}: ${stage} alerts for each rejected gesture`);
+    };
+    await expectUnavailable("before the first frame");
+    visual.actions.push(instance);
+    await visual.onWillAppear({action:instance,payload:{settings:oldSettings}});await settle();
+    await expectAudio(oldSettings,"old-app","initial display");
+    fail=true;
+    visual.onDidReceiveSettings({action:instance,payload:{settings:newSettings}});await settle();
+    await expectAudio(newSettings,"old-app","failed update");
+    fail=false;
+    let release;
+    const sending=new Promise(resolve=>{started=resolve;});
+    pending=new Promise(resolve=>{release=resolve;});
+    visual.refresh();await sending;
+    await expectAudio(newSettings,"old-app","pending update");
+    release();pending=undefined;await settle();
+    await expectAudio(newSettings,"new-app","successful update");
+    if(nowPlaying) {
+      const seekSettings={...newSettings,dialMode:"seek"};
+      fail=true;
+      visual.onDidReceiveSettings({action:instance,payload:{settings:seekSettings}});await settle();
+      await expectAudio(seekSettings,"new-app","failed switch to seeking");
+      fail=false;visual.refresh();await settle();
+      const beforeSeek=driver.commands.length;
+      await invoke(newSettings);
+      assert.deepEqual(driver.commands.slice(beforeSeek),[{command:"seek",session_id:"A",position:55}],"the displayed seek mode takes precedence over stale volume settings");
+      fail=true;
+      visual.onDidReceiveSettings({action:instance,payload:{settings:oldSettings}});await settle();
+      await invoke(oldSettings);
+      assert.deepEqual(driver.commands.at(-1),{command:"seek",session_id:"A",position:55},"a failed switch to volume keeps the displayed seek mode");
+    } else {
+      const globalSettings={...newSettings,globalKeys:true};
+      fail=true;
+      visual.onDidReceiveSettings({action:instance,payload:{settings:globalSettings}});await settle();
+      await expectAudio(globalSettings,"new-app","failed switch to global keys");
+      fail=false;visual.refresh();await settle();
+      const expectGlobal=async(settings,stage)=>{
+        const commands=driver.commands.length,keys=driver.mediaKeys.length;
+        await invoke(settings);
+        assert.equal(driver.commands.length,commands,`${name}: ${stage} must retain global routing`);
+        assert.equal(driver.mediaKeys.length,keys+handlers.length,`${name}: ${stage} sends one global command per gesture`);
+      };
+      await expectGlobal(oldSettings,"successful switch to global keys");
+      fail=true;
+      visual.onDidReceiveSettings({action:instance,payload:{settings:oldSettings}});await settle();
+      await expectGlobal(oldSettings,"failed switch from global keys");
+    }
+    fail=false;visual.refresh();await settle();
+    await expectAudio(oldSettings,"old-app","successful switch back");
+    visual.onWillDisappear({action:instance});
+    visual.actions.splice(visual.actions.indexOf(instance),1);
+    await expectUnavailable("after disappearance");
+  }
+  // A title-clear failure does not undo an image that already reached the key.
+  for(const name of ["Mute","PlayPause","NowPlaying"]) {
+    const visual=driver.instances.find(x=>x.constructor.name===name),isAudio=name==="Mute";
+    let failTitle=false,images=0;
+    const instance={...key,id:`title-failure-${name}`,async setImage(){images++;},
+      async setTitle(){if(failTitle) throw Error("Title disconnected");}};
+    const first={audioTarget:"old-app",mediaTarget:"A"},second={audioTarget:"new-app",mediaTarget:"B"};
+    const settle=async()=>{while(visual.refreshing) await new Promise(resolve=>setTimeout(resolve,1));};
+    driver.sessions=[routingMedia,{...b,title:"Replacement track"}];
+    visual.actions.push(instance);
+    await visual.onWillAppear({action:instance,payload:{settings:first}});await settle();
+    failTitle=true;
+    visual.onDidReceiveSettings({action:instance,payload:{settings:second}});await settle();
+    assert.equal(images,2,`${name}: the replacement image reached the key before the title failed`);
+    const before=driver.commands.length;
+    await visual.onKeyDown({action:instance,payload:{settings:second}});
+    assert.equal(driver.commands.length,before+1);
+    assert.equal(driver.commands.at(-1)[isAudio?"target":"session_id"],isAudio?"new-app":"B",`${name}: commands follow the image despite title-clear failure`);
+    visual.onWillDisappear({action:instance});
+    visual.actions.splice(visual.actions.indexOf(instance),1);
+  }
+  // The visible seek step and progress hit area stay in sync with the screen.
+  {
+    const visual=driver.instances.find(x=>x.constructor.name==="NowPlayingDial");
+    let fail=false,pending,started;
+    const instance={id:"displayed-seek-settings",isKey:()=>false,isDial:()=>true,
+      async setFeedback(){if(fail) throw Error("Display disconnected");if(pending) {started();await pending;}},async showAlert(){alerts++;}};
+    const initial={seekStep:5,showProgress:true},updated={seekStep:10,showProgress:false};
+    const settle=async()=>{while(visual.refreshing) await new Promise(resolve=>setTimeout(resolve,1));};
+    const expectOperations=async(step,progressVisible,stage)=>{
+      const before=driver.commands.length;
+      visual.seeking.clear(instance.id);
+      await visual.onDialRotate({action:instance,payload:{settings:updated,ticks:1}});
+      visual.seeking.clear(instance.id);
+      await visual.onTouchTap({action:instance,payload:{settings:updated,tapPos:[100,90],hold:false}});
+      assert.deepEqual(driver.commands.slice(before),[
+        {command:"seek",session_id:"A",position:50+step},
+        progressVisible?{command:"seek",session_id:"A",position:50}:{command:"play-pause",session_id:"A"}
+      ],`NowPlayingDial: ${stage} uses the displayed step and progress hit area`);
+    };
+    driver.current=routingMedia;driver.sessions=[routingMedia];
+    visual.actions.push(instance);
+    await visual.onWillAppear({action:instance,payload:{settings:initial}});await settle();
+    fail=true;
+    visual.onDidReceiveSettings({action:instance,payload:{settings:updated}});await settle();
+    await expectOperations(5,true,"failed update");
+    fail=false;
+    let release;
+    const sending=new Promise(resolve=>{started=resolve;});
+    pending=new Promise(resolve=>{release=resolve;});
+    visual.refresh();await sending;
+    await expectOperations(5,true,"pending update");
+    release();pending=undefined;await settle();
+    await expectOperations(10,false,"successful update");
+    visual.onWillDisappear({action:instance});
+    visual.actions.splice(visual.actions.indexOf(instance),1);
+  }
+  delete driver.audioById;
   const seeking=driver.instances.find(x=>x.constructor.name==="NowPlayingDial");
   const seekMedia={...a,playback_state:"paused",controls:{toggle:true,seek:true},timeline:{position_sec:50,start_sec:0,end_sec:100,min_seek_sec:0,max_seek_sec:100}};
   driver.sessions=[seekMedia,b];driver.current=seekMedia;
@@ -295,7 +446,9 @@ test("Now Playing operates the session last sent to the display, and never falls
   const rotate=(ticks,settings={})=>seeking.onDialRotate({action:dial,payload:{ticks,settings}});
   await rotate(1);assert.deepEqual(driver.commands.at(-1),{command:"seek",session_id:"A",position:55});
   await rotate(-2);assert.equal(driver.commands.at(-1).position,45);
+  await seeking.render(dial,{mediaTarget:"A",seekStep:10});
   await rotate(2,{seekStep:10});assert.equal(driver.commands.at(-1).position,65);
+  await seeking.render(dial,{mediaTarget:"A"});
   await rotate(100);assert.equal(driver.commands.at(-1).position,100);
   await rotate(-100);assert.equal(driver.commands.at(-1).position,0);
   // Taps use the displayed timeline, even if only a narrower interval is seekable.
@@ -316,8 +469,10 @@ test("Now Playing operates the session last sent to the display, and never falls
   assert.equal(driver.commands.length,unavailableTimelineCommands,'an unavailable progress bar has no tap coordinate mapping');
   assert.equal(alerts,unavailableTimelineAlerts+1);
   driver.sessions=[seekMedia,b];driver.current=seekMedia;
+  await seeking.render(dial,{dialMode:"volume",audioTarget:"per-app"});
   await rotate(1,{dialMode:"volume",audioTarget:"per-app"});
   assert.deepEqual(driver.commands.at(-1),{command:"volume",target:"per-app",delta:0.02});
+  await seeking.render(dial,{});
   const before=driver.commands.length,previousAlerts=alerts;
   driver.sessions=[b];await rotate(1);
   assert.equal(driver.commands.length,before);assert.equal(alerts,previousAlerts+1);
