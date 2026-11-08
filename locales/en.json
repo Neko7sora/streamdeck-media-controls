@@ -169,7 +169,7 @@
   "target.volume.help": "Controls only the selected target’s volume and mute. “System” means the default audio output. The target name and volume appear on the key / dial.",
   "text.scrolling": "Text scrolling",
   "time.seconds": "{seconds} s",
-  "track.title": "Track / title",
+  "track.title": "Title",
   "unavailable": "Unavailable",
   "use.legacy.global.media.keys": "Use legacy global media keys",
   "visible.items": "Visible items",

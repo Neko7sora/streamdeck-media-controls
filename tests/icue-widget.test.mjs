@@ -90,7 +90,7 @@ test('iCUE does not invent metadata or treat malformed playback state as paused'
   assert.equal(w.elements.get('album').textContent, '');
   p.data.songName = undefined; p.emit();
   assert.equal(w.elements.get('playPauseButton').disabled, true);
-  assert.equal(w.elements.get('songName').textContent, '再生中の曲はありません');
+  assert.equal(w.elements.get('songName').textContent, '再生中のメディアはありません');
   w.click('playPauseButton'); assert.equal(p.calls.length, 0);
 });
 

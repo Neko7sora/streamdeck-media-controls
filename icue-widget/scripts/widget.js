@@ -230,9 +230,9 @@
 
   function render() {
     const hasTrack = Boolean(state.songName);
-    setText(el.song, state.songName, loading ? "メディア情報を取得中" : readError ? "メディア情報を取得できません" : plugin ? "再生中の曲はありません" : "メディアを待機中");
+    setText(el.song, state.songName, loading ? "メディア情報を取得中" : readError ? "メディア情報を取得できません" : plugin ? "再生中のメディアはありません" : "メディアを待機中");
     setText(el.artist, state.artist, hasTrack ? "アーティスト不明" : !plugin || readError
-      ? "iCUEの接続を確認してください・自動的に再試行します" : loading ? "しばらくお待ちください" : "メディアプレーヤーで曲を再生してください");
+      ? "iCUEの接続を確認してください・自動的に再試行します" : loading ? "しばらくお待ちください" : "メディアプレーヤーで再生を開始してください");
     if (getComputedStyle(el.album).display !== "none") setText(el.album, state.album, "");
 
     const artwork = hasTrack && validArtwork(state.thumbnail) ? state.thumbnail : "";

@@ -283,7 +283,7 @@
     const metadata = JSON.stringify([identity, media?.artwork_data_url, media?.fallback_artwork_data_url, media?.playback_state, media?.controls]);
     if (!api.provider || metadata !== lastTrack) {
       lastTrack = metadata;
-      api.provider = {songName: media?.title?.trim() || media?.page_title?.trim() || (media ? "曲名を取得できません" : ""),
+      api.provider = {songName: media?.title?.trim() || media?.page_title?.trim() || (media ? "タイトルを取得できません" : ""),
         artist: media?.artist || "", album: media?.album || "", thumbnail: media?.artwork_data_url && media.artwork_data_url !== failedArtwork
           ? media.artwork_data_url : media?.fallback_artwork_data_url || "",
         isPlaying: media?.playback_state === "playing" ? true : media?.playback_state === "paused" || media?.playback_state === "stopped" ? false : null};

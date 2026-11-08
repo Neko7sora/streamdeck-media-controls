@@ -165,7 +165,7 @@ try {
   await page.waitForFunction(() => !document.getElementById('playPauseButton').disabled);
   const selected = fixture.chrome.session_id;
   fixture.chrome.session_id = 'removed'; fixture.emit();
-  await page.waitForFunction(() => document.getElementById('songName').textContent === '再生中の曲はありません');
+  await page.waitForFunction(() => document.getElementById('songName').textContent === '再生中のメディアはありません');
   assert.equal(await page.locator('#mediaTarget').inputValue(),selected);
   assert.equal(await page.locator('#playPauseButton').isDisabled(),true);
   fixture.chrome.session_id = selected; fixture.emit();
