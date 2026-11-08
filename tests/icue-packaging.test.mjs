@@ -28,7 +28,10 @@ test('iCUE presentation rejects oversized previews, missing English labels and i
     await assert.rejects(checkIcuePresentation(directory), /must stay inside/);
     await writeFile(join(directory, 'index.html'), html.replace('content="bridgeToken"', 'content="useBridge"'));
     await assert.rejects(checkIcuePresentation(directory), /Duplicate iCUE property ID/);
-    await writeFile(join(directory, 'index.html'), html.replace('"properties":["useBridge","bridgeToken"]', '"properties":["missingProperty"]'));
+    const groupJson = /id="x-icue-groups">([\s\S]*?)<\/script>/.exec(html)[1];
+    const invalidGroups = JSON.parse(groupJson);
+    invalidGroups[0].properties.push('missingProperty');
+    await writeFile(join(directory, 'index.html'), html.replace(groupJson, JSON.stringify(invalidGroups)));
     await assert.rejects(checkIcuePresentation(directory), /Undeclared iCUE property/);
     await writeFile(join(directory, 'index.html'), html);
     const translations = JSON.parse(translation);
