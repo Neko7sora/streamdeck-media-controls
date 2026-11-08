@@ -5,7 +5,7 @@
     "chrome-extension/options.html": "a50541b0b99f3ff5c93b7159f915bba4c3deaf854898663735648e1109dd5e0d",
     "chrome-extension/options.css": "804e9b3855f67dbfd0e5805fb8bf5eb652132411aab95723407b6096ce6dd53a",
     "chrome-extension/options.js": "84788ad18ac7f863be724b20286805e43ac01f63f1853bac621d5b88f284dc00",
-    "chrome-extension/localization.js": "8156201c00cb4927e8f4e6ea6056940ab54e6257b9658b3b45f07677465799c2",
+    "chrome-extension/localization.js": "cda3b25a044b56383ef79a493aa5132a7738456cbe8e0f729fc4c1c298a11bed",
     "tests/chrome-e2e.mjs": "63b9223c777e30ca3b3c96a2ad4474a6ed84161e9d8dd2fa44cc7cf38416996d"
   },
   "images": {

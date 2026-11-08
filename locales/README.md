@@ -13,7 +13,7 @@ JSON はビルド時に JavaScript へ埋め込まれます。実行時の JSON 
 
 従来から英語表示だった再生状態や短いダイヤル表示は、日本語カタログでも英語へのフォールバックを使い、既存の表示を維持しています。
 
-文言は `t("キー", {count: 件数})`、HTML は `data-i18n="キー"` で参照します。キーは文言を修正しても変更しない識別子です。HTML 内のテキストは初回読み込み用の英語表示で、実行時はカタログを使用します。翻訳はプレーンテキストとして挿入され、HTML は実行されません。曲名などの外部メタデータは翻訳しません。
+文言は `t("キー", {count: 件数})`、HTML は `data-i18n="キー"` で参照します。キーは文言を修正しても変更しない識別子です。HTML 内のテキストは初回読み込み用の英語表示で、実行時はカタログを使用します。翻訳はプレーンテキストとして挿入され、HTML は実行されません。タイトルなどの外部メタデータは翻訳しません。
 
 `src/locale-data.generated.ts`、`dev.n7s.media-controls.sdPlugin/ui/localization.js`、`chrome-extension/localization.js`、`chrome-extension/_locales/*/messages.json` は生成物です。直接編集せず、`locales/*.json` を編集して再生成してください。通常のプラグインビルドでも再生成します。watch 実行中に翻訳を編集した場合は `npm run locales:build` を実行し、設定画面／拡張機能を再読み込みしてください。
 
