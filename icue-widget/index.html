@@ -40,7 +40,22 @@
   <meta name="x-icue-property" content="backgroundColor" data-label="tr('Background Color')" data-type="color" data-default="'#070B16'" />
   <meta name="x-icue-property" content="transparency" data-label="tr('Background Transparency')" data-type="slider" data-default="0" data-min="0" data-max="100" data-step="1" data-unit-label="'%'" />
   <script type="application/json" id="x-icue-groups">
-  [{"title":"tr('Connection')","properties":["useBridge","bridgeToken"]},{"title":"tr('Display')","properties":["showArtwork","showTitle","showArtist","showAlbum","showStatus","showAppIcon","scrollTitle"]},{"title":"tr('Playback Controls')","properties":["showMediaTarget","showSeekBar","showPosition","showPrevious","showPlayPause","showNext","showRewind","showStop","showForward"]},{"title":"tr('Audio Controls')","properties":["showAudioTarget","showVolumeSlider","showVolumeValue","showMute"]},{"title":"tr('Text Sizes')","properties":["titleSize","artistSize","albumSize","labelSize"]},{"title":"tr('Appearance')","properties":["textColor","accentColor","backgroundColor","transparency","showConnectionInfo","showBrand","showDecoration"]}]
+  [
+    {
+      "title": "tr('Edge Media Deck')",
+      "properties": [
+        "useBridge", "bridgeToken",
+        "showArtwork", "showTitle", "showArtist", "showAlbum", "showStatus", "showAppIcon", "scrollTitle",
+        "showMediaTarget", "showSeekBar", "showPosition", "showPrevious", "showPlayPause", "showNext", "showRewind", "showStop", "showForward",
+        "showAudioTarget", "showVolumeSlider", "showVolumeValue", "showMute",
+        "titleSize", "artistSize", "albumSize", "labelSize"
+      ]
+    },
+    {
+      "title": "tr('Appearance')",
+      "properties": ["textColor", "accentColor", "backgroundColor", "transparency", "showConnectionInfo", "showBrand", "showDecoration"]
+    }
+  ]
   </script>
   <link rel="stylesheet" href="styles/style.css" />
 </head>
