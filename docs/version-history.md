@@ -12,9 +12,9 @@ Chrome 連携を利用している場合は、更新後に [セットアップ�
 
 Media Controls の初回 STABLE リリースです。プラグインは [Elgato Marketplace](https://marketplace.elgato.com/product/media-controls-c3009ed3-da9b-44ea-8edb-81db01b81ecc) で無料公開中、任意の Chrome 拡張は [Chrome Web Store](https://chromewebstore.google.com/detail/stream-deck-media-metadat/iagfcpchjohmpnnlcgppdcadehinhdpa) で公開中です。Windows 11 以降（x64）、Stream Deck 7.1 以降に対応します。
 
-- 再生／一時停止、停止、前／次の曲の操作と、再生対象の選択。
+- 再生／一時停止、停止、前へ／次への移動と、再生対象の選択。
 - PC全体または選択したアプリの音量・ミュート操作。
-- Now Playing のアートワーク、曲名、アーティスト、アプリ／サイトアイコン、再生状態の表示。
+- Now Playing のアートワーク、タイトル、アーティスト、アプリ／サイトアイコン、再生状態の表示。
 - Stream Deck + の音量調整、シーク、再生位置・長さ・進捗表示、長押しによる再生対象の切替。
 - 日本語・英語のインターフェース、日本語テキストの描画、滑らかな文字送り、アクションごとの表示カスタマイズ。
 - 任意の Chrome 連携によるメディア情報の取得、対応する再生操作、接続状態と拡張バッジの表示。
@@ -22,7 +22,7 @@ Media Controls の初回 STABLE リリースです。プラグインは [Elgato 
 
 ### 導入と制限
 
-Chrome 連携には、Chrome 111 以降、Chrome Web Store からの拡張機能のインストール、拡張機能 ID を指定したローカル連携登録、送信の有効化が必要です。ストア版の拡張 ID は `iagfcpchjohmpnnlcgppdcadehinhdpa` です。利用できる情報・操作は対象アプリやページに依存します。Chrome の前／次の曲への直接操作には対応していません。
+Chrome 連携には、Chrome 111 以降、Chrome Web Store からの拡張機能のインストール、拡張機能 ID を指定したローカル連携登録、送信の有効化が必要です。ストア版の拡張 ID は `iagfcpchjohmpnnlcgppdcadehinhdpa` です。利用できる情報・操作は対象アプリやページに依存します。Chrome の「前へ」「次へ」の直接操作には対応していません。
 
 Windows x64 のビルド・API 読み取り・自動テストの結果、実機・実サイトの確認記録、更新時の検査手順は [ガイドライン総合監査](guideline-audit.md) を参照してください。
 
