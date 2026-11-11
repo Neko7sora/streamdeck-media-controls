@@ -615,3 +615,16 @@ test('Chrome registration requires an explicit valid ID and forwards exactly tha
   pi.elements.get('chrome-extension-id').value='b'.repeat(32);pi.click('register-chrome');
   assert.equal(pi.messages.at(-1).payload.extensionId,'b'.repeat(32));
 });
+
+test('deep link setup fills the extension ID and waits for explicit registration',()=>{
+  for(const payload of [{response:'chromeSetup',extensionId:'a'.repeat(32)},{chromeSetupExtensionId:'a'.repeat(32)}]) {
+    const pi=inspector();
+    const count=pi.messages.length;
+    pi.receive('sendToPropertyInspector',payload);
+    assert.equal(pi.elements.get('chrome-extension-id').value,'a'.repeat(32));
+    assert.equal(pi.elements.get('chrome-setup').open,true);
+    assert.equal(pi.messages.length,count);
+    pi.receive('sendToPropertyInspector',{response:'chromeSetup',extensionId:'invalid'});
+    assert.equal(pi.elements.get('chrome-extension-id').value,'a'.repeat(32));
+  }
+});

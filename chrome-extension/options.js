@@ -15,6 +15,11 @@ try {
 }
 extensionId.value=installedExtensionId||t("unavailable");
 copyId.disabled=!installedExtensionId;
+const streamDeckLink=document.getElementById("open-streamdeck");
+if(installedExtensionId) {
+  streamDeckLink.href=`streamdeck://plugins/message/dev.n7s.media-controls/chrome/setup?extensionId=${encodeURIComponent(installedExtensionId)}`;
+  streamDeckLink.hidden=false;
+}
 copyId.addEventListener("click",async()=>{
   if(!installedExtensionId||copyId.disabled) return;
   copyId.disabled=true;copyStatus.textContent="";

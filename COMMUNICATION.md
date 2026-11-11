@@ -154,3 +154,9 @@ Edge Media Deckのブリッジモードは、Stream Deckプラグイン内で自
 - 内蔵版の有効・無効は `src/icue-integration.ts` がStream Deckのグローバル設定 `icueBridgeEnabled` に保存します。未設定はオン、明示的なfalseはオフです。保存済みの設定を読み込む前には待受けを開かず、読み込めなければ起動しません。設定画面からの変更はアクティブなインスペクター、要求ID、boolean値を検証してから保存し、起動・停止を直列化します。オフはiCUEの接続だけを閉じ、Windowsのメディア観測とChrome通信は維持します。競合解消後は設定画面のオフ・オンでも再起動できます。
 
 導入・権限・制限は [ウィジェットREADME](icue-widget/README.md) にまとめています。ウィジェット用CLI、モックHTTPSの単体テスト、Chromiumの操作／配置テストと、実iCUE／XENEON EDGEの受け入れ確認は区別します。
+
+## Chrome 初期設定の Deep Link
+
+拡張の設定画面の「Stream Deck で開く」は `streamdeck://plugins/message/dev.n7s.media-controls/chrome/setup?extensionId=<拡張ID>` を開きます。Stream Deck を前面に出す通常のリンクを使用し、Media Controls のアクションを選ぶと ID が設定画面に入力されます。設定画面がまだ開いていない場合は、プラグインのメモリに最新の ID を1件だけ保持します。プラグインの再起動時には消えるため、必要ならリンクを再度開きます。
+
+Deep Link は送信元を認証できないため、受信だけで Native Messaging の登録や送信の有効化は行いません。ユーザーが ID を確認して「Chrome 連携を登録」を押した後、既存の登録処理を実行します。パス・ID形式・重複／未知のパラメーター・フラグメント・長さを検査し、認証情報はリンクに含めません。コピー・貼り付けの手順も維持します。メディア情報と操作の通信は既存の認証付きローカル経路を使います。

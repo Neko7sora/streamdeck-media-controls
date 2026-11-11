@@ -7,7 +7,7 @@ test("Now Playing operates the session last sent to the display, and never falls
   const a={source:"windows",session_id:"A",title:"Track",controls:{toggle:true}},b={...a,session_id:"B"};
   const driver={instances:[],commands:[],mediaKeys:[],audioRequests:[],inspectorReplies:[],current:a,sessions:[a,b]};globalThis.__mediaTest=driver;
   const mocks={
-    sdk:`const d=globalThis.__mediaTest;export class SingletonAction{actions=[];} export function action(){return c=>c;} export default {info:{application:{language:"ja"}},actions:{registerAction(a){d.instances.push(a);}},ui:{get action(){return d.inspectorAction;},onSendToPlugin(fn){d.onSendToPlugin=fn;},async sendToPropertyInspector(payload){d.inspectorReplies.push(payload);}},settings:{async getGlobalSettings(){return d.globalSettings??{};},async setGlobalSettings(value){d.globalSettings=value;},onDidReceiveGlobalSettings(fn){d.onGlobalSettings=fn;return {dispose(){}};}},logger:{warn(){},error(){},info(){}},async connect(){}};`,
+    sdk:`const d=globalThis.__mediaTest;export class SingletonAction{actions=[];} export function action(){return c=>c;} export default {info:{application:{language:"ja"}},system:{onDidReceiveDeepLink(fn){d.onDeepLink=fn;}},actions:{registerAction(a){d.instances.push(a);}},ui:{get action(){return d.inspectorAction;},onSendToPlugin(fn){d.onSendToPlugin=fn;},async sendToPropertyInspector(payload){d.inspectorReplies.push(payload);}},settings:{async getGlobalSettings(){return d.globalSettings??{};},async setGlobalSettings(value){d.globalSettings=value;},onDidReceiveGlobalSettings(fn){d.onGlobalSettings=fn;return {dispose(){}};}},logger:{warn(){},error(){},info(){}},async connect(){}};`,
     state:`const d=globalThis.__mediaTest;export function currentMedia(id="auto"){return id==="auto"?d.current:d.sessions.find(x=>x.session_id===id)??null;}export function availableSessions(){return d.sessions;}export function audioTarget(id){d.audioRequests.push(id);return d.audioById?d.audioById[id??"master"]??null:"audio" in d?d.audio:{name:id,volume:0.5,muted:false};}export function audioTargets(){return [];}export function subscribe(){}export function subscribeChanges(fn){d.onStateChanged=fn;}export function startMediaPolling(){return ()=>{};}`,
     native:`export async function nativeCommand(c){const d=globalThis.__mediaTest;d.commands.push(c);await d.command?.(c);}`,
     chrome:`export function chromeConnectionStatus(){return {state:"connected",lastSeen:123,sessions:0};}export function startChromeServer(){return {close(){},closeAllConnections(){}};}export async function chromeCommand(...args){const d=globalThis.__mediaTest;if(!d.chromeCommands) throw Error("Unexpected Chrome command");d.chromeCommands.push(args);await d.chromeCommand?.(...args);}`,
@@ -28,6 +28,10 @@ test("Now Playing operates the session last sent to the display, and never falls
   assert.equal(driver.icueConnectionsClosed,true);
   assert.equal(driver.registrations??0,0,"startup must not register a Chrome host");
   const nextTurn=()=>new Promise(resolve=>setImmediate(resolve));
+  const setupId='a'.repeat(32);
+  const setupUrl={href:`/chrome/setup?extensionId=${setupId}`,path:'/chrome/setup',fragment:'',queryParameters:new URLSearchParams({extensionId:setupId})};
+  driver.onDeepLink({url:setupUrl});
+  assert.equal(driver.registrations??0,0,'deep links must never authorize registration');
   // The Stream Deck socket survives a plugin restart, so an already-open PI
   // continues sending alive/watch rather than the initial options request.
   const recoveringInspector={id:'recovering-inspector',async getSettings(){return {mediaTarget:'A'};}};
@@ -43,6 +47,10 @@ test("Now Playing operates the session last sent to the display, and never falls
   driver.onSendToPlugin({action:recoveringInspector,payload:{request:'alive'}});
   await nextTurn();
   assert.equal(driver.inspectorReplies.at(-1).optionsRequired,undefined,'registered inspectors keep lightweight probes');
+  assert.equal(driver.inspectorReplies.find(reply=>reply.chromeSetupExtensionId)?.chromeSetupExtensionId,setupId);
+  driver.onDeepLink({url:setupUrl});await nextTurn();
+  assert.deepEqual(driver.inspectorReplies.at(-1),{response:'chromeSetup',extensionId:setupId});
+  assert.equal(driver.registrations??0,0);
   driver.sessions=[b];driver.onStateChanged();await nextTurn();
   assert.equal(driver.inspectorReplies.at(-1).response,'optionsChanged');
   assert.deepEqual(driver.inspectorReplies.at(-1).sessions.map(item=>item.id),['B']);

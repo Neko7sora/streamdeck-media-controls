@@ -8,6 +8,8 @@ import {displayTitle} from "./media-model.js";
 import {InspectorUpdates} from "./inspector-updates.js";
 import {icueIntegrationStatus,setIcueIntegrationEnabled,subscribeIcueIntegration} from "./icue-integration.js";
 
+import {receiveChromeDeepLink,takeChromeDeepLink} from "./chrome-deep-link.js";
+
 const inspectorUpdates=new InspectorUpdates();
 let inspectorId:string|undefined,inspectorRevision=0,inspectorSending=false,inspectorDirty=false;
 function inspectorPayload() {
@@ -40,6 +42,11 @@ export async function notifySettingsChanged(instance:Instance,settings:Settings)
   }
 }
 export function startPropertyInspector():void {
+  streamDeck.system.onDidReceiveDeepLink(ev=>{
+    if(!receiveChromeDeepLink(ev.url)||!streamDeck.ui.action) return;
+    const extensionId=takeChromeDeepLink();
+    void streamDeck.ui.sendToPropertyInspector({response:"chromeSetup",extensionId}).catch(e=>streamDeck.logger.warn(String(e)));
+  });
   subscribeChanges(notifyInspector);
   subscribeIcueIntegration(notifyInspector);
   streamDeck.ui.onSendToPlugin(ev=>{
@@ -80,7 +87,7 @@ export function startPropertyInspector():void {
     void (async()=>{const settings=await ev.action.getSettings();
       if(streamDeck.ui.action?.id!==ev.action.id) return;
       const payload=inspectorPayload();inspectorId=ev.action.id;inspectorRevision=settingsRevision;inspectorUpdates.reset();inspectorUpdates.changes(payload);
-      await streamDeck.ui.sendToPropertyInspector({protocol:2,settings,settingsRevision,...payload});
+      await streamDeck.ui.sendToPropertyInspector({protocol:2,settings,settingsRevision,...payload,chromeSetupExtensionId:takeChromeDeepLink()});
     })().catch(e=>streamDeck.logger.warn(String(e)));
   });
 }
