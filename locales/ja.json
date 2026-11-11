@@ -1,4 +1,5 @@
 {
+  "extension.setup.openStreamDeck": "Stream Deck で開く",
   "1.s": "1秒",
   "10.s": "10秒",
   "30.s": "30秒",
@@ -77,8 +78,8 @@
   "extension.settings.saveFailed": "設定を保存できませんでした。拡張機能を再読み込みしてください。",
   "extension.settings.unsaved": "未保存の変更があります",
   "extension.setup.help": "初回は Stream Deck の Media Controls 設定で「Chrome 連携を登録」を押してから、下の送信設定を有効にして保存してください。",
-  "extension.setup.step1": "Stream Deck の Media Controls 設定で「Chrome 連携の設定」を開きます。",
-  "extension.setup.step2": "上に表示された拡張機能 ID をコピーしてプラグイン設定に貼り付け、「Chrome 連携を登録」を押します。",
+  "extension.setup.step1": "「Stream Deck で開く」を押して、Stream Deck で Media Controls のアクションを選びます。",
+  "extension.setup.step2": "プラグイン設定に入力された拡張機能 ID を確認し、「Chrome 連携を登録」を押します。リンクが動作しない場合は、下の ID をコピーして貼り付けてください。",
   "extension.setup.step3": "上の送信設定を有効にして保存します。",
   "extension.setup.step4": "メディアのタブを再読み込みして再生し、「Stream Deck に接続済み」と表示されることを確認します。",
   "extension.setup.title": "はじめての設定",

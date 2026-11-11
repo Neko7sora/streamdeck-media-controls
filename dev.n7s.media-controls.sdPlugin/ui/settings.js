@@ -148,6 +148,12 @@ window.connectElgatoStreamDeckSocket=(port,uuid,registerEvent,_info,actionInfo)=
     const msg=JSON.parse(event.data);
     if(msg.event==="didReceiveSettings"){settingsRevision++;settings=msg.payload.settings??{};show();if(pushOptions) send("sendToPlugin",{request:"watch",settingsRevision});}
     if(msg.event==="sendToPropertyInspector"){
+      const setupId=msg.payload.response==="chromeSetup"?msg.payload.extensionId:msg.payload.chromeSetupExtensionId;
+      if(typeof setupId==="string"&&/^[a-p]{32}$/.test(setupId)&&registrationRequestId===null) {
+        extensionIdInput.value=setupId;extensionIdInput.setCustomValidity("");extensionIdInput.removeAttribute("aria-invalid");
+        document.getElementById("chrome-setup").open=true;extensionIdInput.focus();
+      }
+      if(msg.payload.response==="chromeSetup") return;
       if(msg.payload.response==="icueIntegration") {
         if(icueRequestId===null||msg.payload.requestId!==icueRequestId) return;
         icueRequestId=null;clearTimeout(icueTimeout);

@@ -1,4 +1,5 @@
 {
+  "extension.setup.openStreamDeck": "Open in Stream Deck",
   "1.s": "1 s",
   "10.s": "10 s",
   "30.s": "30 s",
@@ -81,8 +82,8 @@
   "extension.settings.saveFailed": "Could not save settings. Reload the extension.",
   "extension.settings.unsaved": "Unsaved changes",
   "extension.setup.help": "For first-time setup, click “Register Chrome integration” in the Stream Deck Media Controls settings, then enable sending below and save.",
-  "extension.setup.step1": "In Stream Deck’s Media Controls settings, open “Setup Chrome integration”.",
-  "extension.setup.step2": "Copy the extension ID shown above, paste it into the plugin settings, then click “Register Chrome integration”.",
+  "extension.setup.step1": "Click “Open in Stream Deck”, then select a Media Controls action in Stream Deck.",
+  "extension.setup.step2": "Check the extension ID filled into the plugin settings, then click “Register Chrome integration”. If the link does not work, copy and paste the ID below.",
   "extension.setup.step3": "Enable sending above, then save.",
   "extension.setup.step4": "Reload your media tabs and start playback. Check that the connection reads “Connected to Stream Deck”.",
   "extension.setup.title": "First-time setup",
