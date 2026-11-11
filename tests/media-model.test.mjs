@@ -3,6 +3,18 @@ import assert from 'node:assert/strict';
 import {load} from './load.mjs';
 const model=await load('media-model');
 
+test('explicit selection accepts the OS current session missing from the session list',()=>{
+ for(const source of ['windows','macos']) {
+  const current={source,session_id:'current',title:'Current',playback_state:'playing'};
+  const other={source,session_id:'other',title:'Other'};
+  const snapshot={current,sessions:[other]};
+  assert.equal(model.chooseCurrent(snapshot,[],'current'),current);
+  assert.equal(model.chooseCurrent(snapshot,[],'other'),other);
+  assert.equal(model.chooseCurrent(snapshot,[],'removed'),null);
+  assert.equal(model.chooseCurrent({...snapshot,current:null},[],'current'),null);
+ }
+});
+
 test('auto selects Windows sessions when the OS has no current session',()=>{
  const old={source:'windows',session_id:'old',title:'Old',playback_state:'paused',timeline:{updated_at:10},observed_at:999};
  const recent={...old,session_id:'recent',title:'Recent',timeline:{updated_at:20},observed_at:1};
