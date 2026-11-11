@@ -84,7 +84,7 @@ export function startIcueServer(backend: IcueBackend, options: {token: string; t
     if (!supported) throw new Error("unavailable");
     const position = op === "seek" && typeof value.value === "number" ? seekPosition(media, value.value) : undefined;
     if (op === "seek" && position === undefined) throw new Error("unavailable");
-    if (media.source === "windows") await backend.native({command: op, session_id: media.session_id,
+    if (media.source === "windows" || media.source === "macos") await backend.native({command: op, session_id: media.session_id,
       ...(position === undefined ? {} : {position})});
     else await backend.chrome(media, op, position);
   }

@@ -1,12 +1,13 @@
 import {readFileSync} from 'node:fs';
 import {join} from 'node:path';
+import {homedir} from 'node:os';
 import {randomUUID} from 'node:crypto';
 import {request} from 'node:https';
 
 const client=randomUUID();
 let streaming=false,streamController,streamGeneration=0,touchStream;
 function localRequest(path,{method='GET',body,signal}={}) {
-  const directory=join(process.env.LOCALAPPDATA,'StreamDeckMediaControls');
+  const directory=join(process.env.LOCALAPPDATA ?? (process.platform==='darwin'?join(homedir(),'Library','Application Support'):''),'StreamDeckMediaControls');
   const token=readFileSync(join(directory,'chrome-token.txt'),'utf8').trim();
   if(!/^[a-f0-9]{64}$/.test(token)) throw new Error('Invalid token');
   // Trust only this user's companion identity. TLS authenticates the receiver

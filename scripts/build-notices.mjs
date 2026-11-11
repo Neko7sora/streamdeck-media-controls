@@ -5,7 +5,7 @@ import {execFileSync} from 'node:child_process';
 import {pathToFileURL} from 'node:url';
 
 const root=resolve(import.meta.dirname,'..');
-const output=join(root,'dev.n7s.media-controls.sdPlugin/THIRD_PARTY_NOTICES.txt');
+const output=join(root,`dev.n7s.media-controls.sdPlugin/THIRD_PARTY_NOTICES${process.platform==='darwin'?'.macos':''}.txt`);
 const normalize=text=>text.replaceAll('\r\n','\n').trimEnd();
 const read=path=>normalize(readFileSync(path,'utf8'));
 
@@ -23,7 +23,7 @@ Includes build dependencies conservatively. Development tools are not distribute
 These notices do not grant a license to Media Controls itself.
 System fonts and the Stream Deck-provided Node.js runtime are not bundled here.
 
-The sharp Windows runtime also includes native libraries listed in its upstream
+The sharp platform runtime also includes native libraries listed in its upstream
 README and versions.json below. Their source/redistribution review is tracked in
 docs/release-review.json; this inventory alone does not certify those obligations.`];
   const packages=new Set();
@@ -39,11 +39,14 @@ docs/release-review.json; this inventory alone does not certify those obligation
     packages.add(manifest);
     const directory=dirname(manifest),pkg=JSON.parse(readFileSync(manifest,'utf8'));
     const files=noticeFiles(directory);
+    // libvips macOS packages ship their upstream licensing inventory in README,
+    // rather than a LICENSE file. Preserve it verbatim along with versions.json.
+    if(pkg.name.startsWith('@img/sharp-libvips-')&&!files.length&&existsSync(join(directory,'README.md'))&&read(join(directory,'README.md')).includes('## Licensing')) files.push('README.md');
     if(!pkg.license||!files.length) throw new Error(`Missing license for ${pkg.name}`);
     sections.push(`npm: ${pkg.name}@${pkg.version}\nDeclared license: ${pkg.license}`);
     for(const file of files) sections.push(`${pkg.name}/${file}\n\n${read(join(directory,file))}`);
     if(pkg.name.startsWith('@img/sharp-')) for(const file of ['README.md','versions.json']) {
-      if(existsSync(join(directory,file))) sections.push(`${pkg.name}/${file}\n\n${read(join(directory,file))}`);
+      if(!files.includes(file)&&existsSync(join(directory,file))) sections.push(`${pkg.name}/${file}\n\n${read(join(directory,file))}`);
     }
     for(const dependency of Object.keys(pkg.dependencies??{}).sort()) npmPackage(dependency,directory);
     for(const dependency of Object.keys(pkg.optionalDependencies??{}).sort()) {
@@ -52,7 +55,7 @@ docs/release-review.json; this inventory alone does not certify those obligation
     }
   }
   for(const name of ['@elgato/streamdeck','sharp']) npmPackage(name);
-  for(const project of ['media-info','media-keys']) {
+  for(const project of (process.platform==='darwin'?[]:['media-info','media-keys'])) {
     const metadata=JSON.parse(execFileSync('cargo',['metadata','--locked','--offline','--format-version','1',
       '--manifest-path',join(root,`native/${project}/Cargo.toml`)],{encoding:'utf8',windowsHide:true,maxBuffer:16*1024*1024}));
     for(const pkg of metadata.packages.filter(pkg=>pkg.source).sort((a,b)=>a.id.localeCompare(b.id,'en'))) {

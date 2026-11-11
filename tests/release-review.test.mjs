@@ -44,5 +44,5 @@ test('release failures explain local packaging and how to complete the release r
 
 test('license collection preserves bundled SDK and native image runtime notices',()=>{
   assert.ok(noticeFiles('node_modules/@elgato/streamdeck').includes('LICENSE'));
-  assert.ok(noticeFiles('node_modules/@img/sharp-win32-x64').includes('LICENSE'));
+  assert.ok(noticeFiles(`node_modules/@img/sharp-${process.platform}-${process.arch}`).includes('LICENSE'));
 });

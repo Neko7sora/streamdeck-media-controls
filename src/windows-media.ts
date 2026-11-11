@@ -1,3 +1,4 @@
+import {nativeCommand} from "./native-client.js";
 import { execFile } from "node:child_process";
 import { fileURLToPath } from "node:url";
 
@@ -15,13 +16,16 @@ export type MediaCommand =
 const helperPath = fileURLToPath(new URL("../native/media-keys.exe", import.meta.url));
 
 export function sendMediaKey(command: MediaCommand, count = 1): Promise<void> {
-  if (process.platform !== "win32") {
-    return Promise.reject(new Error("This plugin supports Windows only."));
-  }
   if (!Number.isInteger(count) || count < 1 || count > 32) {
     return Promise.reject(new RangeError("count must be an integer from 1 to 32"));
   }
 
+  if(process.platform==="darwin") {
+    if(command==="mute") return nativeCommand({command:"mute",target:"master"});
+    if(command==="volume-up"||command==="volume-down") return nativeCommand({command:"volume",target:"master",delta:(command==="volume-up"?1:-1)*count*0.02});
+    return Promise.reject(new Error("Global playback keys are unavailable on macOS. Turn off global keys and select Music, Spotify or Chrome."));
+  }
+  if(process.platform!=="win32") return Promise.reject(new Error("Unsupported platform"));
   return new Promise<void>((resolve, reject) => {
     // No shell expansion. Arguments are fixed, validated strings.
     execFile(helperPath, [command, String(count)], {
