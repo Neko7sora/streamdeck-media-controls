@@ -37,6 +37,8 @@ node --test --test-name-pattern="seek" tests/media-seek.test.mjs
 | iCUE ウィジェット／内蔵・独立ブリッジ | `tests/icue-widget.test.mjs`、`tests/icue-server.test.mjs`、`tests/icue-runtime.test.mjs`、`tests/icue-integration.test.mjs`、`tests/plugin-routing.test.mjs`、`tests/settings.test.mjs`、`npm run icue:check`、`npm run test:icue:e2e`、`npm run icue:pack`、`npm run icue:bridge:pack`。ネイティブ変更時はRustテストとビルドも実施。実機確認は別途 iCUE / XENEON EDGE で実施 |
 | 文書・コマンド・バージョン | `npm run consistency:check` |
 
+macOS のビルド・権限・検証は [macOS ガイド](macos.md) を参照してください。`npm run build` はホスト OS に対応するヘルパーを同梱します。
+
 Rust のビルド・テストは Windows x64 の Developer PowerShell for Visual Studio と C++ ビルドツールが必要です。実ブラウザテストの初回準備は `npm run test:chrome:install` です。これらを実行できない場合は未検証として記録します。
 
 iCUEのブラウザテストも既存のPlaywright / Chromiumを共用します。`check:fast` はウィジェットのJS構文、公式CLIのソース検証、単体テストを含みます。ブラウザテスト、ネイティブビルド、配布物生成は含みません。初期値のブリッジモードはStream Deckプラグイン内で自動起動し、既存Rustヘルパー・メディア状態・Chrome接続を共有します。Stream Deckアプリなしで動作する独立ブリッジも維持します。明示的に切り替えるiCUE標準モードはMedia Data Providerだけを使用します。構成・権限・独立版とのポート競合は [ウィジェット README](../icue-widget/README.md) を参照してください。

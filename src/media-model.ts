@@ -8,7 +8,7 @@ export interface MediaTimeline {
   max_seek_sec?: number | null;
 }
 export interface MediaItem {
-  source: "windows" | "chrome";
+  source: "windows" | "macos" | "chrome";
   session_id?: string;
   frame_id?: number;
   document_id?: string;

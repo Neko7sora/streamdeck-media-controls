@@ -5,10 +5,10 @@ import {PassThrough,Writable} from "node:stream";
 import {setImmediate} from "node:timers/promises";
 import {load} from "./load.mjs";
 
-async function harness() {
-  const driver={children:[],spawn(){
+async function harness(platform="win32") {
+  const driver={children:[],spawn(...args){
     const child=new EventEmitter();
-    child.killed=false;child.writes=[];child.nextWriteError=undefined;
+    child.spawnArgs=args;child.killed=false;child.writes=[];child.nextWriteError=undefined;
     child.stdin=new Writable({write(bytes,_encoding,callback){
       child.writes.push(JSON.parse(bytes.toString()));
       callback(child.nextWriteError);
@@ -20,7 +20,7 @@ async function harness() {
   }};
   globalThis.__nativeClientTest=driver;
   const mocks={name:"native-process",setup(build){
-    build.initialOptions.define={"process.platform":'"win32"'};
+    build.initialOptions.define={"process.platform":JSON.stringify(platform)};
     build.onResolve({filter:/^node:child_process$/},()=>({path:"child-process",namespace:"native-test"}));
     build.onLoad({filter:/.*/,namespace:"native-test"},()=>({contents:"const driver=globalThis.__nativeClientTest;export const spawn=(...args)=>driver.spawn(...args);",loader:"js"}));
   }};
@@ -249,4 +249,17 @@ test("native JSON lines preserve split UTF-8, CRLF, batched lines and a final un
   child.stdout.end();await setImmediate();
   assert.deepEqual(snapshots.map(value=>value.sessions[0].title),["日本語","Second","Final"]);
   assert.deepEqual(errors,[]);
+});
+
+
+test("macOS starts the bundled Node helper and retains the macOS source",async t=>{
+  const {driver,client}=await harness("darwin"),received=[];
+  const stop=client.startNative(value=>received.push(value),()=>{});t.after(stop);
+  const child=driver.children[0];
+  assert.equal(child.spawnArgs[0],process.execPath);
+  assert.match(child.spawnArgs[1][0],/native\/media-info\.mjs$/);
+  child.output({current:{session_id:"macos:app:42:track",title:"Track"},sessions:[{session_id:"macos:app:42:track",title:"Track"}]});
+  assert.equal(received[0].current.source,"macos");
+  const command=client.nativeCommand({command:"pause",session_id:"macos:app:42:track"});
+  child.output({reply:child.writes[0].id,ok:true});await command;
 });

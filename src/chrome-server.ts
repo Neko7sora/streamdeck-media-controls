@@ -1,7 +1,8 @@
+import {privateDirectory} from "./platform-paths.js";
 import type {IncomingMessage} from "node:http";
 import {createServer,type Server,type ServerOptions} from "node:https";
 import {randomBytes,timingSafeEqual,X509Certificate} from "node:crypto";
-import {mkdirSync,readFileSync,writeFileSync} from "node:fs";
+import {mkdirSync,readFileSync,writeFileSync,chmodSync,existsSync,mkdtempSync,rmSync} from "node:fs";
 import {join} from "node:path";
 import {execFileSync} from "node:child_process";
 import {ingestChrome,chromeSessions} from "./media-state.js";
@@ -16,8 +17,7 @@ export function chromeConnectionStatus(now=Date.now()) {
   return {state:!bridgeListening?"unavailable":connected?"connected":"disconnected",lastSeen:lastChromeContact,sessions:connected?chromeSessions(now).length:0};
 }
 export function loadCredentials():{token:string;tls:ServerOptions} {
-  if(!process.env.LOCALAPPDATA) throw new Error("LOCALAPPDATA is required for private token storage");
-  const dir=join(process.env.LOCALAPPDATA,"StreamDeckMediaControls"), path=join(dir,"chrome-token.txt");
+  const dir=privateDirectory(), path=join(dir,"chrome-token.txt");
   const pfx=join(dir,"chrome-server.pfx"),cert=join(dir,"chrome-server.pem");
   mkdirSync(dir,{recursive:true});
   if(process.platform==="win32") {
@@ -48,6 +48,21 @@ export function loadCredentials():{token:string;tls:ServerOptions} {
         } finally {$rsa.Dispose()}
       }`;
     execFileSync(join(process.env.SystemRoot??"C:\\Windows","System32/WindowsPowerShell/v1.0/powershell.exe"),["-NoProfile","-NonInteractive","-Command",script],{windowsHide:true,timeout:10000,env:{...process.env,SDMC_TOKEN_DIR:dir,SDMC_TOKEN_FILE:path,SDMC_TLS_PFX:pfx,SDMC_TLS_CERT:cert,SDMC_ICUE_TOKEN_FILE:join(dir,"icue-token.txt")},stdio:"pipe"});
+  }
+  if(process.platform==="darwin") {
+    chmodSync(dir,0o700);
+    for(const file of [path,pfx,cert,join(dir,"icue-token.txt")]) if(existsSync(file)) chmodSync(file,0o600);
+    if(!existsSync(pfx)&&!existsSync(cert)) {
+      const temporary=mkdtempSync(join(dir,"tls-"));
+      try {
+        const key=join(temporary,"key.pem"),pem=join(temporary,"cert.pem"),config=join(temporary,"openssl.cnf");
+        writeFileSync(config,"[req]\ndistinguished_name=dn\nx509_extensions=ext\nprompt=no\n[dn]\nCN=Stream Deck Media Controls\n[ext]\nsubjectAltName=IP:127.0.0.1\n",{mode:0o600});
+        execFileSync("/usr/bin/openssl",["req","-x509","-newkey","rsa:2048","-nodes","-days","3650","-keyout",key,"-out",pem,"-config",config],{timeout:10000,stdio:"pipe"});
+        execFileSync("/usr/bin/openssl",["pkcs12","-export","-keypbe","AES-256-CBC","-certpbe","AES-256-CBC","-macalg","sha256","-inkey",key,"-in",pem,"-out",join(temporary,"identity.pfx"),"-passout","pass:"],{timeout:10000,stdio:"pipe"});
+        writeFileSync(pfx,readFileSync(join(temporary,"identity.pfx")),{flag:"wx",mode:0o600});
+        writeFileSync(cert,readFileSync(pem),{flag:"wx",mode:0o600});
+      } finally {rmSync(temporary,{recursive:true,force:true});}
+    }
   }
   // Never regenerate a partial identity or silently fall back to plaintext.
   const tls={pfx:readFileSync(pfx),passphrase:""};

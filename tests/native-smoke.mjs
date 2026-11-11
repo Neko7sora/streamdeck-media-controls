@@ -1,10 +1,10 @@
-// Read-only Windows integration. Never changes playback or volume.
+// Read-only platform integration. Never changes playback or volume.
 import {spawn} from "node:child_process";
 import {createInterface} from "node:readline";
 import {fileURLToPath} from "node:url";
 import assert from "node:assert/strict";
 const helper=fileURLToPath(new URL("../dev.n7s.media-controls.sdPlugin/native/media-info.exe",import.meta.url));
-const child=spawn(helper,["--watch"],{windowsHide:true});
+const child=spawn(process.platform==="darwin"?process.execPath:helper,process.platform==="darwin"?[fileURLToPath(new URL("../dev.n7s.media-controls.sdPlugin/native/media-info.mjs",import.meta.url))]:["--watch"],{windowsHide:true});
 const timer=setTimeout(()=>{child.kill();console.error("Native smoke timed out");process.exitCode=1;},15000);
 let snapshot=false,replied=false;
 child.stderr.on("data",b=>process.stderr.write(b));
@@ -14,8 +14,8 @@ createInterface({input:child.stdout}).on("line",line=>{
     const value=JSON.parse(line);
     if(Array.isArray(value.sessions)&&!snapshot){
       snapshot=true;assert.ok(value.current===null||typeof value.current==="object");
-      console.log(`Native snapshot OK: GSMTC ${value.sessions.length} session(s), Core Audio ${value.audio?.sessions?.length??"unavailable"} session(s), master volume ${value.audio?.master?.volume??"unavailable"}`);
-      child.stdin.write(JSON.stringify({id:1,command:"play-pause",session_id:"nonexistent-test-session"})+"\n");
+      console.log(`Native snapshot OK: media ${value.sessions.length} session(s), audio ${value.audio?.sessions?.length??"unavailable"} session(s), master volume ${value.audio?.master?.volume??"unavailable"}`);
+      child.stdin.write(JSON.stringify({id:1,command:"play-pause",session_id:"nonexistent-test-session",expires_at:Date.now()+5000})+"\n");
     }
     if(value.reply===1){assert.equal(value.ok,false);replied=true;child.stdin.end();}
   }catch(e){console.error(e);process.exitCode=1;child.kill();}

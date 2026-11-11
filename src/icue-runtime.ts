@@ -1,3 +1,4 @@
+import {privateDirectory} from "./platform-paths.js";
 import {randomBytes} from "node:crypto";
 import {readFileSync, writeFileSync} from "node:fs";
 import {join} from "node:path";
@@ -10,7 +11,7 @@ import {startIcueServer} from "./icue-server.js";
 export function startIcueBridge(options: {port?: number; log?: (message: string) => void} = {}) {
   // This also restricts the credential directory and existing files to the user and SYSTEM.
   const credentials = loadCredentials();
-  const tokenFile = join(process.env.LOCALAPPDATA!, "StreamDeckMediaControls", "icue-token.txt");
+  const tokenFile = join(privateDirectory(), "icue-token.txt");
   const readToken = () => {
     const token = readFileSync(tokenFile, "utf8").trim();
     if (!/^[a-f0-9]{64}$/.test(token)) throw new Error("Invalid iCUE token file");

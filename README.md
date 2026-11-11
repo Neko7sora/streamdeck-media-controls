@@ -1,5 +1,7 @@
 # Stream Deck Media Controls v1.0.1 (STABLE)
 
+macOS 対応の開発実装を追加しています。対応機能・ローカル導入・未検証項目は [macOS ガイド](docs/macos.md) を参照してください。以下の公開版情報は Windows 版についての説明です。
+
 Windows のメディア再生、音量調整、メディア情報の表示を Stream Deck から操作できるプラグインです。**Elgato Marketplace で無料公開中**。任意の Chrome 拡張も **Chrome Web Store で公開中**です。
 
 XENEON EDGE用のiCUEウィジェットは [Edge Media Deck](icue-widget/README.md) を参照してください。メディア情報・アート・再生操作・シーク・プレーヤー選択・マスター／アプリ別音量と任意のChrome連携を使用できます。iCUE用ブリッジはStream Deckプラグイン起動時に自動起動し、メディア状態とChrome接続を共有します。Stream Deckアプリを使わない独立ブリッジも利用できます。`npm run icue:pack` と `npm run icue:bridge:pack` でウィジェットと独立ブリッジの配布物を生成します。

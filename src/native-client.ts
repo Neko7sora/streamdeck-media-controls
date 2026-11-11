@@ -5,6 +5,7 @@ import type {MediaSnapshot} from "./media-model.js";
 import {NativeWire} from "./native-wire.js";
 
 const helper = fileURLToPath(new URL("../native/media-info.exe",import.meta.url));
+const platformName=process.platform==="darwin"?"macOS":"Windows";
 const COMMAND_TIMEOUT_MS=5000;
 const MAX_OUTPUT_LINE_BYTES=64_000_000;
 type PendingCommand={resolve:()=>void;reject:(e:Error)=>void;timer:NodeJS.Timeout};
@@ -13,11 +14,11 @@ let connection:Connection|undefined;
 let sequence=0;
 export function nativeCommand(command: Record<string,string|number>):Promise<void> {
   const current=connection;
-  if(!current || current.child.killed || current.child.stdin.destroyed || !current.child.stdin.writable || current.pending.size>=32) return Promise.reject(new Error("Windows helper unavailable or busy"));
+  if(!current || current.child.killed || current.child.stdin.destroyed || !current.child.stdin.writable || current.pending.size>=32) return Promise.reject(new Error(`${platformName} helper unavailable or busy`));
   return new Promise((resolve,reject)=>{
     const id=++sequence;
     const expiresAt=Date.now()+COMMAND_TIMEOUT_MS;
-    const timer=setTimeout(()=>{current.pending.delete(id);reject(new Error("Windows command timed out"));},COMMAND_TIMEOUT_MS);
+    const timer=setTimeout(()=>{current.pending.delete(id);reject(new Error(`${platformName} command timed out`));},COMMAND_TIMEOUT_MS);
     current.pending.set(id,{resolve,reject,timer});
     current.child.stdin.write(JSON.stringify({...command,id,expires_at:expiresAt})+"\n",error=>{
       if(error) {clearTimeout(timer);current.pending.delete(id);reject(error);}
@@ -33,8 +34,8 @@ export function startNative(onSnapshot:(s:MediaSnapshot)=>void,onError:(s:string
     try {onSnapshot(snapshot);} catch(e) {report(`Native snapshot callback: ${String(e)}`);}
   };
   const start=()=>{
-    if(stopped || process.platform!=="win32") return;
-    const processChild=spawn(helper,["--watch","--delta"],{windowsHide:true,stdio:"pipe"});
+    if(stopped || !["win32","darwin"].includes(process.platform)) return;
+    const processChild=spawn(process.platform==="darwin"?process.execPath:helper,process.platform==="darwin"?[fileURLToPath(new URL("../native/media-info.mjs",import.meta.url))]:["--watch","--delta"],{windowsHide:true,stdio:"pipe"});
     const wire=new NativeWire();
     const current:Connection={child:processChild,pending:new Map()};
     connection=current;
@@ -46,7 +47,7 @@ export function startNative(onSnapshot:(s:MediaSnapshot)=>void,onError:(s:string
       finished=true;
       clearInterval(watchdog);fragments=[];length=0;
       if(connection===current) connection=undefined;
-      for(const p of current.pending.values()) {clearTimeout(p.timer);p.reject(new Error("Windows helper disconnected"));}
+      for(const p of current.pending.values()) {clearTimeout(p.timer);p.reject(new Error(`${platformName} helper disconnected`));}
       current.pending.clear();
       if(!stopped) {
         notify({current:null,sessions:[],audio:null});
@@ -59,9 +60,9 @@ export function startNative(onSnapshot:(s:MediaSnapshot)=>void,onError:(s:string
     };
     stopConnection=()=>{finish();processChild.kill();};
     // Writable errors are emitted even when write() has an error callback.
-    processChild.stdin.on("error",e=>fail(`Windows helper input: ${e.message}`));
-    processChild.stdout.on("error",e=>fail(`Windows helper output: ${e.message}`));
-    processChild.stderr.on("error",e=>fail(`Windows helper stderr: ${e.message}`));
+    processChild.stdin.on("error",e=>fail(`${platformName} helper input: ${e.message}`));
+    processChild.stdout.on("error",e=>fail(`${platformName} helper output: ${e.message}`));
+    processChild.stderr.on("error",e=>fail(`${platformName} helper stderr: ${e.message}`));
     const receiveLine=(line:string)=>{
       if(finished) return;
       let snapshot:MediaSnapshot|undefined;
@@ -75,7 +76,7 @@ export function startNative(onSnapshot:(s:MediaSnapshot)=>void,onError:(s:string
           if(record.ok===true) p.resolve(); else p.reject(new Error(typeof record.error==="string" ? record.error : "Native command failed"));
         } else {
           const decoded=record.native_wire===2?wire.decode(record):v;
-          if(decoded!==undefined) snapshot=validateSnapshot(decoded);
+          if(decoded!==undefined) snapshot=validateSnapshot(decoded,process.platform==="darwin"?"macos":"windows");
           lastSeen=Date.now();
         }
       } catch(e) {
@@ -97,7 +98,7 @@ export function startNative(onSnapshot:(s:MediaSnapshot)=>void,onError:(s:string
       while(!finished&&start<bytes.length) {
         const newline=bytes.indexOf(10,start),end=newline<0?bytes.length:newline;
         length+=end-start;
-        if(length>MAX_OUTPUT_LINE_BYTES) {fail("Windows helper output exceeded limit");return;}
+        if(length>MAX_OUTPUT_LINE_BYTES) {fail(`${platformName} helper output exceeded limit`);return;}
         if(end>start) fragments.push(bytes.subarray(start,end));
         if(newline<0) return;
         flushLine();start=end+1;
@@ -105,8 +106,8 @@ export function startNative(onSnapshot:(s:MediaSnapshot)=>void,onError:(s:string
     });
     processChild.stdout.on("end",()=>{if(!finished&&length) flushLine();});
     processChild.stderr.on("data",(b:Buffer)=>{if(!finished) report(b.toString().slice(0,2000));});
-    processChild.on("error",e=>fail(`Windows helper: ${e.message}`));
-    watchdog=setInterval(()=>{if(Date.now()-lastSeen>12000) fail("Windows helper snapshot timed out");},2000);
+    processChild.on("error",e=>fail(`${platformName} helper: ${e.message}`));
+    watchdog=setInterval(()=>{if(Date.now()-lastSeen>12000) fail(`${platformName} helper snapshot timed out`);},2000);
     processChild.on("close",finish);
   };
   start();

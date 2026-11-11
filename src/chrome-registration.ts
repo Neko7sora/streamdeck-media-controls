@@ -11,11 +11,11 @@ let pending:Promise<RegistrationResult>|undefined,child:ChildProcess|undefined;
 export function registerChromeHost(extensionId:unknown,log:(message:string)=>void):Promise<RegistrationResult> {
   if(typeof extensionId!=="string"||!/^[a-p]{32}$/.test(extensionId)) return Promise.resolve({status:"failed",message:t("chrome.registration.invalidId")});
   if(pending) return Promise.resolve({status:"failed",message:t("chrome.registration.busy")});
-  if(process.platform!=="win32") return Promise.resolve({status:"failed",message:t("chrome.registration.windowsOnly")});
+  if(!["win32","darwin"].includes(process.platform)) return Promise.resolve({status:"failed",message:t("chrome.registration.windowsOnly")});
   const powershell=join(process.env.SystemRoot??"C:\\Windows","System32","WindowsPowerShell","v1.0","powershell.exe");
   const script=fileURLToPath(new URL("../native/register-chrome-native-host.ps1",import.meta.url));
   pending=new Promise<RegistrationResult>(resolve=>{
-    child=execFile(powershell,["-NoProfile","-NonInteractive","-ExecutionPolicy","Bypass","-File",script,"-ExtensionId",extensionId,"-NodePath",process.execPath],
+    child=execFile(process.platform==="darwin"?process.execPath:powershell,process.platform==="darwin"?[fileURLToPath(new URL("../native/register-chrome-native-host-macos.mjs",import.meta.url)),extensionId]:["-NoProfile","-NonInteractive","-ExecutionPolicy","Bypass","-File",script,"-ExtensionId",extensionId,"-NodePath",process.execPath],
       {windowsHide:true,timeout:20000,maxBuffer:64*1024},(error)=>{
         child=undefined;
         if(error&&"code" in error&&error.code===2) resolve({status:"not-found",message:t("chrome.registration.notFound")});
