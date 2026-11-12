@@ -207,7 +207,9 @@ test('Open Graph original artwork reaches the shared bridge without being reduce
  const w=worker(true,url=>url==='https://cdn.test/original.jpg'||url==='https://cdn.test/thumbnail.jpg'
   ?new Response(url.endsWith('/original.jpg')?original:thumbnail,{headers:{'content-type':'image/jpeg'}}):new Response(null,{status:404}),hooks);
  w.send(p.messages.at(-1).media);
- await new Promise(resolve=>setTimeout(resolve,50));
+ // The thumbnail is published before the asynchronous OGP comparison finishes.
+ for(let i=0;i<100&&(!w.requests.length||w.busy());i++) await new Promise(resolve=>setTimeout(resolve,10));
+ assert.equal(w.busy(),0,'artwork processing must complete before inspecting the final update');
  const delivered=w.requests.map(request=>JSON.parse(request.options.body)).map(body=>body.media).filter(media=>media?.artwork_data_url).at(-1);
  assert.ok(delivered,'completed artwork is published without another page event');
  const image=await sharp(Buffer.from(delivered.artwork_data_url.split(',')[1],'base64')).metadata();

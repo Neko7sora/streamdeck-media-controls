@@ -257,7 +257,7 @@ test("macOS starts the bundled Node helper and retains the macOS source",async t
   const stop=client.startNative(value=>received.push(value),()=>{});t.after(stop);
   const child=driver.children[0];
   assert.equal(child.spawnArgs[0],process.execPath);
-  assert.match(child.spawnArgs[1][0],/native\/media-info\.mjs$/);
+  assert.match(child.spawnArgs[1][0],/[\\/]native[\\/]media-info\.mjs$/);
   child.output({current:{session_id:"macos:app:42:track",title:"Track"},sessions:[{session_id:"macos:app:42:track",title:"Track"}]});
   assert.equal(received[0].current.source,"macos");
   const command=client.nativeCommand({command:"pause",session_id:"macos:app:42:track"});

@@ -13,7 +13,8 @@ test('macOS registration scopes origins and quotes executable paths',async t=>{
   const manifest=JSON.parse(await readFile(path,'utf8'));
   assert.deepEqual(manifest.allowed_origins,[`chrome-extension://${first}/`]);
   assert.match(await readFile(manifest.path,'utf8'),/Node'\\''s runtime/);
-  assert.equal((await stat(manifest.path)).mode&0o777,0o700);
+  // Windows chmod does not implement POSIX owner/group/other permissions.
+  if(process.platform!=='win32') assert.equal((await stat(manifest.path)).mode&0o777,0o700);
   register(second,process.execPath,home);
   assert.deepEqual(JSON.parse(await readFile(path,'utf8')).allowed_origins,[`chrome-extension://${second}/`]);
 });
