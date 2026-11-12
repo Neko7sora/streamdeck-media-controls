@@ -41,7 +41,7 @@ npm run chrome:listing:build
 npm run chrome:store:check
 ```
 
-`listing.*.json` が編集元。`description.*.txt` は直接編集しない。画像は [生成スクリプト](../../scripts/build-chrome-listing.mjs) が既存SVGを描画する。画像生成モデルは使用しない。[生成記録](../../assets/chrome-web-store/listing-assets.json) に編集元と出力の SHA-256 を保存し、検査で古い原稿・寸法違い・生成後の変更を検出する。アイコンや実画面を変更した場合の再生成手順は [全体の手順](../chrome-web-store.md#再生成と検査) を参照。
+`listing.*.json` が編集元。`description.*.txt` は直接編集しない。画像は [生成スクリプト](../../scripts/build-chrome-listing.mjs) が既存SVGを描画する。画像生成モデルは使用しない。[生成記録](../../assets/chrome-web-store/listing-assets.json) に編集元と出力の一覧を保存し、検査で説明文の一致と画像の形式・寸法を確認する。アイコンや実画面を変更した場合の再生成手順は [全体の手順](../chrome-web-store.md#再生成と検査) を参照。
 
 機械検査で判定するのは文字数・参照・寸法・整合性。説明の正確さ、画像の見やすさ、商標・権利、リンクの到達性は実物と掲載プレビューで確認する。
 

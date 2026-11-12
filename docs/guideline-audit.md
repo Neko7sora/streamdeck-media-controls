@@ -42,7 +42,7 @@ Media Controls は [Elgato Marketplace](https://marketplace.elgato.com/product/m
 | listingPreview | 英語の説明、名称・機能・制限・画像の実物との一致と可読性を両ストアのプレビューで確認 |
 | publisherSettings | 両ストアの規約・連絡先・無料設定・配布地域・既存版の更新番号、Chrome の2段階認証・Privacy practices・Limited Use・権限理由・テスト指示 |
 
-確認対象の全変更を保存した後、`node scripts/check-release.mjs --fingerprint` の結果を `sourceFingerprint` に記録する。指紋は Git 管理対象と未追跡の非除外ファイル（確認記録自身を除く）を検査し、テキストの改行だけを正規化する。変更後は該当する確認をやり直し、指紋を更新する。記録の存在を検査する仕組みであり、根拠の真実性やストア審査を自動認証するものではない。
+確認対象の全変更を保存した後、該当する確認の根拠を記録する。変更後は該当する確認をやり直し、記録を更新する。記録の存在を検査する仕組みであり、根拠の真実性やストア審査を自動認証するものではない。
 
 ```powershell
 npm run check

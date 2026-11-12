@@ -1,6 +1,5 @@
 import {build} from "esbuild";
 import sharp from "sharp";
-import {createHash} from "node:crypto";
 import {mkdirSync,readFileSync,writeFileSync} from "node:fs";
 import {resolve} from "node:path";
 import {fileURLToPath} from "node:url";
@@ -8,8 +7,8 @@ import {marketplaceImagePaths,marketplaceOutputPaths} from "./marketplace-paths.
 
 // Render original vector artwork and the real key renderer. No device mockups,
 // third-party album covers, captured user metadata or generative image assets.
-export const root=fileURLToPath(new URL("../",import.meta.url));
-export const mediaSources=[
+const root=fileURLToPath(new URL("../",import.meta.url));
+const mediaSources=[
   "assets/plugin-icon.svg", "dev.n7s.media-controls.sdPlugin/manifest.json",
   "docs/marketplace/listing.en.json", "scripts/build-marketplace.mjs", "scripts/marketplace-paths.mjs",
   "src/now-playing-image.ts", "src/scrolling-text.ts", "src/display-font.ts",
@@ -17,12 +16,6 @@ export const mediaSources=[
   "src/configured-action.ts", "src/control-actions.ts", "src/now-playing-actions.ts", "src/action-settings.ts",
   ...["play-pause","previous","next","stop","mute","volume-down","volume-up"].map(name=>`dev.n7s.media-controls.sdPlugin/imgs/actions/${name}@2x.png`)
 ];
-export const digest=bytes=>createHash("sha256").update(bytes).digest("hex");
-// Git's Windows checkout can convert text to CRLF; that does not change a source.
-export const sourceHashes=()=>Object.fromEntries(mediaSources.map(path=>{
-  const bytes=readFileSync(resolve(root,path));
-  return [path,digest(path.endsWith(".png")?bytes:bytes.toString("utf8").replaceAll("\r\n","\n"))];
-}));
 const read=path=>readFileSync(resolve(root,path));
 const escape=value=>String(value).replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;").replaceAll('"',"&quot;");
 const text=(x,y,value,size=32,color="#f1f5fb",weight=400)=>`<text x="${x}" y="${y}" fill="${color}" font-size="${size}" font-weight="${weight}" font-family="Segoe UI, sans-serif">${escape(value)}</text>`;
@@ -56,9 +49,8 @@ export async function buildMarketplace() {
     artwork:decode(await nowPlayingImage(data(cover))),
     text:decode(await nowPlayingImage(undefined,title,artist,playing))
   };
-  const outputHashes={};
   async function write(index,buffer) {
-    writeFileSync(outputPaths[index],buffer);outputHashes[images[index]]=digest(buffer);
+    writeFileSync(outputPaths[index],buffer);
   }
   await write(0,await sharp(read("assets/plugin-icon.svg")).resize(288,288).png().toBuffer());
   const chip=(x,y,label)=>rect(x,y,230,52,"#193446",26)+text(x+22,y+35,label,24,"#a2ebef",600);
@@ -108,7 +100,7 @@ export async function buildMarketplace() {
   }
   await write(4,await sharp(frame("03","Make each key your own","Show or hide information per action. Configure text scrolling in settings.",variants)).composite(variantOverlays).png().toBuffer());
   writeFileSync(resolve(root,"docs/marketplace/description.en.txt"),listing.description+"\n");
-  writeFileSync(resolve(out,"provenance.json"),JSON.stringify({sources:sourceHashes(),outputs:outputHashes,sample:{title:"Daylight",artist:"Sample",artwork:"Original geometric SVG in scripts/build-marketplace.mjs"},method:"Plugin nowPlayingImage + ScrollingText; original bundled control icons. Enlarged key previews, no physical device representation.",aiDisclosure:listing.aiDisclosure},null,2)+"\n");
+  writeFileSync(resolve(out,"provenance.json"),JSON.stringify({sources:mediaSources,outputs:images,sample:{title:"Daylight",artist:"Sample",artwork:"Original geometric SVG in scripts/build-marketplace.mjs"},method:"Plugin nowPlayingImage + ScrollingText; original bundled control icons. Enlarged key previews, no physical device representation.",aiDisclosure:listing.aiDisclosure},null,2)+"\n");
   console.log(`Marketplace media: 288 × 288 icon, thumbnail and ${listing.gallery.length} gallery images (1920 × 960)`);
 }
 if(process.argv[1]&&resolve(process.argv[1])===fileURLToPath(import.meta.url)) await buildMarketplace();

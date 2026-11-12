@@ -1,7 +1,6 @@
 {
   "version": "1.0.1",
   "makerOrganization": "Neko7sora",
-  "sourceFingerprint": null,
   "checks": {
     "identity": {"reviewedOn": null, "reviewer": null, "evidence": null},
     "rightsAndHumanContribution": {"reviewedOn": null, "reviewer": null, "evidence": null},

@@ -1,8 +1,7 @@
 import assert from 'node:assert/strict';
-import {mkdtemp,mkdir,rm,writeFile,readFile} from 'node:fs/promises';
+import {mkdtemp,mkdir,rm,writeFile} from 'node:fs/promises';
 import {tmpdir} from 'node:os';
 import {join,resolve,dirname,basename} from 'node:path';
-import {createHash} from 'node:crypto';
 import {chromium} from 'playwright';
 
 // Uses a disposable profile. It never registers a native host or operates Stream
@@ -10,7 +9,7 @@ import {chromium} from 'playwright';
 const extension=resolve('chrome-extension'),output=resolve('assets/chrome-web-store');
 const capture=process.argv.includes('--screenshots');
 if(capture) await mkdir(output,{recursive:true});
-const images={};
+const images=[];
 for(const language of ['en','ja']) {
   const profile=await mkdtemp(join(tmpdir(),'media-bridge-e2e-'));
   let context;
@@ -54,7 +53,7 @@ for(const language of ['en','ja']) {
     if(capture) {
       const name=`setup-${language}.png`;
       await page.screenshot({path:join(output,name)});
-      images[name]=createHash('sha256').update(await readFile(join(output,name))).digest('hex');
+      images.push(name);
     }
     // Verify the click wiring without modifying the user's system clipboard.
     await page.evaluate(()=>Object.defineProperty(navigator,'clipboard',{configurable:true,value:{writeText:async value=>{globalThis.__copiedId=value;}}}));
@@ -123,10 +122,7 @@ for(const language of ['en','ja']) {
   }
 }
 if(capture) {
-  const sources={};
-  for(const path of ['chrome-extension/manifest.json','chrome-extension/options.html','chrome-extension/options.css','chrome-extension/options.js','chrome-extension/localization.js','tests/chrome-e2e.mjs']) {
-    sources[path]=createHash('sha256').update((await readFile(path,'utf8')).replaceAll('\r\n','\n')).digest('hex');
-  }
+  const sources=['chrome-extension/manifest.json','chrome-extension/options.html','chrome-extension/options.css','chrome-extension/options.js','chrome-extension/localization.js','tests/chrome-e2e.mjs'];
   await writeFile(join(output,'screenshots.json'),JSON.stringify({
     method:'Playwright Chromium; real extension first-run options page; sending disabled; native host calls stubbed to fail so no user host is contacted',
     sources,images
