@@ -59,8 +59,8 @@
     "dependencies:check": "npm audit"
   },
   "dependencies": {
-    "@elgato/cli": "^1.10.3",
-    "@elgato/streamdeck": "^3.0.3",
+    "@elgato/cli": "^1.10.4",
+    "@elgato/streamdeck": "^3.0.4",
     "sharp": "^0.35.5"
   },
   "devDependencies": {
@@ -68,7 +68,7 @@
     "acorn": "^8.19.0",
     "esbuild": "^0.28.2",
     "icuewidget-cli": "0.5.1",
-    "playwright": "^1.64.1",
+    "playwright": "^1.65.0",
     "typescript": "^7.0.2"
   },
   "overrides": {
