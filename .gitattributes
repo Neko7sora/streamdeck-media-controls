@@ -1,2 +1,2 @@
-# Auto detect text files and perform LF normalization
-* text=auto
+# Keep shared bundle text byte-identical on Windows and macOS; preserve binaries.
+* text=auto eol=lf

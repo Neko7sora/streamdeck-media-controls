@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import {existsSync,mkdirSync,mkdtempSync,readFileSync,rmSync,writeFileSync} from 'node:fs';
 import {tmpdir} from 'node:os';
 import {dirname,join} from 'node:path';
+import {execFileSync} from 'node:child_process';
 import {assembleUniversal,bundleTargets,checkUniversalBundle} from '../scripts/assemble-universal.mjs';
 
 function fixture(t) {
@@ -41,11 +42,41 @@ test('universal packaging preserves all three native runtimes, helpers and licen
   assert.equal(readFileSync(join(output,'bin/plugin.js'),'utf8'),'shared runtime');
 });
 
-test('conflicting shared JavaScript fails packaging and removes incomplete output',t=>{
+test('Windows Git checkout settings preserve identical shared bundle files',t=>{
   const {input,output,lock,write}=fixture(t);
-  write(join(input,'darwin-x64/dev.n7s.media-controls.sdPlugin/bin/plugin.js'),'different build');
-  assert.throws(()=>assembleUniversal(input,output,lock),/Conflicting bundle file/);
-  assert.equal(existsSync(output),false);
+  const repository=join(dirname(input),'repository');
+  const contents=new Map(['LICENSE','LICENSE-MIT','LICENSE-APACHE']
+    .map(file=>[file,readFileSync(new URL(`../${file}`,import.meta.url))]));
+  contents.set('bin/plugin.js',Buffer.from('export const shared = true;\n'));
+  contents.set('manifest.json',Buffer.from('{"shared":true}\n'));
+  // A binary containing CRLF must remain byte-identical, too.
+  contents.set('imgs/example.png',Buffer.from([0,137,80,78,71,13,10,26,10]));
+  write(join(repository,'.gitattributes'),readFileSync(new URL('../.gitattributes',import.meta.url)));
+  for(const [file,content] of contents) write(join(repository,file),content);
+  const git=(...args)=>execFileSync('git',['-C',repository,...args],{windowsHide:true,stdio:'pipe'});
+  git('init','--template=');
+  git('-c','core.autocrlf=false','add','.');
+  for(const target of bundleTargets) {
+    const directory=join(input,target,'dev.n7s.media-controls.sdPlugin');
+    const windows=target==='win32-x64';
+    git('-c',`core.autocrlf=${windows}`,'-c',`core.eol=${windows?'crlf':'lf'}`,
+      'checkout-index','--all','--force',`--prefix=${directory.replaceAll('\\','/')}/`);
+    for(const [file,content] of contents) assert.deepEqual(readFileSync(join(directory,file)),content,`${target}: ${file}`);
+  }
+  assembleUniversal(input,output,lock);
+  for(const [file,content] of contents) assert.deepEqual(readFileSync(join(output,file)),content,file);
+});
+
+test('conflicting shared code or license text fails packaging and removes incomplete output',async t=>{
+  for(const file of ['bin/plugin.js','LICENSE']) {
+    await t.test(file,t=>{
+      const {input,output,lock,write}=fixture(t);
+      write(join(input,'win32-x64/dev.n7s.media-controls.sdPlugin',file),'original content\n');
+      write(join(input,'darwin-x64/dev.n7s.media-controls.sdPlugin',file),'different content\n');
+      assert.throws(()=>assembleUniversal(input,output,lock),/Conflicting bundle file/);
+      assert.equal(existsSync(output),false);
+    });
+  }
 });
 
 test('missing architectures, native binaries or licenses cannot produce a universal package',async t=>{
