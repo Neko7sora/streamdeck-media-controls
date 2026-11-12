@@ -39,6 +39,8 @@ node --test --test-name-pattern="seek" tests/media-seek.test.mjs
 
 macOS のビルド・権限・検証は [macOS ガイド](macos.md) を参照してください。`npm run build` はホスト OS に対応するヘルパーを同梱します。
 
+[GitHub Actions](../.github/workflows/build.yml) は3環境のビルドを `scripts/assemble-universal.mjs` で統合します。共通ファイルが一致し、Windows x64・macOS arm64・macOS x64 の資産とライセンス一覧が揃っていることを検査します。統合後に `npm run build` や `npm run pack:review` を実行すると画像ランタイムがホスト用だけに作り直されるため、統合先へ直接 `scripts/check-package.mjs --universal --plugin <パス>` と `scripts/validate-plugin.mjs <パス>` を実行し、Elgato CLI でパッケージ化します。最終インストーラーは全3環境で展開・検査します。手動実行と成果物の取得は [README](../README.md#github-actions-でビルド) を参照してください。
+
 Rust のビルド・テストは Windows x64 の Developer PowerShell for Visual Studio と C++ ビルドツールが必要です。実ブラウザテストの初回準備は `npm run test:chrome:install` です。これらを実行できない場合は未検証として記録します。
 
 iCUEのブラウザテストも既存のPlaywright / Chromiumを共用します。`check:fast` はウィジェットのJS構文、公式CLIのソース検証、単体テストを含みます。ブラウザテスト、ネイティブビルド、配布物生成は含みません。初期値のブリッジモードはStream Deckプラグイン内で自動起動し、既存Rustヘルパー・メディア状態・Chrome接続を共有します。Stream Deckアプリなしで動作する独立ブリッジも維持します。明示的に切り替えるiCUE標準モードはMedia Data Providerだけを使用します。構成・権限・独立版とのポート競合は [ウィジェット README](../icue-widget/README.md) を参照してください。

@@ -4,9 +4,13 @@ import {createRequire} from "node:module";
 import {displayFont} from "../src/display-font.ts";
 import {checkGuidelines} from "./check-guidelines.mjs";
 import {buildNotices} from "./build-notices.mjs";
-const plugin = resolve("dev.n7s.media-controls.sdPlugin");
+import {parseArgs} from "node:util";
+import {checkUniversalBundle} from "./assemble-universal.mjs";
+const {values}=parseArgs({options:{plugin:{type:'string'},universal:{type:'boolean',default:false}}});
+const plugin = resolve(values.plugin??"dev.n7s.media-controls.sdPlugin");
 await checkGuidelines(plugin);
-buildNotices(true);
+buildNotices(true,{directory:plugin,universal:values.universal});
+if(values.universal) checkUniversalBundle(plugin);
 for(const file of ["LICENSE","LICENSE-MIT","LICENSE-APACHE"]) {
   if(readFileSync(join(plugin,file),'utf8')!==readFileSync(resolve(file),'utf8')) throw new Error(`Stale project license: ${file}`);
 }

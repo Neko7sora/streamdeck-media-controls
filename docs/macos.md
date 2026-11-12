@@ -29,7 +29,9 @@ node scripts/check-package.mjs
 npm run link
 ```
 
-Rust / Xcode のコンパイルは不要です。macOS 標準の `/usr/bin/osascript` で JavaScript for Automation を実行します。画像処理の sharp はビルドした Mac のアーキテクチャ向けに同梱されます。Mac の依存ライセンス一覧は `THIRD_PARTY_NOTICES.macos.txt` に生成し、既存の Windows 用一覧も保持します。Apple Silicon と Intel の双方を含む配布物や Windows と共通の配布物は、このビルドだけでは作成できません。`npm run pack` は従来の Windows リリース手順です。macOS の正式配布は別途、各アーキテクチャの資産・ライセンス・実機検証が必要です。
+Rust / Xcode のコンパイルは不要です。macOS 標準の `/usr/bin/osascript` で JavaScript for Automation を実行します。画像処理の sharp はビルドした Mac のアーキテクチャ向けに同梱されます。Mac の依存ライセンス一覧は `THIRD_PARTY_NOTICES.macos.txt` に生成し、既存の Windows 用一覧も保持します。
+
+[GitHub Actions](../README.md#github-actions-でビルド) は Windows x64・Apple Silicon・Intel の各ビルドを1つのインストーラーへ統合します。Mac のライセンス一覧は `THIRD_PARTY_NOTICES.macos-arm64.txt` と `THIRD_PARTY_NOTICES.macos-x64.txt` として両方を同梱し、同じパッケージから各環境で画像描画を確認します。ローカルの `npm run build` は従来どおり実行環境の資産だけを生成します。`npm run pack` は従来の正式リリース手順です。macOS の正式配布は別途、実機検証と公開前の確認が必要です。
 
 Chrome 拡張の ID を `chrome://extensions` で確認して、プラグイン設定画面の登録ボタンを押します。登録先は `~/Library/Application Support/Google/Chrome/NativeMessagingHosts/dev.n7s.media_controls.json`、許可する拡張は入力した ID ひとつだけです。プラグインまたは Stream Deck の場所を移動した場合は再登録してください。
 

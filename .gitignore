@@ -6,6 +6,7 @@ node_modules/
 *.sdPlugin/logs/
 *.sdPlugin/node_modules/
 .DS_Store
+/dist/
 tests/.generated/
 media-bridge-*.zip
 *.icuewidget
