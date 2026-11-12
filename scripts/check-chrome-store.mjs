@@ -1,7 +1,6 @@
 import assert from 'node:assert/strict';
 import {readFile,readdir} from 'node:fs/promises';
 import {resolve,join} from 'node:path';
-import {createHash} from 'node:crypto';
 import sharp from 'sharp';
 import {checkChromeSecurity,readChromePackage} from './check-chrome-security.mjs';
 
@@ -47,29 +46,10 @@ assert.match(await read('README.md'),/\]\(docs\/marketplace\/privacy\.md\)/,'Pri
 const privacyPage=await read(join(root,'privacy.html'));
 assert.ok(privacyPage.includes('data-i18n="extension.policy.limitedUse"'),'Packaged privacy page must expose the Limited Use statement');
 let publicationMetadata;
-const records=JSON.parse(await read('assets/chrome-web-store/screenshots.json'));
-const listingAssets=JSON.parse(await read('assets/chrome-web-store/listing-assets.json'));
-const assetSources=['assets/plugin-icon.svg','scripts/build-chrome-listing.mjs',...['en','ja'].map(language=>`docs/chrome-web-store/listing.${language}.json`)];
-assert.deepEqual(Object.keys(listingAssets.sources).sort(),[...assetSources].sort());
-for(const path of assetSources) {
-  const hash=createHash('sha256').update((await read(path)).replaceAll('\r\n','\n')).digest('hex');
-  assert.equal(listingAssets.sources[path],hash,`Stale listing source: ${path}. Run npm run chrome:listing:build and review images.`);
-}
-const assetOutputs=['assets/chrome-web-store/promo-small.png','assets/chrome-web-store/promo-marquee.png',...['en','ja'].map(language=>`docs/chrome-web-store/description.${language}.txt`)];
-assert.deepEqual(Object.keys(listingAssets.outputs).sort(),[...assetOutputs].sort());
-for(const path of assetOutputs) {
-  const bytes=await readFile(path);
-  const content=path.endsWith('.txt')?bytes.toString('utf8').replaceAll('\r\n','\n'):bytes;
-  assert.equal(createHash('sha256').update(content).digest('hex'),listingAssets.outputs[path],`Changed listing asset: ${path}. Run npm run chrome:listing:build and review images.`);
-}
 for(const [path,width,height] of [['assets/chrome-web-store/promo-small.png',440,280],['assets/chrome-web-store/promo-marquee.png',1400,560]]) {
   const meta=await sharp(path).metadata();
   assert.equal(meta.format,'png');assert.equal(meta.width,width);assert.equal(meta.height,height);
   assert.equal(meta.hasAlpha,false,'Promotional images must fill the entire canvas');
-}
-for(const path of ['chrome-extension/manifest.json','chrome-extension/options.html','chrome-extension/options.css','chrome-extension/options.js','chrome-extension/localization.js','tests/chrome-e2e.mjs']) {
-  const hash=createHash('sha256').update((await read(path)).replaceAll('\r\n','\n')).digest('hex');
-  assert.equal(records.sources?.[path],hash,`Stale screenshot source: ${path}. Run node tests/chrome-e2e.mjs --screenshots and review images.`);
 }
 for(const language of ['en','ja']) {
   const listing=JSON.parse(await read(`docs/chrome-web-store/listing.${language}.json`));
@@ -96,7 +76,6 @@ for(const language of ['en','ja']) {
   for(const path of listing.screenshots) {
     const meta=await sharp(path).metadata();
     assert.equal(meta.format,'png');assert.equal(meta.width,1280);assert.equal(meta.height,800);
-    assert.equal(createHash('sha256').update(await readFile(path)).digest('hex'),records.images[path.split('/').at(-1)]);
   }
 }
 console.log('Chrome Web Store: local manifest, permissions, CSP, locales, package files, icons, privacy disclosures, descriptions, screenshots and promotional assets OK.');

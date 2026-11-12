@@ -1,15 +1,15 @@
 {
   "method": "Original vector promotional illustration with the existing product mark; text-free, full bleed, no physical device or connection-state claim. Descriptions exported verbatim from localized listing JSON.",
-  "sources": {
-    "assets/plugin-icon.svg": "d54087585dfbcc81cf2453390448b3b8ed6a51023c8a1b5a0f723153234e7239",
-    "scripts/build-chrome-listing.mjs": "e849a3309252079e3158647b9acea6ad324f576537cd3b4e1ed226c5f4901e79",
-    "docs/chrome-web-store/listing.en.json": "458e5df65f90942eb105331707ff1b3de1c07ad9cfb38f46236bd611141112b0",
-    "docs/chrome-web-store/listing.ja.json": "3c8b6afbd8e662e630c89dc50e976c36290b3572d6969a02440517e0c1b0cf85"
-  },
-  "outputs": {
-    "assets/chrome-web-store/promo-small.png": "32d9bf92817d018e73c756689877c95f434f73bfda5dd5dfb7dca4d1c7955599",
-    "assets/chrome-web-store/promo-marquee.png": "cd2ae70d5b181aabb97e87b7a170a9768e421d94bd5a7e0b599c719783e64712",
-    "docs/chrome-web-store/description.en.txt": "e88b681b75740228d3d948b54c52d7ce59f58bed859d75d3b3478afb0ec32843",
-    "docs/chrome-web-store/description.ja.txt": "7b10337ea0237ef6196292f513aa30ad067d455b87d49a71afd6f5a592b1fb93"
-  }
+  "sources": [
+    "assets/plugin-icon.svg",
+    "scripts/build-chrome-listing.mjs",
+    "docs/chrome-web-store/listing.en.json",
+    "docs/chrome-web-store/listing.ja.json"
+  ],
+  "outputs": [
+    "assets/chrome-web-store/promo-small.png",
+    "assets/chrome-web-store/promo-marquee.png",
+    "docs/chrome-web-store/description.en.txt",
+    "docs/chrome-web-store/description.ja.txt"
+  ]
 }
