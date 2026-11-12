@@ -50,6 +50,10 @@ jobs:
         env:
           EXPECTED_TARGET: ${{ matrix.target }}
         run: node -e 'if (`${process.platform}-${process.arch}` !== process.env.EXPECTED_TARGET) process.exit(1)'
+      # Builds fetch active dependencies; offline notices need the full locked graph.
+      - name: Fetch locked Rust sources
+        if: runner.os == 'Windows'
+        run: cargo fetch --locked --manifest-path native/media-info/Cargo.toml
       - name: Test native helpers
         if: runner.os == 'Windows'
         run: npm run test:native
