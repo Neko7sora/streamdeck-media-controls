@@ -105,6 +105,14 @@ npm run restart
 
 プラグインの `.sdPlugin/node_modules` は sharp のネイティブ画像処理ランタイムです。`bin` / `native` と一緒に配布してください。ビルドはその生成済み node_modules を毎回作り直します。依存のライセンスファイルも同梱します。
 
+### GitHub Actions でビルド
+
+[Build Windows and macOS](.github/workflows/build.yml) は push・プルリクエスト・手動実行に対応しています。GitHub の **Actions → Build Windows and macOS → Run workflow** からも開始できます。Windows x64・macOS Apple Silicon（arm64）・macOS Intel（x64）で Node.js 24 とロック済み依存を使用して検査・ビルドし、Windows では Rust MSVC のテストも実行します。
+
+各環境のヘルパー・sharp 画像処理ランタイム・ライセンス一覧を1つの `.streamDeckPlugin` に統合します。共通ファイルの不一致や資産の欠落があれば失敗させ、Elgato CLI で検証してからパッケージを作成します。完成したインストーラーを3環境で展開し、同梱ランタイムによる画像描画も確認します。
+
+ワークフロー全体が成功した実行の **Artifacts** から `media-controls-windows-macos-<コミットSHA>` をダウンロードし、ZIP 内の `dev.n7s.media-controls.streamDeckPlugin` を展開してインストールしてください。同じファイルを Windows と Mac で使用できます。成果物の保存期間は14日です。これは動作確認用の候補であり、正式公開に必要な確認記録や実機テストは [配布前の手順](docs/development.md#配布前) に従って別途実施します。CI では Stream Deck 実機、Windows API のスモークテスト、Chrome の実ブラウザテストは実行しません。
+
 ## 設定と操作
 
 各アクションには、その操作で使う対象の設定を表示します。Now Playing 通常キーは表示・再生対象、音量操作は音量対象を選びます。Now Playing + は表示・再生対象と音量対象を別々に選べます。

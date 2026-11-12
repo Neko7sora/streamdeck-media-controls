@@ -5,7 +5,6 @@ import {execFileSync} from 'node:child_process';
 import {pathToFileURL} from 'node:url';
 
 const root=resolve(import.meta.dirname,'..');
-const output=join(root,`dev.n7s.media-controls.sdPlugin/THIRD_PARTY_NOTICES${process.platform==='darwin'?'.macos':''}.txt`);
 const normalize=text=>text.replaceAll('\r\n','\n').trimEnd();
 const read=path=>normalize(readFileSync(path,'utf8'));
 
@@ -71,7 +70,9 @@ docs/release-review.json; this inventory alone does not certify those obligation
   return sections.join('\n\n'+'='.repeat(72)+'\n\n')+'\n';
 }
 
-export function buildNotices(check=false) {
+export function buildNotices(check=false,{directory=join(root,'dev.n7s.media-controls.sdPlugin'),universal=false}={}) {
+  const suffix=process.platform==='darwin'?`.macos${universal?`-${process.arch}`:''}`:'';
+  const output=join(directory,`THIRD_PARTY_NOTICES${suffix}.txt`);
   const expected=generateNotices();
   if(check) {
     if(!existsSync(output)||normalize(readFileSync(output,'utf8'))!==normalize(expected)) throw new Error('Stale third-party notices; run npm run notices:build');

@@ -1,0 +1,146 @@
+name: Build Windows and macOS
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: windows-2025
+            target: win32-x64
+          - runner: macos-15
+            target: darwin-arm64
+          - runner: macos-15-intel
+            target: darwin-x64
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 30
+    defaults:
+      run:
+        shell: bash
+    env:
+      ICUEWIDGET_NO_UPDATE_CHECK: '1'
+    steps:
+      - name: Preserve LF line endings
+        run: git config --global core.autocrlf false
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+          cache: npm
+      - name: Set up Rust MSVC x64
+        if: runner.os == 'Windows'
+        run: rustup default stable-x86_64-pc-windows-msvc
+      - run: npm ci
+      - run: node scripts/doctor.mjs
+      - name: Verify runner architecture
+        env:
+          EXPECTED_TARGET: ${{ matrix.target }}
+        run: node -e 'if (`${process.platform}-${process.arch}` !== process.env.EXPECTED_TARGET) process.exit(1)'
+      - name: Test native helpers
+        if: runner.os == 'Windows'
+        run: npm run test:native
+      - name: Test and build platform bundle
+        run: npm run check
+      - run: npm run icue:check
+      # Tar preserves file permissions and keeps each build tree isolated.
+      - name: Archive platform bundle
+        run: tar -cf bundle.tar dev.n7s.media-controls.sdPlugin
+      - uses: actions/upload-artifact@v7
+        with:
+          name: build-${{ matrix.target }}
+          path: bundle.tar
+          if-no-files-found: error
+          retention-days: 1
+
+  package:
+    needs: build
+    runs-on: macos-15
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci
+      - uses: actions/download-artifact@v8
+        with:
+          pattern: build-*
+          path: dist/downloads
+      - name: Extract platform bundles
+        run: |
+          for target in win32-x64 darwin-arm64 darwin-x64; do
+            mkdir -p "dist/platforms/$target"
+            tar -xf "dist/downloads/build-$target/bundle.tar" -C "dist/platforms/$target"
+          done
+      - name: Assemble universal plugin
+        run: node scripts/assemble-universal.mjs dist/platforms dist/universal/dev.n7s.media-controls.sdPlugin
+      - name: Check complete bundle
+        run: node scripts/check-package.mjs --universal --plugin dist/universal/dev.n7s.media-controls.sdPlugin
+      - name: Validate with Elgato CLI
+        run: node scripts/validate-plugin.mjs dist/universal/dev.n7s.media-controls.sdPlugin
+      # Pack the assembled directory directly; rebuilding would remove other runtimes.
+      - name: Package review candidate
+        run: npm exec -- streamdeck pack dist/universal/dev.n7s.media-controls.sdPlugin --output dist --force
+      - uses: actions/upload-artifact@v7
+        with:
+          name: media-controls-windows-macos-${{ github.sha }}
+          path: dist/dev.n7s.media-controls.streamDeckPlugin
+          if-no-files-found: error
+          retention-days: 14
+
+  verify:
+    needs: package
+    strategy:
+      fail-fast: false
+      matrix:
+        runner: [windows-2025, macos-15, macos-15-intel]
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 15
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - run: git config --global core.autocrlf false
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci
+      # Windows notice verification reads the locked Cargo license sources offline.
+      - name: Fetch locked Rust sources
+        if: runner.os == 'Windows'
+        run: cargo fetch --locked --manifest-path native/media-info/Cargo.toml
+      - uses: actions/download-artifact@v8
+        with:
+          name: media-controls-windows-macos-${{ github.sha }}
+          path: dist
+      - name: Extract final installer
+        run: |
+          mkdir -p dist/verify
+          if [[ "$RUNNER_OS" == "Windows" ]]; then
+            /c/Windows/System32/tar.exe -xf dist/dev.n7s.media-controls.streamDeckPlugin -C dist/verify
+          else
+            tar -xf dist/dev.n7s.media-controls.streamDeckPlugin -C dist/verify
+          fi
+      - name: Verify final package and render with bundled runtime
+        run: node scripts/check-package.mjs --universal --plugin dist/verify/dev.n7s.media-controls.sdPlugin
