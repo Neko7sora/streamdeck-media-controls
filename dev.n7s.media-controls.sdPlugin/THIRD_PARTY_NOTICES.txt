@@ -5,13 +5,13 @@ Includes build dependencies conservatively. Development tools are not distribute
 These notices do not grant a license to Media Controls itself.
 System fonts and the Stream Deck-provided Node.js runtime are not bundled here.
 
-The sharp Windows runtime also includes native libraries listed in its upstream
+The sharp platform runtime also includes native libraries listed in its upstream
 README and versions.json below. Their source/redistribution review is tracked in
 docs/release-review.json; this inventory alone does not certify those obligations.
 
 ========================================================================
 
-npm: @elgato/streamdeck@3.0.3
+npm: @elgato/streamdeck@3.0.4
 Declared license: MIT
 
 ========================================================================
@@ -42,7 +42,7 @@ SOFTWARE.
 
 ========================================================================
 
-npm: @elgato/schemas@0.5.3
+npm: @elgato/schemas@0.6.0
 Declared license: MIT
 
 ========================================================================
@@ -73,7 +73,7 @@ SOFTWARE.
 
 ========================================================================
 
-npm: @elgato/utils@0.6.1
+npm: @elgato/utils@0.6.2
 Declared license: MIT
 
 ========================================================================
@@ -135,7 +135,7 @@ SOFTWARE.
 
 ========================================================================
 
-npm: ws@8.22.0
+npm: ws@8.22.2
 Declared license: MIT
 
 ========================================================================
@@ -669,7 +669,7 @@ detect-libc/LICENSE
 
 ========================================================================
 
-npm: semver@7.8.5
+npm: semver@7.8.6
 Declared license: ISC
 
 ========================================================================
@@ -1232,9 +1232,9 @@ THE SOFTWARE.
 
 ========================================================================
 
-Cargo: itoa@1.0.18
+Cargo: itoa@1.0.19
 Declared license: MIT OR Apache-2.0
-Source: https://crates.io/crates/itoa/1.0.18
+Source: https://crates.io/crates/itoa/1.0.19
 
 ========================================================================
 
@@ -2992,9 +2992,9 @@ DEALINGS IN THE SOFTWARE.
 
 ========================================================================
 
-Cargo: syn@3.0.9
+Cargo: syn@3.0.10
 Declared license: MIT OR Apache-2.0
-Source: https://crates.io/crates/syn/3.0.9
+Source: https://crates.io/crates/syn/3.0.10
 
 ========================================================================
 
