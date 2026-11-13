@@ -29,7 +29,7 @@ node --test --test-name-pattern="seek" tests/media-seek.test.mjs
 |---|---|
 | アクション・対象選択 | `tests/plugin-routing.test.mjs`、`tests/media-model.test.mjs`、`tests/media-state.test.mjs` |
 | シーク | `tests/media-seek.test.mjs`、`tests/plugin-routing.test.mjs` |
-| 設定画面 | `tests/settings.test.mjs`、`tests/localization.test.mjs` |
+| 設定画面 | `tests/settings.test.mjs`、`tests/localization.test.mjs`。実ブラウザでの接続解除・再設定・日本語／英語レイアウトは `node tests/settings-e2e.mjs`（初回は `npm run test:chrome:install`） |
 | 描画・画像 | `tests/artwork.test.mjs`、`tests/control-display.test.mjs`、`tests/scrolling-text.test.mjs`。`npm run marketplace:build` 後に `npm run marketplace:check` |
 | Chrome 通信・権限 | `tests/chrome-*.test.mjs`、`npm run chrome:security:check`。実ブラウザ確認は `npm run test:chrome:e2e` |
 | Rust・ネイティブ通信 | `tests/native-client.test.mjs`、`npm run test:native`、`npm run build`、`npm run test:smoke` |

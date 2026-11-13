@@ -28,6 +28,7 @@ export function audioTargets():AudioTarget[] {return [...(windows.audio?.master 
 export function subscribe(fn:()=>void):()=>void {listeners.add(fn);return ()=>{listeners.delete(fn);};}
 export function subscribeChanges(fn:()=>void):()=>void {changeListeners.add(fn);return ()=>{changeListeners.delete(fn);};}
 export function publish(changed=true):void {for(const fn of listeners) fn();if(changed) for(const fn of changeListeners) fn();}
+export function clearChromeSessions():void {if(chrome.size) {chrome.clear();publish();}}
 export function ingestChrome(tabId:number,frameId:number,data:unknown,sequence=0,documentId="",clientId=""):boolean {
   if(!Number.isSafeInteger(tabId)||tabId<0||!Number.isSafeInteger(frameId)||frameId<0) return false;
   const id=`chrome:${chromeFrameKey(tabId,frameId,clientId)}`;

@@ -2,6 +2,7 @@ import streamDeck from "@elgato/streamdeck";
 import type {Server} from "node:https";
 import {startIcueBridge} from "./icue-runtime.js";
 import {ICUE_PORT} from "./icue-server.js";
+import {readPluginSettings,updatePluginSettings} from "./plugin-settings.js";
 
 type State = "loading" | "disabled" | "starting" | "running" | "error";
 let enabled = true, ready = false, state: State = "loading", revision = 0, stopped = false;
@@ -14,14 +15,6 @@ export function subscribeIcueIntegration(callback: () => void) {listeners.add(ca
 function publish(next: State) {state = next; revision++; for (const callback of listeners) callback();}
 function enqueue<T>(work: () => Promise<T>): Promise<T> {
   const result = queue.then(work); queue = result.catch(() => {}); return result;
-}
-async function globalSettings() {
-  let timer: NodeJS.Timeout | undefined;
-  try {
-    return await Promise.race([streamDeck.settings.getGlobalSettings(), new Promise<never>((_, reject) => {
-      timer = setTimeout(() => reject(new Error("Global settings timed out")), 5000);
-    })]);
-  } finally {clearTimeout(timer);}
 }
 function close(current: Server): Promise<void> {
   return new Promise(resolve => {current.close(() => resolve()); current.closeAllConnections();});
@@ -64,16 +57,14 @@ export function initializeIcueIntegration(): Promise<void> {
   });
   disposeSettings = () => subscription.dispose();
   return enqueue(async () => {
-    try {const saved = await globalSettings(); await apply(saved.icueBridgeEnabled !== false);}
+    try {const saved = await readPluginSettings(); await apply(saved.icueBridgeEnabled !== false);}
     catch (error) {streamDeck.logger.error(`iCUE settings: ${String(error)}`); if (!stopped) publish("error");}
   });
 }
 export function setIcueIntegrationEnabled(value: boolean): Promise<void> {
   return enqueue(async () => {
     if (stopped) throw new Error("Plugin stopped");
-    const saved = await globalSettings();
-    if (stopped) throw new Error("Plugin stopped");
-    await streamDeck.settings.setGlobalSettings({...saved, icueBridgeEnabled: value});
+    await updatePluginSettings({icueBridgeEnabled: value}, () => !stopped);
     await apply(value);
   });
 }
