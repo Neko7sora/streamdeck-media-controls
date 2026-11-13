@@ -98,7 +98,7 @@
       <form id="chrome-registration-form" novalidate>
         <div class="field">
           <label for="chrome-extension-id" data-i18n="chrome.registration.extensionId">Chrome extension ID</label>
-          <input id="chrome-extension-id" name="extensionId" type="text" required pattern="[a-p]{32}" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" enterkeyhint="done" aria-describedby="chrome-registration-help chrome-registration-status">
+          <input id="chrome-extension-id" name="extensionId" type="text" aria-invalid="false" required pattern="[a-p]{32}" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" enterkeyhint="done" aria-describedby="chrome-registration-help chrome-registration-status">
         </div>
         <button id="register-chrome" type="submit" aria-describedby="chrome-registration-status" disabled data-i18n="register.chrome.integration">Register Chrome integration</button>
       </form>
