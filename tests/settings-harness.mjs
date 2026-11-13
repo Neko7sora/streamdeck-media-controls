@@ -16,7 +16,7 @@ export function inspector(settings={},{connect=true,language="ja",sourceText=sou
       replaceChildren(){this.children=[];value="";},
       append(option){this.children.push(option);if(this.children.length===1) value=option.value;},
       focus(){this.focused=true;},
-      attributes:{},validationMessage:"",readOnly:false,
+      attributes:id==="chrome-extension-id"?{"aria-invalid":"false"}:{},validationMessage:"",readOnly:false,
       setAttribute(name,value){this.attributes[name]=value;},
       removeAttribute(name){delete this.attributes[name];},
       setCustomValidity(message){this.validationMessage=message;},

@@ -150,7 +150,7 @@ window.connectElgatoStreamDeckSocket=(port,uuid,registerEvent,_info,actionInfo)=
     if(msg.event==="sendToPropertyInspector"){
       const setupId=msg.payload.response==="chromeSetup"?msg.payload.extensionId:msg.payload.chromeSetupExtensionId;
       if(typeof setupId==="string"&&/^[a-p]{32}$/.test(setupId)&&registrationRequestId===null) {
-        extensionIdInput.value=setupId;extensionIdInput.setCustomValidity("");extensionIdInput.removeAttribute("aria-invalid");
+        extensionIdInput.value=setupId;clearRegistrationValidation();
         document.getElementById("chrome-setup").open=true;extensionIdInput.focus();
       }
       if(msg.payload.response==="chromeSetup") return;
@@ -202,11 +202,12 @@ icueEnabled.addEventListener("change",()=>{
     updateIcueControls();requestOptions();
   },12000);
 });
-extensionIdInput.addEventListener("input",()=>{
+function clearRegistrationValidation(){
   extensionIdInput.setCustomValidity("");
-  extensionIdInput.removeAttribute("aria-invalid");
+  extensionIdInput.setAttribute("aria-invalid","false");
   if(chromeStatus.dataset.state==="invalid") {chromeStatus.textContent="";delete chromeStatus.dataset.state;}
-});
+}
+extensionIdInput.addEventListener("input",clearRegistrationValidation);
 registrationForm.addEventListener("submit",event=>{
   event.preventDefault();
   if(socket?.readyState!==WebSocket.OPEN||registrationRequestId!==null) return;
@@ -219,7 +220,7 @@ registrationForm.addEventListener("submit",event=>{
     chromeStatus.dataset.state="invalid";chromeStatus.textContent=message;
     extensionIdInput.focus();extensionIdInput.reportValidity();return;
   }
-  extensionIdInput.removeAttribute("aria-invalid");delete chromeStatus.dataset.state;
+  clearRegistrationValidation();
   const extensionId=extensionIdInput.value;
   registrationRequestId=crypto.randomUUID();updateRegistrationControls();
   chromeStatus.textContent=t("registering.chrome.integration");

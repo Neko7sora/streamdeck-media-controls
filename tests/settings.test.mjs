@@ -375,7 +375,7 @@ test("registration timeout and disconnect report a result without retrying",()=>
 test('registration validation focuses the invalid field and clears feedback while correcting it',()=>{
   for(const language of ['en','ja']) {
     const pi=inspector({},{language}),input=pi.elements.get('chrome-extension-id');
-    assert.equal(input.attributes['aria-invalid'],undefined,'do not show an error before interaction');
+    assert.equal(input.attributes['aria-invalid'],'false','do not show an error before interaction');
     for(const value of ['', 'a'.repeat(31), 'a'.repeat(33), 'z'.repeat(32)]) {
       input.value=value;const before=pi.messages.length;
       assert.equal(pi.submit(),true,'prevent navigation for invalid submissions');
@@ -385,7 +385,7 @@ test('registration validation focuses the invalid field and clears feedback whil
       assert.match(input.validationMessage,/32/);
       assert.equal(pi.elements.get('chrome-registration-status').dataset.state,'invalid');
       input.value='b';input.listeners.input();
-      assert.equal(input.attributes['aria-invalid'],undefined);
+      assert.equal(input.attributes['aria-invalid'],'false');
       assert.equal(input.validationMessage,'');
       assert.equal(pi.elements.get('chrome-registration-status').textContent,'');
     }
@@ -626,5 +626,24 @@ test('deep link setup fills the extension ID and waits for explicit registration
     assert.equal(pi.messages.length,count);
     pi.receive('sendToPropertyInspector',{response:'chromeSetup',extensionId:'invalid'});
     assert.equal(pi.elements.get('chrome-extension-id').value,'a'.repeat(32));
+  }
+});
+
+test('deep link setup clears stale validation feedback without registering or hiding registration results',()=>{
+  for(const payload of [{response:'chromeSetup',extensionId:'a'.repeat(32)},{chromeSetupExtensionId:'a'.repeat(32)}]) {
+    const pi=inspector(),input=pi.elements.get('chrome-extension-id'),status=pi.elements.get('chrome-registration-status');
+    pi.submit();
+    assert.equal(status.dataset.state,'invalid');
+    const count=pi.messages.length;
+    pi.receive('sendToPropertyInspector',payload);
+    assert.equal(input.validationMessage,'');
+    assert.equal(input.attributes['aria-invalid'],'false');
+    assert.equal(input.focused,true);
+    assert.equal(status.textContent,'');
+    assert.equal(status.dataset.state,undefined);
+    assert.equal(pi.messages.length,count,'receiving an ID must not register automatically');
+    status.textContent='Registration result';
+    pi.receive('sendToPropertyInspector',payload);
+    assert.equal(status.textContent,'Registration result');
   }
 });
