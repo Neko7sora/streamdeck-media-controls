@@ -12,6 +12,8 @@ Stream Deck プラグインの入口は [plugin.ts](../src/plugin.ts) です。�
 | [property-inspector.ts](../src/property-inspector.ts) | 設定画面とのハンドシェイク、差分通知、Chrome ホスト登録要求 |
 | [icue-runtime.ts](../src/icue-runtime.ts)、[icue-server.ts](../src/icue-server.ts) | 内蔵／独立iCUEブリッジ共通のトークン、認証付きHTTPS、表示対象の照合。ホストのメディア状態とWindows／Chrome通信を共有し、ポーリングやヘルパーは追加起動しない |
 | [icue-bridge.ts](../src/icue-bridge.ts) | Stream Deckアプリを使わない独立ブリッジの起動・終了。内蔵版の起動・終了はplugin.tsが担当 |
+| [chrome-integration.ts](../src/chrome-integration.ts) | Chrome 連携のオン・オフと拡張 ID の保存、明示的な再登録、受信サーバーの起動・停止、設定画面への状態通知 |
+| [plugin-settings.ts](../src/plugin-settings.ts) | Chrome／iCUE のグローバル設定の読み込みと保存の直列化 |
 | [icue-integration.ts](../src/icue-integration.ts) | 内蔵iCUEブリッジのオン・オフをグローバル設定に保存し、起動・停止を順番に処理。設定画面へ稼働状態を通知 |
 
 アクションは入口で明示的に生成します。基底クラスのコンストラクターによるグローバルな登録は行いません。設定画面のイベント購読も入口から開始します。

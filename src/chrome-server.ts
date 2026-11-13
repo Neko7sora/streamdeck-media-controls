@@ -5,7 +5,7 @@ import {randomBytes,timingSafeEqual,X509Certificate} from "node:crypto";
 import {mkdirSync,readFileSync,writeFileSync,chmodSync,existsSync,mkdtempSync,rmSync} from "node:fs";
 import {join} from "node:path";
 import {execFileSync} from "node:child_process";
-import {ingestChrome,chromeSessions} from "./media-state.js";
+import {ingestChrome,chromeSessions,clearChromeSessions} from "./media-state.js";
 import {ChromeWire} from "./chrome-wire.js";
 import {chromeClientId,chromeFrameKey} from "./chrome-identity.js";
 import type {ServerResponse} from "node:http";
@@ -100,6 +100,7 @@ function dispatch():void {
   }
 }
 export function chromeCommand(tab_id:number,frame_id:number,document_id:string,title:string,command:string,position?:number,targetId?:string,clientId?:string):Promise<void> {
+  if(!bridgeListening) return Promise.reject(new Error("Chrome bridge stopped"));
   if(typeof targetId!=="string" || !/^[A-Za-z0-9_-]{1,100}$/.test(targetId)) return Promise.reject(new Error("Chrome media target unavailable; reload the extension and media page"));
   if(pending.size>=32) return Promise.reject(new Error("Chrome command queue full"));
   return new Promise((resolve,reject)=>{
@@ -182,7 +183,7 @@ export function startChromeServer(log:(s:string)=>void,options:{token?:string;po
   server.requestTimeout=5000;server.headersTimeout=5000;server.timeout=5000;server.maxConnections=16;
   const heartbeat=setInterval(()=>{for(const [client,stream] of streams) if(Date.now()-stream.lastWrite>=5000) push(client,{event:"heartbeat"});},1000);heartbeat.unref();
   server.on("error",e=>{bridgeListening=false;log(`Chrome bridge: ${String(e)}`);});
-  server.on("close",()=>{clearInterval(heartbeat);bridgeListening=false;lastChromeContact=null;streams.clear();owners.clear();sequences.clear();wire.clear();for(const p of pending.values()){clearTimeout(p.timer);p.reject(new Error("Chrome bridge stopped"));}pending.clear();});
+  server.on("close",()=>{clearInterval(heartbeat);bridgeListening=false;lastChromeContact=null;streams.clear();owners.clear();sequences.clear();wire.clear();for(const p of pending.values()){clearTimeout(p.timer);p.reject(new Error("Chrome bridge stopped"));}pending.clear();clearChromeSessions();});
   server.listen(options.port??PORT,"127.0.0.1",()=>{bridgeListening=true;log(`Chrome bridge listening on loopback:${(server.address() as {port:number}).port}`);});
   return server;
 }

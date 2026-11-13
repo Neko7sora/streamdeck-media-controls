@@ -38,21 +38,39 @@ function receiveIcueIntegration(value,feedback=""){
   updateIcueControls();
 }
 let registrationRequestId=null,registrationTimeout;
-function updateRegistrationControls(){
-  registerChrome.disabled=socket?.readyState!==WebSocket.OPEN||registrationRequestId!==null;
-  extensionIdInput.readOnly=registrationRequestId!==null;
-}
+const chromeEnabled=document.getElementById("chrome-enabled"),chromeIntegrationStatus=document.getElementById("chrome-integration-status");
+let chromeIntegration=null,chromeRequestId=null,chromeTimeout,chromeFeedback="",extensionIdEdited=false;
+let chromeConnection={state:"checking"};
 let lastOptionsAt=0,pushOptions=false,lastProbeAt=0;
+function updateRegistrationControls(){
+  const busy=registrationRequestId!==null||chromeRequestId!==null;
+  registerChrome.disabled=socket?.readyState!==WebSocket.OPEN||busy;
+  extensionIdInput.readOnly=busy;
+  chromeEnabled.checked=chromeIntegration?.enabled===true;
+  chromeEnabled.disabled=socket?.readyState!==WebSocket.OPEN||!chromeIntegration?.ready||busy||!lastOptionsAt||Date.now()-lastOptionsAt>6000;
+  const keys={loading:"settings.chrome.loading",disabled:"settings.chrome.disabled",starting:"settings.chrome.starting",running:"settings.chrome.running",error:"settings.chrome.error"};
+  const message=chromeRequestId!==null?t("settings.chrome.saving"):chromeFeedback||t(keys[chromeIntegration?.state]??"settings.chrome.loading");
+  if(chromeIntegrationStatus.textContent!==message) chromeIntegrationStatus.textContent=message;
+}
+function receiveChromeIntegration(value,feedback=""){
+  if(value&&typeof value.enabled==="boolean"&&typeof value.ready==="boolean"&&["loading","disabled","starting","running","error"].includes(value.state)) {
+    chromeIntegration=value;chromeFeedback=feedback;
+    // A push refresh must never replace an ID being typed or supplied by a deep link.
+    if(!extensionIdEdited&&!extensionIdInput.value&&typeof value.extensionId==="string"&&/^[a-p]{32}$/.test(value.extensionId)) extensionIdInput.value=value.extensionId;
+  }
+  updateRegistrationControls();showChromeConnection(chromeConnection);
+}
 function showChromeConnection(connection){
-  const state=connection?.state??"checking";
+  chromeConnection=connection;
+  const state=chromeIntegration?.ready&&chromeIntegration.enabled===false?"disabled":connection?.state??"checking";
   const connected=state==="connected";
-  const title=connected?t("chrome.connected"):state==="unavailable"?t("chrome.connection.unavailable"):state==="disconnected"?t("chrome.disconnected"):t("chrome.checking.connection");
-  const detail=connected?(connection.sessions>0?t("receiving.media.sessions",{count:connection.sessions}) :t("chrome.connection.idle"))
+  const title=state==="disabled"?t("chrome.disabled"):connected?t("chrome.connected"):state==="unavailable"?t("chrome.connection.unavailable"):state==="disconnected"?t("chrome.disconnected"):t("chrome.checking.connection");
+  const detail=state==="disabled"?t("settings.chrome.disabled"):connected?(connection.sessions>0?t("receiving.media.sessions",{count:connection.sessions}) :t("chrome.connection.idle"))
     :state==="unavailable"?t("chrome.connection.unavailableHelp")
     :state==="disconnected"?t("chrome.connection.disconnectedHelp")
     :t("waiting.for.the.plugin.to.respond");
   document.getElementById("chrome-connection").dataset.state=state;
-  document.getElementById("chrome-setup-link").hidden=state!=="disconnected";
+  document.getElementById("chrome-setup-link").hidden=false;
   // Do not repeatedly announce an unchanged status during polling.
   for(const [id,value] of [["chrome-connection-title",title],["chrome-connection-detail",detail]]) {
     const element=document.getElementById(id);if(element.textContent!==value) element.textContent=value;
@@ -150,10 +168,18 @@ window.connectElgatoStreamDeckSocket=(port,uuid,registerEvent,_info,actionInfo)=
     if(msg.event==="sendToPropertyInspector"){
       const setupId=msg.payload.response==="chromeSetup"?msg.payload.extensionId:msg.payload.chromeSetupExtensionId;
       if(typeof setupId==="string"&&/^[a-p]{32}$/.test(setupId)&&registrationRequestId===null) {
-        extensionIdInput.value=setupId;clearRegistrationValidation();
+        extensionIdInput.value=setupId;extensionIdEdited=true;clearRegistrationValidation();
         document.getElementById("chrome-setup").open=true;extensionIdInput.focus();
       }
       if(msg.payload.response==="chromeSetup") return;
+      if(msg.payload.response==="chromeIntegration") {
+        if(chromeRequestId===null||msg.payload.requestId!==chromeRequestId) return;
+        chromeRequestId=null;clearTimeout(chromeTimeout);
+        lastOptionsAt=Date.now();
+        if(msg.payload.chromeConnection) chromeConnection=msg.payload.chromeConnection;
+        receiveChromeIntegration(msg.payload.chromeIntegration,msg.payload.failed?t("settings.chrome.saveFailed"):"");
+        return;
+      }
       if(msg.payload.response==="icueIntegration") {
         if(icueRequestId===null||msg.payload.requestId!==icueRequestId) return;
         icueRequestId=null;clearTimeout(icueTimeout);
@@ -164,6 +190,9 @@ window.connectElgatoStreamDeckSocket=(port,uuid,registerEvent,_info,actionInfo)=
         if(registrationRequestId===null||msg.payload.requestId!==registrationRequestId) return;
         registrationRequestId=null;clearTimeout(registrationTimeout);updateRegistrationControls();
         chromeStatus.textContent=msg.payload.message;
+        lastOptionsAt=Date.now();
+        if(msg.payload.chromeConnection) chromeConnection=msg.payload.chromeConnection;
+        receiveChromeIntegration(msg.payload.chromeIntegration);
         return;
       }
       if(msg.payload.protocol===2) pushOptions=true;
@@ -176,12 +205,14 @@ window.connectElgatoStreamDeckSocket=(port,uuid,registerEvent,_info,actionInfo)=
       if(msg.payload.sessions!==undefined) {sessions=msg.payload.sessions;mediaOptionsLoaded=true;}
       if(msg.payload.audio!==undefined) {audioTargets=msg.payload.audio;audioOptionsLoaded=true;}
       lastOptionsAt=Date.now();if(msg.payload.chromeConnection!==undefined) showChromeConnection(msg.payload.chromeConnection);
+      if(msg.payload.chromeIntegration!==undefined) receiveChromeIntegration(msg.payload.chromeIntegration);
       if(msg.payload.icueIntegration!==undefined) receiveIcueIntegration(msg.payload.icueIntegration);
       show();
       if(msg.payload.optionsRequired===true){pushOptions=false;requestOptions();}
     }
   };
   socket.onclose=()=>{
+    clearTimeout(chromeTimeout);chromeRequestId=null;chromeIntegration=null;chromeFeedback="";
     clearTimeout(icueTimeout);icueRequestId=null;icueIntegration=null;icueFeedback="";
     setSettingsDisabled(true);
     clearTimeout(registrationTimeout);
@@ -192,6 +223,16 @@ window.connectElgatoStreamDeckSocket=(port,uuid,registerEvent,_info,actionInfo)=
     document.getElementById("status").textContent=t("disconnected.from.the.plugin");
   };
 };
+chromeEnabled.addEventListener("change",()=>{
+  const enabled=chromeEnabled.checked;
+  if(chromeEnabled.disabled) {updateRegistrationControls();return;}
+  chromeRequestId=crypto.randomUUID();chromeFeedback="";updateRegistrationControls();
+  send("sendToPlugin",{request:"setChromeIntegration",requestId:chromeRequestId,enabled});
+  chromeTimeout=setTimeout(()=>{
+    chromeRequestId=null;chromeFeedback=t("settings.chrome.unconfirmed");chromeIntegration=null;
+    updateRegistrationControls();requestOptions();
+  },12000);
+});
 icueEnabled.addEventListener("change",()=>{
   const enabled=icueEnabled.checked;
   if(icueEnabled.disabled) {updateIcueControls();return;}
@@ -207,10 +248,10 @@ function clearRegistrationValidation(){
   extensionIdInput.setAttribute("aria-invalid","false");
   if(chromeStatus.dataset.state==="invalid") {chromeStatus.textContent="";delete chromeStatus.dataset.state;}
 }
-extensionIdInput.addEventListener("input",clearRegistrationValidation);
+extensionIdInput.addEventListener("input",()=>{extensionIdEdited=true;clearRegistrationValidation();});
 registrationForm.addEventListener("submit",event=>{
   event.preventDefault();
-  if(socket?.readyState!==WebSocket.OPEN||registrationRequestId!==null) return;
+  if(socket?.readyState!==WebSocket.OPEN||registrationRequestId!==null||chromeRequestId!==null) return;
   // Normalize pasted whitespace before checking the native required/pattern constraints.
   extensionIdInput.value=extensionIdInput.value.trim();
   extensionIdInput.setCustomValidity("");
@@ -262,5 +303,5 @@ setInterval(()=>{
   if(!pushOptions) requestOptions();
   else if(Date.now()-Math.max(lastProbeAt,lastOptionsAt)>=3000) {lastProbeAt=Date.now();send("sendToPlugin",{request:"alive"});}
   if(lastOptionsAt&&Date.now()-lastOptionsAt>6000) showChromeConnection({state:"unavailable"});
-  updateIcueControls();
+  updateIcueControls();updateRegistrationControls();
 },1000);
