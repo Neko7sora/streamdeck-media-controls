@@ -1,7 +1,7 @@
 import {test} from "node:test";
 import assert from "node:assert/strict";
 import {load} from "./load.mjs";
-const state=await load("media-state"), model=await load("media-model"), validation=await load("media-validation");
+const state=await load("media/media-state"), model=await load("media/media-model"), validation=await load("media/media-validation");
 
 test('display interpolation ticks do not trigger inspector collection work; state changes and expiry do',()=>{
   let frames=0,changes=0;const stopFrame=state.subscribe(()=>frames++),stopChanges=state.subscribeChanges(()=>changes++);

@@ -1,7 +1,7 @@
 import streamDeck,{SingletonAction,type WillAppearEvent,type WillDisappearEvent,type DidReceiveSettingsEvent} from "@elgato/streamdeck";
 import type {Instance,Settings} from "./action-settings.js";
-import {ScrollingText} from "./scrolling-text.js";
-import {DISPLAY_UPDATE_INTERVAL_MS} from "./display-guidelines.js";
+import {ScrollingText} from "../rendering/scrolling-text.js";
+import {DISPLAY_UPDATE_INTERVAL_MS} from "../rendering/display-guidelines.js";
 import {notifySettingsChanged} from "./property-inspector.js";
 
 export abstract class ConfiguredAction extends SingletonAction<Settings> {

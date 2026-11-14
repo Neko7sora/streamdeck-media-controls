@@ -1,7 +1,7 @@
 import {chooseCurrent, type MediaItem, type MediaSnapshot, type AudioTarget} from "./media-model.js";
 import {validateMedia} from "./media-validation.js";
-import {startNative} from "./native-client.js";
-import {chromeFrameKey} from "./chrome-identity.js";
+import {startNative} from "../native/native-client.js";
+import {chromeFrameKey} from "../chrome/chrome-identity.js";
 
 let windows:MediaSnapshot={current:null,sessions:[]};
 let autoSession:string|undefined;

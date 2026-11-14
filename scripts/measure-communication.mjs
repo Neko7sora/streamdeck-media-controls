@@ -7,7 +7,7 @@ import assert from 'node:assert/strict';
 import {worker} from '../tests/worker-harness.mjs';
 import {inspector} from '../tests/settings-harness.mjs';
 import {load} from '../tests/load.mjs';
-const {InspectorUpdates}=await load('inspector-updates');
+const {InspectorUpdates}=await load('streamdeck/inspector-updates');
 const baseline=process.argv.find(x=>x.startsWith('--baseline='))?.slice(11);
 if(!baseline||!/^[a-f0-9]{40}$/.test(baseline)) throw Error('Use --baseline=<40-character Git commit>');
 const source=(file,before)=>before?execFileSync('git',['show',`${baseline}:${file}`],{encoding:'utf8',maxBuffer:4_000_000}):readFileSync(file,'utf8');

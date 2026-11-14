@@ -2,9 +2,9 @@ import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {createHash} from 'node:crypto';
 import {load} from './load.mjs';
-const {ChromeWire}=await load('chrome-wire');
-const {NativeWire}=await load('native-wire');
-const {InspectorUpdates}=await load('inspector-updates');
+const {ChromeWire}=await load('chrome/chrome-wire');
+const {NativeWire}=await load('native/native-wire');
+const {InspectorUpdates}=await load('streamdeck/inspector-updates');
 const image='data:image/png;base64,AQ==',hash=createHash('sha256').update(image).digest('hex');
 const packet={protocol:2,tab_id:1,frame_id:0,document_id:'doc',sequence:1,base:null,media:{title:'Track',artist:'Artist',artwork_data_url:{image:hash}},images:{[hash]:image}};
 

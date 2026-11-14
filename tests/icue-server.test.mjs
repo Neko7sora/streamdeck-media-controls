@@ -5,7 +5,7 @@ import {createHmac} from 'node:crypto';
 import {load} from './load.mjs';
 import {tls, httpsFetch as fetch} from './tls-fixture.mjs';
 import {icueBackend} from './icue-backend.mjs';
-const {startIcueServer} = await load('icue-server');
+const {startIcueServer} = await load('icue/icue-server');
 const token = 'c'.repeat(64);
 async function setup(t) {
   const f = icueBackend(), server = startIcueServer(f.backend, {token, tls, port:0});

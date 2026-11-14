@@ -1,7 +1,7 @@
 import { readFileSync, existsSync } from "node:fs";
 import { join, resolve } from "node:path";
 import {createRequire} from "node:module";
-import {displayFont} from "../src/display-font.ts";
+import {displayFont} from "../src/rendering/display-font.ts";
 import {checkGuidelines} from "./check-guidelines.mjs";
 import {buildNotices} from "./build-notices.mjs";
 import {parseArgs} from "node:util";

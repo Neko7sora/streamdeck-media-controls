@@ -5,7 +5,7 @@ import {load} from './load.mjs';
 import {tls,httpsFetch as fetch} from './tls-fixture.mjs';
 
 async function setup(t,saved={}) {
-  const bridge=await load('chrome-server'),servers=[];
+  const bridge=await load('chrome/chrome-server'),servers=[];
   const driver={saved:structuredClone(saved),starts:0,registrations:[],logs:[],
     async read(){return structuredClone(this.saved);},
     async write(value){if(this.failSave) throw Error('save failed');this.saved=value;},
@@ -18,11 +18,11 @@ async function setup(t,saved={}) {
     bridge:`export const PORT=39761;export const startChromeServer=()=>globalThis.__chromeIntegrationTest.start();`,
     registration:`export const registerChromeHost=id=>globalThis.__chromeIntegrationTest.register(id);`};
   const ports={name:'chrome-integration-ports',setup(build){
-    build.onResolve({filter:/@elgato\/streamdeck$|\.\/chrome-server\.js$|\.\/chrome-registration\.js$/},args=>({path:args.path.includes('chrome-server')?'bridge':args.path.includes('chrome-registration')?'registration':'sdk',namespace:'test'}));
+    build.onResolve({filter:/@elgato\/streamdeck$|\/chrome-server\.js$|\/chrome-registration\.js$/},args=>({path:args.path.includes('chrome-server')?'bridge':args.path.includes('chrome-registration')?'registration':'sdk',namespace:'test'}));
     build.onLoad({filter:/.*/,namespace:'test'},args=>({contents:mocks[args.path],loader:'js'}));
   }};
   const services=[];
-  const fresh=async()=>{const service=await load('chrome-integration',[ports]);services.push(service);return service;};
+  const fresh=async()=>{const service=await load('streamdeck/chrome-integration',[ports]);services.push(service);return service;};
   t.after(async()=>{const closing=servers.filter(s=>s.listening).map(s=>once(s,'close'));for(const s of services) s.stopChromeIntegration();await Promise.all(closing);delete globalThis.__chromeIntegrationTest;});
   const post=(path,body)=>fetch(`https://127.0.0.1:${servers.at(-1).address().port}${path}`,{method:'POST',headers:{authorization:'Bearer '+'d'.repeat(64),'content-type':'application/json'},body:JSON.stringify(body)});
   return {driver,bridge,servers,fresh,service:await fresh(),post};

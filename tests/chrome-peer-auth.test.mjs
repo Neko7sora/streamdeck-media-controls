@@ -91,6 +91,6 @@ test('reconnect reloads the private pin and rejects replacement listeners',async
 });
 
 test('bridge has no token-only plaintext server configuration',async()=>{
-  const bridge=await load('chrome-server');
+  const bridge=await load('chrome/chrome-server');
   assert.throws(()=>bridge.startChromeServer(()=>{},{token,port:0}),/TLS credentials/);
 });

@@ -2,7 +2,7 @@ import {test} from "node:test";
 import assert from "node:assert/strict";
 import {load} from "./load.mjs";
 
-const {mediaTargetName,audioTargetName}=await load("control-display");
+const {mediaTargetName,audioTargetName}=await load("rendering/control-display");
 
 test("target names identify browser sites, Windows apps and the whole PC",()=>{
   assert.equal(mediaTargetName({source:"chrome",page_url:"https://www.youtube.com/watch?v=1"}),"youtube.com · Chrome");

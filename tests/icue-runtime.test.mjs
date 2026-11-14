@@ -31,11 +31,11 @@ async function setup(t) {
     chrome:`const d=globalThis.__icueRuntime;export function loadCredentials(){d.credentialLoads++;return {token:'a'.repeat(64),tls:d.tls};}export const chromeConnectionStatus=d.backend.chromeStatus;export async function chromeCommand(...args){d.chromeCalls.push(args);}`
   };
   const ports = {name:'runtime-ports', setup(build) {
-    build.onResolve({filter:/\.\/(media-state|native-client|chrome-server)\.js$/}, args => ({
+    build.onResolve({filter:/\/(media-state|native-client|chrome-server)\.js$/}, args => ({
       path:args.path.includes('media-state')?'state':args.path.includes('native-client')?'native':'chrome', namespace:'test'}));
     build.onLoad({filter:/.*/, namespace:'test'}, args => ({contents:mocks[args.path], loader:'js'}));
   }};
-  const runtime = await load('icue-runtime', [ports]);
+  const runtime = await load('icue/icue-runtime', [ports]);
   const servers = [];
   t.after(async () => {
     for (const server of servers) {

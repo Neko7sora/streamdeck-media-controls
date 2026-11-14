@@ -9,7 +9,7 @@ import {tls} from './tls-fixture.mjs';
 import {icueBackend} from './icue-backend.mjs';
 import {buildIcueHtml} from '../scripts/icue-widget-html.mjs';
 import {checkDisplayPreferences} from './icue-display-checks.mjs';
-const {startIcueServer} = await load('icue-server');
+const {startIcueServer} = await load('icue/icue-server');
 const token = 'd'.repeat(64), fixture = icueBackend();
 // Original test artwork at device resolution, rather than an enlarged app icon.
 fixture.windows.artwork_data_url = 'data:image/png;base64,' + (await sharp(Buffer.from(

@@ -1,7 +1,7 @@
 import streamDeck from "@elgato/streamdeck";
 import type {Server} from "node:https";
-import {startIcueBridge} from "./icue-runtime.js";
-import {ICUE_PORT} from "./icue-server.js";
+import {startIcueBridge} from "../icue/icue-runtime.js";
+import {ICUE_PORT} from "../icue/icue-server.js";
 import {readPluginSettings,updatePluginSettings} from "./plugin-settings.js";
 
 type State = "loading" | "disabled" | "starting" | "running" | "error";

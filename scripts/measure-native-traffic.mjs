@@ -5,7 +5,7 @@ import {once} from 'node:events';
 import {writeFile} from 'node:fs/promises';
 import {fileURLToPath} from 'node:url';
 import {load} from '../tests/load.mjs';
-const {NativeWire}=await load('native-wire');
+const {NativeWire}=await load('native/native-wire');
 async function measure(delta) {
   const child=spawn(fileURLToPath(new URL('../dev.n7s.media-controls.sdPlugin/native/media-info.exe',import.meta.url)),['--watch',...(delta?['--delta']:[])],{windowsHide:true});
   let bytes=0,packets=0,snapshots=0,stderr='',maxSessions=0;

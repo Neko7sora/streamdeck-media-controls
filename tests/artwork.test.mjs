@@ -2,7 +2,7 @@ import {test} from "node:test";
 import assert from "node:assert/strict";
 import sharp from "sharp";
 import {load} from "./load.mjs";
-const {artwork,applicationIcon}=await load("artwork");
+const {artwork,applicationIcon}=await load("rendering/artwork");
 test("valid artwork is contained in a square without distorting its aspect ratio",async()=>{
   const png=await sharp({create:{width:200,height:100,channels:3,background:"red"}}).png().toBuffer();
   const result=await artwork(`data:image/png;base64,${png.toString("base64")}`,144);

@@ -4,7 +4,7 @@ import {once} from 'node:events';
 import {load} from './load.mjs';
 import {tls, httpsFetch as fetch} from './tls-fixture.mjs';
 import {icueBackend} from './icue-backend.mjs';
-const {startIcueServer} = await load('icue-server');
+const {startIcueServer} = await load('icue/icue-server');
 
 async function setup(t, saved = {}) {
   const fixture = icueBackend(), servers = [];
@@ -24,12 +24,12 @@ async function setup(t, saved = {}) {
     logger:{info:s=>d.logs.push(s),error:s=>d.logs.push(s)}};`,
     runtime:`export const startIcueBridge=()=>globalThis.__icueIntegrationTest.start();`};
   const ports = {name:'integration-ports', setup(build) {
-    build.onResolve({filter:/@elgato\/streamdeck$|\.\/icue-runtime\.js$/}, args => ({
+    build.onResolve({filter:/@elgato\/streamdeck$|\/icue-runtime\.js$/}, args => ({
       path:args.path.includes('icue-runtime')?'runtime':'sdk', namespace:'test'}));
     build.onLoad({filter:/.*/, namespace:'test'}, args => ({contents:mocks[args.path], loader:'js'}));
   }};
   const services = [];
-  const fresh = async () => {const service=await load('icue-integration',[ports]); services.push(service); return service;};
+  const fresh = async () => {const service=await load('streamdeck/icue-integration',[ports]); services.push(service); return service;};
   t.after(async () => {
     const closing=servers.filter(server=>server.listening).map(server=>once(server,'close'));
     for (const service of services) service.stopIcueIntegration();

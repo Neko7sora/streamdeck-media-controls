@@ -1,6 +1,6 @@
 import sharp from "sharp";
 import { createHash } from "node:crypto";
-import { safeImage, type MediaItem } from "./media-model.js";
+import { safeImage, type MediaItem } from "../media/media-model.js";
 
 sharp.cache({memory:8, files:0, items:16});
 sharp.concurrency(1);

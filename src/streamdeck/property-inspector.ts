@@ -1,14 +1,14 @@
 import streamDeck from "@elgato/streamdeck";
-import {t} from "./localization.js";
+import {t} from "../localization.js";
 import type {Instance,Settings} from "./action-settings.js";
-import {chromeConnectionStatus} from "./chrome-server.js";
+import {chromeConnectionStatus} from "../chrome/chrome-server.js";
 import {chromeIntegrationStatus,configureChromeIntegration,setChromeIntegrationEnabled,subscribeChromeIntegration} from "./chrome-integration.js";
-import {subscribeChanges,availableSessions,audioTargets} from "./media-state.js";
-import {displayTitle} from "./media-model.js";
+import {subscribeChanges,availableSessions,audioTargets} from "../media/media-state.js";
+import {displayTitle} from "../media/media-model.js";
 import {InspectorUpdates} from "./inspector-updates.js";
 import {icueIntegrationStatus,setIcueIntegrationEnabled,subscribeIcueIntegration} from "./icue-integration.js";
 
-import {receiveChromeDeepLink,takeChromeDeepLink} from "./chrome-deep-link.js";
+import {receiveChromeDeepLink,takeChromeDeepLink} from "../chrome/chrome-deep-link.js";
 
 const inspectorUpdates=new InspectorUpdates();
 let inspectorId:string|undefined,inspectorRevision=0,inspectorSending=false,inspectorDirty=false;

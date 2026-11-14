@@ -7,7 +7,7 @@ import {fileURLToPath} from 'node:url';
 import {join} from 'node:path';
 import {load} from './load.mjs';
 import {tls,httpsFetch as fetch} from './tls-fixture.mjs';
-const bridge=await load('chrome-server');
+const bridge=await load('chrome/chrome-server');
 const hostSource=await readFile(new URL('../scripts/chrome-native-host.mjs',import.meta.url),'utf8');
 
 test('real Native Messaging + pinned HTTPS stream pushes commands, reconnects, and resynchronizes after restart',async t=>{

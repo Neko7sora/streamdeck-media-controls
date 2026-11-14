@@ -1,5 +1,5 @@
 import {createHash} from "node:crypto";
-import {safeImage} from "./media-model.js";
+import {safeImage} from "../media/media-model.js";
 import {chromeClientId,chromeFrameKey} from "./chrome-identity.js";
 
 // Transport state is separate from validated media and is bounded independently.

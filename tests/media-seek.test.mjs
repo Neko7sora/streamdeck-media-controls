@@ -1,7 +1,7 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {load} from './load.mjs';
-const {DialSeeking,seekPosition}=await load('media-seek');
+const {DialSeeking,seekPosition}=await load('media/media-seek');
 const media={source:'windows',session_id:'A',title:'Track',playback_state:'paused',controls:{seek:true},
  timeline:{updated_at:10000,start_sec:10,position_sec:50,end_sec:110,min_seek_sec:10,max_seek_sec:110}};
 

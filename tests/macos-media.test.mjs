@@ -18,7 +18,7 @@ test('macOS snapshots preserve unknown metadata and identify app process and tra
   const h=harness(), snapshot=JSON.parse(h.run({command:'snapshot'}));
   assert.equal(snapshot.sessions.length,1);assert.equal(snapshot.current.title,null);
   assert.equal(snapshot.current.session_id,'macos:com.apple.Music:42:track-1');
-  const {validateSnapshot}=await load('media-validation');
+  const {validateSnapshot}=await load('media/media-validation');
   assert.equal(validateSnapshot(snapshot,'macos').current.source,'macos');
 });
 test('macOS commands reject expired, changed-track and restarted-process targets',()=>{

@@ -2,7 +2,7 @@ import {readFileSync} from "node:fs";
 import {basename,join,resolve} from "node:path";
 import {pathToFileURL} from "node:url";
 import sharp from "sharp";
-import {SEEK_TOUCH_RECT} from "../src/display-guidelines.ts";
+import {SEEK_TOUCH_RECT} from "../src/rendering/display-guidelines.ts";
 
 // Asset rules from https://docs.elgato.com/guidelines/stream-deck/plugins/
 export async function checkGuidelines(plugin=resolve("dev.n7s.media-controls.sdPlugin")) {

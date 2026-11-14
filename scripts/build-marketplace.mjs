@@ -11,9 +11,9 @@ const root=fileURLToPath(new URL("../",import.meta.url));
 const mediaSources=[
   "assets/plugin-icon.svg", "dev.n7s.media-controls.sdPlugin/manifest.json",
   "docs/marketplace/listing.en.json", "scripts/build-marketplace.mjs", "scripts/marketplace-paths.mjs",
-  "src/now-playing-image.ts", "src/scrolling-text.ts", "src/display-font.ts",
-  "src/display-guidelines.ts", "src/plugin.ts",
-  "src/configured-action.ts", "src/control-actions.ts", "src/now-playing-actions.ts", "src/action-settings.ts",
+  "src/rendering/now-playing-image.ts", "src/rendering/scrolling-text.ts", "src/rendering/display-font.ts",
+  "src/rendering/display-guidelines.ts", "src/plugin.ts",
+  "src/streamdeck/configured-action.ts", "src/streamdeck/control-actions.ts", "src/streamdeck/now-playing-actions.ts", "src/streamdeck/action-settings.ts",
   ...["play-pause","previous","next","stop","mute","volume-down","volume-up"].map(name=>`dev.n7s.media-controls.sdPlugin/imgs/actions/${name}@2x.png`)
 ];
 const read=path=>readFileSync(resolve(root,path));
@@ -29,7 +29,7 @@ export async function buildMarketplace() {
   const outputPaths=marketplaceOutputPaths(root,images);
   // An in-memory bundle resolves the renderer's .js TypeScript imports without
   // starting Stream Deck, the native helper or the browser bridge.
-  const bundled=await build({stdin:{contents:'export {nowPlayingImage} from "./src/now-playing-image.ts"; export {ScrollingText} from "./src/scrolling-text.ts";',resolveDir:root},bundle:true,platform:"node",format:"cjs",packages:"external",write:false,logLevel:"silent"});
+  const bundled=await build({stdin:{contents:'export {nowPlayingImage} from "./src/rendering/now-playing-image.ts"; export {ScrollingText} from "./src/rendering/scrolling-text.ts";',resolveDir:root},bundle:true,platform:"node",format:"cjs",packages:"external",write:false,logLevel:"silent"});
   const {createRequire}=await import("node:module");
   const module={exports:{}};
   new Function("module","exports","require",bundled.outputFiles[0].text)(module,module.exports,createRequire(new URL("../package.json",import.meta.url)));

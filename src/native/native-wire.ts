@@ -1,4 +1,4 @@
-import {safeImage} from "./media-model.js";
+import {safeImage} from "../media/media-model.js";
 
 export class NativeWire {
   private images=new Map<string,string>();

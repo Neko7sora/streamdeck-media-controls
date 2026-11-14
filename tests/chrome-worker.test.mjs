@@ -4,7 +4,7 @@ import {load} from './load.mjs';
 import {worker} from './worker-harness.mjs';
 import {rasterWorkerHooks} from './raster-worker-harness.mjs';
 import sharp from 'sharp';
-const {ChromeWire}=await load('chrome-wire');
+const {ChromeWire}=await load('chrome/chrome-wire');
 const settle=()=>new Promise(resolve=>setTimeout(resolve,30));
 const flush=()=>new Promise(setImmediate);
 const deferred=()=>{let resolve;const promise=new Promise(done=>{resolve=done;});return {promise,resolve};};

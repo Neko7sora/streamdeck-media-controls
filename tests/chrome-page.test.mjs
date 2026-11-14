@@ -6,7 +6,7 @@ import {load} from "./load.mjs";
 import {worker} from './worker-harness.mjs';
 import sharp from 'sharp';
 import {rasterWorkerHooks} from './raster-worker-harness.mjs';
-const {playbackPosition}=await load("media-model");
+const {playbackPosition}=await load("media/media-model");
 const source=readFileSync(new URL("../chrome-extension/page-main.js",import.meta.url),"utf8");
 function page(players=[],icons=[],modern=true,options={}) {
   const messages=[],events=new Map(),session={metadata:null,playbackState:"none",setPositionState(){}};

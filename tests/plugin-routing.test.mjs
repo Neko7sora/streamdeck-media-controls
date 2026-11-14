@@ -18,7 +18,7 @@ test("Now Playing operates the session last sent to the display, and never falls
   };
   const plugin={name:"test-ports",setup(build){
     build.onLoad({filter:/control-image\.ts$/},args=>({contents:readFileSync(args.path,"utf8").replaceAll("import.meta.url",JSON.stringify(new URL("../dev.n7s.media-controls.sdPlugin/bin/plugin.js",import.meta.url).href)),loader:"ts"}));
-    build.onResolve({filter:/@elgato\/streamdeck$|\.\/media-state\.js$|\.\/native-client\.js$|\.\/chrome-server\.js$|\.\/icue-runtime\.js$|\.\/chrome-registration\.js$|\.\/artwork\.js$|\.\/windows-media\.js$/},args=>({path:args.path==="@elgato/streamdeck"?"sdk":args.path.includes("media-state")?"state":args.path.includes("native-client")?"native":args.path.includes("chrome-server")?"chrome":args.path.includes("icue-runtime")?"icue":args.path.includes("chrome-registration")?"registration":args.path.includes("windows-media")?"keys":"art",namespace:"test"}));
+    build.onResolve({filter:/@elgato\/streamdeck$|\/media-state\.js$|\/native-client\.js$|\/chrome-server\.js$|\/icue-runtime\.js$|\/chrome-registration\.js$|\/artwork\.js$|\/windows-media\.js$/},args=>({path:args.path==="@elgato/streamdeck"?"sdk":args.path.includes("media-state")?"state":args.path.includes("native-client")?"native":args.path.includes("chrome-server")?"chrome":args.path.includes("icue-runtime")?"icue":args.path.includes("chrome-registration")?"registration":args.path.includes("windows-media")?"keys":"art",namespace:"test"}));
     build.onLoad({filter:/.*/,namespace:"test"},args=>({contents:mocks[args.path],loader:"js"}));
   }};
   await load("plugin",[plugin]);

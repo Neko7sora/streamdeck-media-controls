@@ -1,4 +1,4 @@
-import {t} from "./localization.js";
+import {t} from "../localization.js";
 export interface MediaTimeline {
   updated_at?:number|null;
   start_sec?: number | null;

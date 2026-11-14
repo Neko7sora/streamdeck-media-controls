@@ -1,7 +1,7 @@
 import {spawn, type ChildProcessWithoutNullStreams} from "node:child_process";
 import {fileURLToPath} from "node:url";
-import {validateSnapshot} from "./media-validation.js";
-import type {MediaSnapshot} from "./media-model.js";
+import {validateSnapshot} from "../media/media-validation.js";
+import type {MediaSnapshot} from "../media/media-model.js";
 import {NativeWire} from "./native-wire.js";
 
 const helper = fileURLToPath(new URL("../native/media-info.exe",import.meta.url));
