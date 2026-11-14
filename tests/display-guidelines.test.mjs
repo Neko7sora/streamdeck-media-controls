@@ -1,7 +1,7 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {load} from './load.mjs';
-const {isSeekTouch}=await load('display-guidelines');
+const {isSeekTouch}=await load('rendering/display-guidelines');
 
 test('the entire bottom 35 px timeline is touchable, with a separate playback area',()=>{
   for(const x of [0,6,100,194,199]) {

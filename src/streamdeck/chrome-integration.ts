@@ -1,8 +1,8 @@
 import streamDeck from "@elgato/streamdeck";
 import type {Server} from "node:https";
-import {startChromeServer,PORT} from "./chrome-server.js";
-import {registerChromeHost} from "./chrome-registration.js";
-import {t} from "./localization.js";
+import {startChromeServer,PORT} from "../chrome/chrome-server.js";
+import {registerChromeHost} from "../chrome/chrome-registration.js";
+import {t} from "../localization.js";
 import {readPluginSettings,updatePluginSettings} from "./plugin-settings.js";
 
 type State = "loading" | "disabled" | "starting" | "running" | "error";

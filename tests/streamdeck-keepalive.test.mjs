@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import {load} from "./load.mjs";
 
 test("idle host probes continue without visible actions and stop on shutdown",async t=>{
-  const {startStreamDeckKeepalive}=await load("streamdeck-keepalive");
+  const {startStreamDeckKeepalive}=await load("streamdeck/streamdeck-keepalive");
   t.mock.timers.enable({apis:["setInterval"]});
   let calls=0;
   const errors=[];
@@ -18,7 +18,7 @@ test("idle host probes continue without visible actions and stop on shutdown",as
 });
 
 test("an unanswered host probe stays bounded and resumes after a late reply",async t=>{
-  const {startStreamDeckKeepalive}=await load("streamdeck-keepalive");
+  const {startStreamDeckKeepalive}=await load("streamdeck/streamdeck-keepalive");
   t.mock.timers.enable({apis:["setInterval"]});
   let calls=0,reply;
   const stop=startStreamDeckKeepalive(()=>{calls++;return new Promise(resolve=>{reply=resolve;});},()=>{});t.after(stop);
@@ -31,7 +31,7 @@ test("an unanswered host probe stays bounded and resumes after a late reply",asy
 });
 
 test("probe failures are handled and late failures after shutdown stay quiet",async t=>{
-  const {startStreamDeckKeepalive}=await load("streamdeck-keepalive");
+  const {startStreamDeckKeepalive}=await load("streamdeck/streamdeck-keepalive");
   t.mock.timers.enable({apis:["setInterval"]});
   const errors=[];let calls=0,reject;
   const stop=startStreamDeckKeepalive(()=>{

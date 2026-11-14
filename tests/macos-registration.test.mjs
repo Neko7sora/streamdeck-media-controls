@@ -25,7 +25,7 @@ test('macOS credentials are private, persistent and usable by TLS', {skip:proces
   const root=await mkdtemp(join(tmpdir(),'sdmc-mac-tls-'));
   const previous=process.env.LOCALAPPDATA;process.env.LOCALAPPDATA=root;
   t.after(async()=>{if(previous===undefined) delete process.env.LOCALAPPDATA;else process.env.LOCALAPPDATA=previous;await rm(root,{recursive:true,force:true});});
-  const {loadCredentials}=await load('chrome-server');
+  const {loadCredentials}=await load('chrome/chrome-server');
   const first=loadCredentials();assert.match(first.token,/^[a-f0-9]{64}$/);
   createSecureContext(first.tls);
   assert.equal(loadCredentials().token,first.token);

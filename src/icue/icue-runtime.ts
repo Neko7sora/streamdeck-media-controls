@@ -1,10 +1,10 @@
-import {privateDirectory} from "./platform-paths.js";
+import {privateDirectory} from "../platform-paths.js";
 import {randomBytes} from "node:crypto";
 import {readFileSync, writeFileSync} from "node:fs";
 import {join} from "node:path";
-import {loadCredentials, chromeCommand, chromeConnectionStatus} from "./chrome-server.js";
-import {currentMedia, availableSessions, audioTarget, audioTargets, subscribeChanges} from "./media-state.js";
-import {nativeCommand} from "./native-client.js";
+import {loadCredentials, chromeCommand, chromeConnectionStatus} from "../chrome/chrome-server.js";
+import {currentMedia, availableSessions, audioTarget, audioTargets, subscribeChanges} from "../media/media-state.js";
+import {nativeCommand} from "../native/native-client.js";
 import {startIcueServer} from "./icue-server.js";
 
 /** Share the host's media state and Chrome transport without starting another poller or helper. */

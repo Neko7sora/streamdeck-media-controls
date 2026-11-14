@@ -1,7 +1,7 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {load} from './load.mjs';
-const {receiveChromeDeepLink,takeChromeDeepLink}=await load('chrome-deep-link');
+const {receiveChromeDeepLink,takeChromeDeepLink}=await load('chrome/chrome-deep-link');
 const id='a'.repeat(32);
 function link(href) {
   const url=new URL(href,'https://local.invalid');

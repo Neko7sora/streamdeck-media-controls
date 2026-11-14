@@ -24,7 +24,7 @@ async function harness(platform="win32") {
     build.onResolve({filter:/^node:child_process$/},()=>({path:"child-process",namespace:"native-test"}));
     build.onLoad({filter:/.*/,namespace:"native-test"},()=>({contents:"const driver=globalThis.__nativeClientTest;export const spawn=(...args)=>driver.spawn(...args);",loader:"js"}));
   }};
-  try {return {driver,client:await load("native-client",[mocks])};}
+  try {return {driver,client:await load("native/native-client",[mocks])};}
   finally {delete globalThis.__nativeClientTest;}
 }
 

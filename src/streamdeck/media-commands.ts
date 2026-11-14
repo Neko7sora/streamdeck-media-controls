@@ -1,8 +1,8 @@
 import streamDeck from "@elgato/streamdeck";
 import type {Instance,Settings} from "./action-settings.js";
-import {currentMedia} from "./media-state.js";
-import {nativeCommand} from "./native-client.js";
-import {chromeCommand} from "./chrome-server.js";
+import {currentMedia} from "../media/media-state.js";
+import {nativeCommand} from "../native/native-client.js";
+import {chromeCommand} from "../chrome/chrome-server.js";
 
 export async function guarded(instance:Instance,fn:()=>Promise<void>):Promise<void> {
   try {await fn();} catch(e) {streamDeck.logger.warn(String(e));await instance.showAlert();}

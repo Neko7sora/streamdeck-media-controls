@@ -42,7 +42,7 @@ test("registration runs only when requested, rejects concurrent work, and never 
     build.onResolve({filter:/^node:child_process$/},()=>({path:"process",namespace:"registration-test"}));
     build.onLoad({filter:/.*/,namespace:"registration-test"},()=>({contents:`export function execFile(file,args,options,callback){const s=globalThis.__chromeRegistrationTest;s.calls.push({file,args,options,callback});return {kill(){s.kills++;}};}`}));
   }};
-  const {registerChromeHost,stopChromeRegistration}=await load("chrome-registration",[mockPort]);
+  const {registerChromeHost,stopChromeRegistration}=await load("chrome/chrome-registration",[mockPort]);
   t.mock.timers.enable({apis:["setTimeout"]});
   const logs=[],log=message=>logs.push(message);
   try {

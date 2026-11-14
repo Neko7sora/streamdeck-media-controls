@@ -1,5 +1,5 @@
-import {t} from "./localization.js";
-import type {AudioTarget,MediaItem} from "./media-model.js";
+import {t} from "../localization.js";
+import type {AudioTarget,MediaItem} from "../media/media-model.js";
 
 export function mediaTargetName(media:MediaItem|null):string {
   if(!media) return t("no.target");

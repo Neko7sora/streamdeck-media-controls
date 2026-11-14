@@ -1,7 +1,7 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {load} from './load.mjs';
-const model=await load('media-model');
+const model=await load('media/media-model');
 
 test('explicit selection accepts the OS current session missing from the session list',()=>{
  for(const source of ['windows','macos']) {

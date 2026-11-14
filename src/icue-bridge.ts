@@ -1,7 +1,7 @@
-import {startChromeServer} from "./chrome-server.js";
-import {startMediaPolling} from "./media-state.js";
-import {startIcueBridge} from "./icue-runtime.js";
-import {ICUE_PORT} from "./icue-server.js";
+import {startChromeServer} from "./chrome/chrome-server.js";
+import {startMediaPolling} from "./media/media-state.js";
+import {startIcueBridge} from "./icue/icue-runtime.js";
+import {ICUE_PORT} from "./icue/icue-server.js";
 import {setLanguage} from "./localization.js";
 
 if (process.platform !== "win32" || process.arch !== "x64") throw new Error("Windows x64 is required");

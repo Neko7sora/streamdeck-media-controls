@@ -1,11 +1,11 @@
-import {privateDirectory} from "./platform-paths.js";
+import {privateDirectory} from "../platform-paths.js";
 import type {IncomingMessage} from "node:http";
 import {createServer,type Server,type ServerOptions} from "node:https";
 import {randomBytes,timingSafeEqual,X509Certificate} from "node:crypto";
 import {mkdirSync,readFileSync,writeFileSync,chmodSync,existsSync,mkdtempSync,rmSync} from "node:fs";
 import {join} from "node:path";
 import {execFileSync} from "node:child_process";
-import {ingestChrome,chromeSessions,clearChromeSessions} from "./media-state.js";
+import {ingestChrome,chromeSessions,clearChromeSessions} from "../media/media-state.js";
 import {ChromeWire} from "./chrome-wire.js";
 import {chromeClientId,chromeFrameKey} from "./chrome-identity.js";
 import type {ServerResponse} from "node:http";

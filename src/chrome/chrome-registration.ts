@@ -1,4 +1,4 @@
-import {t} from "./localization.js";
+import {t} from "../localization.js";
 import {execFile,type ChildProcess} from "node:child_process";
 import {join} from "node:path";
 import {fileURLToPath} from "node:url";
