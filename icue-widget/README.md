@@ -60,6 +60,12 @@ Get-Content "$env:LOCALAPPDATA\StreamDeckMediaControls\icue-token.txt"
 
 開発中は `npm run icue:bridge` でビルド・起動できます。Nodeやnpmの実行環境に問題がある場合は、同等の `node scripts/pack-icue.mjs`、`node scripts/pack-icue-bridge.mjs`、`node scripts/run-icue-bridge.mjs` を使用してください。
 
+### macOS で独立ブリッジを使う
+
+Apple Silicon / Intel Mac では `npm run icue:bridge:pack` が `icue-bridge-1.0.0-macos.zip` を生成します。Node.js 24 以降で、展開先から `node bin/icue-bridge.mjs` を実行します。Chrome 拡張を併用する場合は、同じディレクトリで `node register-chrome-native-host-macos.mjs <拡張ID>` を実行してください。接続トークンは `~/Library/Application Support/StreamDeckMediaControls/icue-token.txt` に保存されます。
+
+Music・Spotify・Chrome とシステム音量の対応範囲は [macOS ガイド](../docs/macos.md) を参照してください。Mac での XENEON EDGE ウィジェット表示・操作は未検証です。
+
 ### 内蔵ブリッジのオン・オフ
 
 Stream DeckでMedia Controlsのキーまたはダイヤルを選び、設定画面の「iCUE連携」を開いて「iCUE用ブリッジを有効にする」を切り替えます。設定はプラグイン全体で共通です。初期値はオンで、Stream Deckのグローバル設定 `icueBridgeEnabled` に保存し、再起動後も保持します。保存済みの設定を読み込む前には待受けを開始しません。

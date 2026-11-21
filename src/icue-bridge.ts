@@ -4,7 +4,10 @@ import {startIcueBridge} from "./icue/icue-runtime.js";
 import {ICUE_PORT} from "./icue/icue-server.js";
 import {setLanguage} from "./localization.js";
 
-if (process.platform !== "win32" || process.arch !== "x64") throw new Error("Windows x64 is required");
+if (!(process.platform === "win32" && process.arch === "x64") &&
+    !(process.platform === "darwin" && ["arm64", "x64"].includes(process.arch))) {
+  throw new Error("Windows x64 or macOS arm64/x64 is required");
+}
 setLanguage("ja");
 const log = (message: string) => console.error(message);
 const {server, tokenFile} = startIcueBridge();
