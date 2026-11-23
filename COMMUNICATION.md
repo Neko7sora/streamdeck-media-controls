@@ -135,15 +135,15 @@ node --test tests/*.test.mjs
 | 範囲 | ファイル |
 |---|---|
 | ページ・拡張・popup | `chrome-extension/page-main.js`, `bridge-isolated.js`, `background.js`, `options.js` |
-| HTTPS・Native Messaging | `src/chrome-server.ts`, `src/chrome-wire.ts`, `scripts/chrome-native-host.mjs` |
-| Windows IPC | `native/media-info/src/main.rs`, `wire.rs`, `src/native-client.ts`, `src/native-wire.ts` |
-| 設定の通知 | `src/plugin.ts`, `src/media-state.ts`, `src/inspector-updates.ts`, `dev.n7s.media-controls.sdPlugin/ui/settings.js` |
+| HTTPS・Native Messaging | `src/chrome/chrome-server.ts`, `src/chrome/chrome-wire.ts`, `scripts/chrome-native-host.mjs` |
+| Windows IPC | `native/media-info/src/main.rs`, `wire.rs`, `src/native/native-client.ts`, `src/native/native-wire.ts` |
+| 設定の通知 | `src/plugin.ts`, `src/media/media-state.ts`, `src/streamdeck/inspector-updates.ts`, `dev.n7s.media-controls.sdPlugin/ui/settings.js` |
 | 回帰検証・測定 | `tests/communication.test.mjs`, `chrome-transport.test.mjs`, ページ・worker・settingsの既存テスト、共有harness、`scripts/measure-*.mjs` |
 | バージョン・説明 | `package.json`, `package-lock.json`, 両manifest、`README.md`, 本文書、測定JSON |
 
 ## iCUEウィジェットの通信
 
-Edge Media Deckのブリッジモードは、Stream Deckプラグイン内で自動起動し、既存のWindowsヘルパー、メディア状態、Chrome受信／操作処理を共有します。別のポーリングやヘルパーは追加起動しません。Stream Deckアプリを使わない独立ブリッジも同じ実装を利用します。共通実装は `src/icue-runtime.ts` / `src/icue-server.ts`、起動・終了は `src/plugin.ts` または `src/icue-bridge.ts`、画面側は `icue-widget/scripts/bridge.js` です。
+Edge Media Deckのブリッジモードは、Stream Deckプラグイン内で自動起動し、既存のWindowsヘルパー、メディア状態、Chrome受信／操作処理を共有します。別のポーリングやヘルパーは追加起動しません。Stream Deckアプリを使わない独立ブリッジも同じ実装を利用します。共通実装は `src/icue/icue-runtime.ts` / `src/icue/icue-server.ts`、起動・終了は `src/plugin.ts` または `src/icue-bridge.ts`、画面側は `icue-widget/scripts/bridge.js` です。
 
 - iCUE向けは `https://127.0.0.1:39762` のみで待受け、Chromeと異なるBearerトークンを使用します。トークンとTLS証明書は既存の保護ディレクトリに保存し、現在のユーザーとSYSTEMのみにアクセスを限定します。
 - ウィジェットからの接続はローカルHTMLの `Origin: null` と、実iCUEのQtWebEngineが送る `Origin: file://`、正確なHostを検査します。Originはこの2文字列の完全一致だけを認め、パス付きfile URL、リモートホスト付きfile URL、HTTP(S)の外部Originを拒否します。ヘッダーに認証を載せ、トークンをURLやlocalStorageへ保存しません。権限は対象ポートの `url` と `self-signed-certificate` だけです。
@@ -151,6 +151,18 @@ Edge Media Deckのブリッジモードは、Stream Deckプラグイン内で自
 - `/command` は12KB以内のJSON POST、同時処理は最大16件です。署名付きの表示確認情報は30秒で失効し、選択したメディア対象・メディアの識別値・音量対象の識別値を含みます。操作直前に現在値と操作可否を検査し、メディアの切替・切断・置換を拒否します。シークは元のセッション／ブラウザー範囲へ制限し、Chrome操作はdocumentと要素IDを指定します。大域メディアキーへのフォールバックはありません。
 - 音量スライダーは既存ヘルパーに `value`（0〜1の絶対音量）を送ります。Stream Deck側が使う `delta` は維持し、両方の指定は拒否します。音量の並行変更があってもスライダー指定が相対差分として積み重なることを防ぎます。
 - 内蔵版ではChromeの39761番ポートを既存の受信サーバーと共有するため、Stream DeckとiCUEでChrome情報を同時利用できます。iCUEの39762番ポートとChromeの39761番ポートを所有できるプロセスはそれぞれ1つなので、独立ブリッジとは同時起動しません。内蔵iCUE待受けの同期／非同期の起動失敗はログに残し、Stream Deckの操作は継続します。競合を解消した後はプラグインを再起動します。独立版の `--no-chrome` はChrome受信だけを省略します。
-- 内蔵版の有効・無効は `src/icue-integration.ts` がStream Deckのグローバル設定 `icueBridgeEnabled` に保存します。未設定はオン、明示的なfalseはオフです。保存済みの設定を読み込む前には待受けを開かず、読み込めなければ起動しません。設定画面からの変更はアクティブなインスペクター、要求ID、boolean値を検証してから保存し、起動・停止を直列化します。オフはiCUEの接続だけを閉じ、Windowsのメディア観測とChrome通信は維持します。競合解消後は設定画面のオフ・オンでも再起動できます。
+- 内蔵版の有効・無効は `src/streamdeck/icue-integration.ts` がStream Deckのグローバル設定 `icueBridgeEnabled` に保存します。未設定はオン、明示的なfalseはオフです。保存済みの設定を読み込む前には待受けを開かず、読み込めなければ起動しません。設定画面からの変更はアクティブなインスペクター、要求ID、boolean値を検証してから保存し、起動・停止を直列化します。オフはiCUEの接続だけを閉じ、Windowsのメディア観測とChrome通信は維持します。競合解消後は設定画面のオフ・オンでも再起動できます。
 
 導入・権限・制限は [ウィジェットREADME](icue-widget/README.md) にまとめています。ウィジェット用CLI、モックHTTPSの単体テスト、Chromiumの操作／配置テストと、実iCUE／XENEON EDGEの受け入れ確認は区別します。
+
+## Chrome 初期設定の Deep Link
+
+拡張の設定画面の「Stream Deck で開く」は `streamdeck://plugins/message/dev.n7s.media-controls/chrome/setup?extensionId=<拡張ID>` を開きます。Stream Deck を前面に出す通常のリンクを使用し、Media Controls のアクションを選ぶと ID が設定画面に入力されます。設定画面がまだ開いていない場合は、プラグインのメモリに最新の ID を1件だけ保持します。プラグインの再起動時には消えるため、必要ならリンクを再度開きます。
+
+Deep Link は送信元を認証できないため、受信だけで Native Messaging の登録や送信の有効化は行いません。ユーザーが ID を確認して「Chrome 連携を登録」を押した後、既存の登録処理を実行します。パス・ID形式・重複／未知のパラメーター・フラグメント・長さを検査し、認証情報はリンクに含めません。コピー・貼り付けの手順も維持します。メディア情報と操作の通信は既存の認証付きローカル経路を使います。
+
+## Chrome 連携の接続解除と再設定
+
+Stream Deck プラグインでは、Chrome の受信サーバーを起動する前にグローバル設定 `chromeBridgeEnabled` を読み込みます。未設定はオン、明示的な false はオフです。オフへの変更を保存してから HTTPS 接続を閉じ、保留中の操作を失敗として返し、Chrome セッション・差分基準・配送先を消去します。停止中の Chrome 操作は拒否し、大域操作へフォールバックしません。オンに戻すと同じ認証付き経路で受信を再開します。Native Messaging の登録と拡張の送信設定は保持するため、これはアンインストール操作ではありません。独立 iCUE ブリッジの `--no-chrome` は従来どおりです。
+
+設定画面には `chromeIntegration` として保存済みオン・オフ、準備状況、起動状態、登録成功時に保存した拡張 ID を通知します。`setChromeIntegration` と登録要求はアクティブなインスペクターと要求 ID を検査します。再登録はユーザーが指定した ID だけを使用し、成功後に `chromeExtensionId` とオン状態を保存します。入力中の ID を定期通知で上書きしません。Chrome と iCUE のグローバル設定は共通の読み込み・マージ・保存キューを使い、同時編集による設定消失を防ぎます。

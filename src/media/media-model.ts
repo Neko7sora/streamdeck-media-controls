@@ -1,4 +1,4 @@
-import {t} from "./localization.js";
+import {t} from "../localization.js";
 export interface MediaTimeline {
   updated_at?:number|null;
   start_sec?: number | null;
@@ -8,7 +8,7 @@ export interface MediaTimeline {
   max_seek_sec?: number | null;
 }
 export interface MediaItem {
-  source: "windows" | "chrome";
+  source: "windows" | "macos" | "chrome";
   session_id?: string;
   frame_id?: number;
   document_id?: string;
@@ -142,7 +142,7 @@ export function chooseCurrent(windows: MediaSnapshot, chrome: MediaItem[], selec
       field_sources:{...item.field_sources,app_icon_data_url:"windows",...(fallback?{fallback_artwork_data_url:"windows"}:{})}};
   };
   if (selected !== "auto") {
-    const item = [...windows.sessions, ...chrome].find(x => x.session_id === selected);
+    const item = [...windowsItems, ...chrome].find(x => x.session_id === selected);
     if (!item) return null; // Never silently operate another session after disconnection.
     if (item.source === "chrome") return chromeWithIcon(item);
     return windowsWithIcon(item);

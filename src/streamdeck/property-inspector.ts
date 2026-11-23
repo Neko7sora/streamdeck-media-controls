@@ -1,18 +1,21 @@
 import streamDeck from "@elgato/streamdeck";
-import {t} from "./localization.js";
+import {t} from "../localization.js";
 import type {Instance,Settings} from "./action-settings.js";
-import {chromeConnectionStatus} from "./chrome-server.js";
-import {registerChromeHost} from "./chrome-registration.js";
-import {subscribeChanges,availableSessions,audioTargets} from "./media-state.js";
-import {displayTitle} from "./media-model.js";
+import {chromeConnectionStatus} from "../chrome/chrome-server.js";
+import {chromeIntegrationStatus,configureChromeIntegration,setChromeIntegrationEnabled,subscribeChromeIntegration} from "./chrome-integration.js";
+import {subscribeChanges,availableSessions,audioTargets} from "../media/media-state.js";
+import {displayTitle} from "../media/media-model.js";
 import {InspectorUpdates} from "./inspector-updates.js";
 import {icueIntegrationStatus,setIcueIntegrationEnabled,subscribeIcueIntegration} from "./icue-integration.js";
+
+import {receiveChromeDeepLink,takeChromeDeepLink} from "../chrome/chrome-deep-link.js";
 
 const inspectorUpdates=new InspectorUpdates();
 let inspectorId:string|undefined,inspectorRevision=0,inspectorSending=false,inspectorDirty=false;
 function inspectorPayload() {
   return {
     chromeConnection:chromeConnectionStatus(),
+    chromeIntegration:chromeIntegrationStatus(),
     icueIntegration:icueIntegrationStatus(),
     sessions:availableSessions().map(s=>({id:s.session_id??"",label:`${s.source}: ${displayTitle(s)} (${s.app_id||s.tab_id||""})`,details:JSON.stringify({...s,artwork_data_url:s.artwork_data_url?"[image available]":null,fallback_artwork_data_url:s.fallback_artwork_data_url?"[Windows fallback available]":null,app_icon_data_url:s.app_icon_data_url?"[app icon available]":null,favicon_data_url:s.favicon_data_url?"[favicon available]":null},null,2)})),
     audio:audioTargets().map(v=>({id:v.id,label:`${v.name||t("metadata.unknownApp")}${v.pid!==undefined?` (PID ${v.pid})`:""}`,volume:v.volume,muted:v.muted}))
@@ -40,11 +43,29 @@ export async function notifySettingsChanged(instance:Instance,settings:Settings)
   }
 }
 export function startPropertyInspector():void {
+  streamDeck.system.onDidReceiveDeepLink(ev=>{
+    if(!receiveChromeDeepLink(ev.url)||!streamDeck.ui.action) return;
+    const extensionId=takeChromeDeepLink();
+    void streamDeck.ui.sendToPropertyInspector({response:"chromeSetup",extensionId}).catch(e=>streamDeck.logger.warn(String(e)));
+  });
   subscribeChanges(notifyInspector);
+  subscribeChromeIntegration(notifyInspector);
   subscribeIcueIntegration(notifyInspector);
   streamDeck.ui.onSendToPlugin(ev=>{
     const request=ev.payload;
     if(!request||typeof request!=="object"||Array.isArray(request)) return;
+    if(request.request==="setChromeIntegration") {
+      const requestId=request.requestId;
+      if(streamDeck.ui.action?.id!==ev.action.id||typeof request.enabled!=="boolean"||typeof requestId!=="string"||!/^[a-f0-9-]{36}$/i.test(requestId)) return;
+      void (async()=>{
+        let failed=false;
+        try {await setChromeIntegrationEnabled(request.enabled as boolean);}
+        catch(error) {failed=true;streamDeck.logger.warn(String(error));}
+        if(streamDeck.ui.action?.id!==ev.action.id) return;
+        await streamDeck.ui.sendToPropertyInspector({response:"chromeIntegration",requestId,failed,chromeIntegration:chromeIntegrationStatus(),chromeConnection:chromeConnectionStatus()});
+      })().catch(error=>streamDeck.logger.warn(String(error)));
+      return;
+    }
     if(request.request==="setIcueIntegration") {
       const requestId=request.requestId;
       if(streamDeck.ui.action?.id!==ev.action.id||typeof request.enabled!=="boolean"||typeof requestId!=="string"||!/^[a-f0-9-]{36}$/i.test(requestId)) return;
@@ -62,15 +83,18 @@ export function startPropertyInspector():void {
       if(request.request==="watch"&&Number.isSafeInteger(request.settingsRevision)&&Number(request.settingsRevision)>=0) inspectorRevision=Number(request.settingsRevision);
       // An open inspector can outlive this plugin process and retain push mode.
       // Restore its full handshake before relying on collection change notices.
-      void streamDeck.ui.sendToPropertyInspector({response:"alive",protocol:2,chromeConnection:chromeConnectionStatus(),
+      void streamDeck.ui.sendToPropertyInspector({response:"alive",protocol:2,chromeConnection:chromeConnectionStatus(),chromeIntegration:chromeIntegrationStatus(),
         ...(inspectorId!==ev.action.id?{optionsRequired:true}:{})}).catch(e=>streamDeck.logger.warn(String(e)));return;
     }
     if(request.request==="registerChromeHost") {
       const requestId=request.requestId;
       if(streamDeck.ui.action?.id!==ev.action.id||typeof requestId!=="string"||!/^[a-f0-9-]{36}$/i.test(requestId)) return;
-      void registerChromeHost(request.extensionId,msg=>streamDeck.logger.warn(msg)).then(async result=>{
+      void configureChromeIntegration(request.extensionId).catch(error=>{
+        streamDeck.logger.warn(String(error));
+        return {status:"failed",message:t("chrome.registration.failed")};
+      }).then(async result=>{
         if(streamDeck.ui.action?.id!==ev.action.id) return;
-        await streamDeck.ui.sendToPropertyInspector({response:"chromeHostRegistration",requestId,...result});
+        await streamDeck.ui.sendToPropertyInspector({response:"chromeHostRegistration",requestId,...result,chromeIntegration:chromeIntegrationStatus(),chromeConnection:chromeConnectionStatus()});
       }).catch(e=>streamDeck.logger.warn(String(e)));
       return;
     }
@@ -80,7 +104,7 @@ export function startPropertyInspector():void {
     void (async()=>{const settings=await ev.action.getSettings();
       if(streamDeck.ui.action?.id!==ev.action.id) return;
       const payload=inspectorPayload();inspectorId=ev.action.id;inspectorRevision=settingsRevision;inspectorUpdates.reset();inspectorUpdates.changes(payload);
-      await streamDeck.ui.sendToPropertyInspector({protocol:2,settings,settingsRevision,...payload});
+      await streamDeck.ui.sendToPropertyInspector({protocol:2,settings,settingsRevision,...payload,chromeSetupExtensionId:takeChromeDeepLink()});
     })().catch(e=>streamDeck.logger.warn(String(e)));
   });
 }

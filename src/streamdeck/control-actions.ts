@@ -1,14 +1,14 @@
-import {t} from "./localization.js";
+import {t} from "../localization.js";
 import {action,type KeyDownEvent,type DialDownEvent,type DialRotateEvent,type TouchTapEvent} from "@elgato/streamdeck";
 import {UUID,type Settings,type Instance} from "./action-settings.js";
 import {ConfiguredAction} from "./configured-action.js";
 import {guarded,volume,transport} from "./media-commands.js";
-import {currentMedia,audioTarget} from "./media-state.js";
-import {displayTitle} from "./media-model.js";
-import {sendMediaKey,type MediaCommand} from "./windows-media.js";
-import {applicationIcon} from "./artwork.js";
-import {controlImage} from "./control-image.js";
-import {mediaTargetName,audioTargetName} from "./control-display.js";
+import {currentMedia,audioTarget} from "../media/media-state.js";
+import {displayTitle} from "../media/media-model.js";
+import {sendMediaKey,type MediaCommand} from "../native/windows-media.js";
+import {applicationIcon} from "../rendering/artwork.js";
+import {controlImage} from "../rendering/control-image.js";
+import {mediaTargetName,audioTargetName} from "../rendering/control-display.js";
 
 abstract class MediaButton extends ConfiguredAction {
   protected abstract readonly command:MediaCommand;

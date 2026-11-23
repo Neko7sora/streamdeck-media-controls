@@ -1,17 +1,17 @@
-import {t} from "./localization.js";
+import {t} from "../localization.js";
 import {action,type KeyDownEvent,type DialDownEvent,type DialRotateEvent,type TouchTapEvent} from "@elgato/streamdeck";
 import {UUID,type Settings,type Instance} from "./action-settings.js";
 import {ConfiguredAction} from "./configured-action.js";
 import {guarded,volume,transport} from "./media-commands.js";
-import {currentMedia,audioTarget} from "./media-state.js";
-import {displayTitle} from "./media-model.js";
+import {currentMedia,audioTarget} from "../media/media-state.js";
+import {displayTitle} from "../media/media-model.js";
 import type {WillDisappearEvent,DidReceiveSettingsEvent} from "@elgato/streamdeck";
-import {availableSessions} from "./media-state.js";
-import {progress} from "./media-model.js";
-import {artwork,applicationIcon,artworkLoadingImage} from "./artwork.js";
-import {DialSeeking,seekPosition,trackIdentity} from "./media-seek.js";
-import {nowPlayingImage} from "./now-playing-image.js";
-import {isSeekTouch} from "./display-guidelines.js";
+import {availableSessions} from "../media/media-state.js";
+import {progress} from "../media/media-model.js";
+import {artwork,applicationIcon,artworkLoadingImage} from "../rendering/artwork.js";
+import {DialSeeking,seekPosition,trackIdentity} from "../media/media-seek.js";
+import {nowPlayingImage} from "../rendering/now-playing-image.js";
+import {isSeekTouch} from "../rendering/display-guidelines.js";
 
 const EMPTY_ICON="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAAC0lEQVR42mNgAAIAAAUAAen63NgAAAAASUVORK5CYII=";
 const time=(s:number|null)=>s===null?"--:--":`${Math.floor(Math.max(0,s)/60)}:${String(Math.floor(Math.max(0,s))%60).padStart(2,"0")}`;

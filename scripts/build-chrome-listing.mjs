@@ -1,10 +1,8 @@
 import sharp from 'sharp';
 import {readFile,writeFile,mkdir} from 'node:fs/promises';
-import {createHash} from 'node:crypto';
 
 const root=new URL('../',import.meta.url);
 const read=path=>readFile(new URL(path,root),'utf8');
-const digest=bytes=>createHash('sha256').update(bytes).digest('hex');
 const directory='assets/chrome-web-store/';
 await mkdir(new URL(directory,root),{recursive:true});
 
@@ -12,7 +10,7 @@ await mkdir(new URL(directory,root),{recursive:true});
 // promotional illustrations, not screenshots or claims of a connected device.
 // No text, third-party logos, album art or generated bitmap assets are used.
 const mark=await read('assets/plugin-icon.svg');
-const outputs={};
+const outputs=[];
 for(const [name,width,height,scale,offset] of [
   ['promo-small.png',440,280,1,0],
   ['promo-marquee.png',1400,560,2,260]
@@ -41,19 +39,16 @@ for(const [name,width,height,scale,offset] of [
   </svg>`);
   const bytes=await sharp(artwork).flatten({background:'#131c2d'}).removeAlpha().png().toBuffer();
   await writeFile(new URL(directory+name,root),bytes);
-  outputs[directory+name]=digest(bytes);
+  outputs.push(directory+name);
 }
 for(const language of ['en','ja']) {
   const listing=JSON.parse(await read(`docs/chrome-web-store/listing.${language}.json`));
   const path=`docs/chrome-web-store/description.${language}.txt`;
   const text=listing.description+'\n';
   await writeFile(new URL(path,root),text);
-  outputs[path]=digest(text);
+  outputs.push(path);
 }
-const sources={};
-for(const path of ['assets/plugin-icon.svg','scripts/build-chrome-listing.mjs',...['en','ja'].map(language=>`docs/chrome-web-store/listing.${language}.json`)]) {
-  sources[path]=digest((await read(path)).replaceAll('\r\n','\n'));
-}
+const sources=['assets/plugin-icon.svg','scripts/build-chrome-listing.mjs',...['en','ja'].map(language=>`docs/chrome-web-store/listing.${language}.json`)];
 await writeFile(new URL(directory+'listing-assets.json',root),JSON.stringify({
   method:'Original vector promotional illustration with the existing product mark; text-free, full bleed, no physical device or connection-state claim. Descriptions exported verbatim from localized listing JSON.',
   sources,outputs

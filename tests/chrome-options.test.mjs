@@ -11,7 +11,7 @@ function deferred(){
   return {promise,resolve,reject};
 }
 function options({language="ja",load=Promise.resolve({}),write=async()=>{},connect,connection=Promise.resolve({state:'disabled'}),extensionId="a".repeat(32),manifest=()=>({name:"Installed Media Bridge",version:"1.2.3"}),clipboard={writeText:async()=>{}}}={}){
-  const elements=new Map(["enabled","token","status","save","connection","connection-title","connection-detail","retry-connection","setup","setup-summary","extension-id","extension-name","extension-version","copy-extension-id","copy-id-status"].map(id=>[id,{
+  const elements=new Map(["enabled","token","status","save","connection","connection-title","connection-detail","retry-connection","setup","setup-summary","extension-id","extension-name","extension-version","copy-extension-id","copy-id-status","open-streamdeck"].map(id=>[id,{
     dataset:{},
     checked:false,value:"",textContent:"",disabled:false,open:id==="setup",listeners:{},
     addEventListener(event,fn){this.listeners[event]=fn;},focus(){this.focused=true;},select(){this.selected=true;}
@@ -43,6 +43,7 @@ test('setup reads the installed extension identity even while settings and conne
     assert.equal(page.elements.get('extension-name').textContent,'Installed Media Bridge');
     assert.equal(page.elements.get('extension-version').textContent,'1.2.3');
     assert.equal(page.elements.get('copy-extension-id').disabled,false);
+    assert.equal(page.elements.get('open-streamdeck').href,`streamdeck://plugins/message/dev.n7s.media-controls/chrome/setup?extensionId=${extensionId}`);
     assert.deepEqual(page.writes,[]);
   }
 });

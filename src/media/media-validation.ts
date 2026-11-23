@@ -6,7 +6,7 @@ const num = (v: unknown): number | null => typeof v === "number" && Number.isFin
 const bool = (v: unknown): boolean | null => typeof v === "boolean" ? v : null;
 const pairs = (v: unknown): Array<[number,number]> => Array.isArray(v) ? v.slice(0,32).flatMap(x => Array.isArray(x) && x.length === 2 && num(x[0]) !== null && num(x[1]) !== null && x[0] >= 0 && x[1] >= x[0] ? [[x[0],x[1]] as [number,number]] : []) : [];
 
-export function validateMedia(value: unknown, source: "windows" | "chrome", now = Date.now()): MediaItem | null {
+export function validateMedia(value: unknown, source: "windows" | "macos" | "chrome", now = Date.now()): MediaItem | null {
   if (value === null || typeof value !== "object" || Array.isArray(value)) return null;
   const v = object(value), t = object(v.timeline), b = object(v.browser_media), c = object(v.controls);
   const controls: Record<string, boolean> = {};
@@ -38,7 +38,7 @@ export function validateMedia(value: unknown, source: "windows" | "chrome", now 
   };
 }
 
-export function validateSnapshot(value: unknown): MediaSnapshot {
+export function validateSnapshot(value: unknown, source: "windows" | "macos" = "windows"): MediaSnapshot {
   const v = object(value);
   if (!Array.isArray(v.sessions) || v.sessions.length > 128 || !(v.current === null || typeof v.current === "object")) throw new Error("Invalid GSMTC snapshot");
   const target = (value: unknown): AudioTarget | null => {
@@ -48,5 +48,5 @@ export function validateSnapshot(value: unknown): MediaSnapshot {
   };
   const audio = object(v.audio);
   const audioState: AudioSnapshot | null = v.audio ? {master:target(audio.master),sessions:Array.isArray(audio.sessions) ? audio.sessions.slice(0,256).map(target).filter(x => x !== null) : [],observed_at:num(audio.observed_at) ?? Date.now()} : null;
-  return {current:validateMedia(v.current,"windows"),sessions:v.sessions.map(x=>validateMedia(x,"windows")).filter(x=>x!==null),audio:audioState};
+  return {current:validateMedia(v.current,source),sessions:v.sessions.map(x=>validateMedia(x,source)).filter(x=>x!==null),audio:audioState};
 }

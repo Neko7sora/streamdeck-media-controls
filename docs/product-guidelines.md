@@ -18,7 +18,7 @@ Media Controls は **[Elgato Marketplace で無料公開中](https://marketplace
 | セットアップ | [setup.md](marketplace/setup.md) | Windows・Stream Deck・Chrome の要件、ストアからの導入とローカル連携登録、操作と制限を英語で説明 |
 | リリースノート原稿 | [release-notes.en.txt](marketplace/release-notes.en.txt) | v1.0.1 の修正内容と更新手順を英語で記載 |
 | データの取り扱い | [privacy.md](marketplace/privacy.md) | ローカル処理、画像取得の外部通信、Chrome の opt-in、設定・トークン・ログ・削除手順を英語で説明 |
-| 生成記録 | [provenance.json](../assets/marketplace/provenance.json) | 原稿・描画ソース・画像の SHA-256、架空データの由来、AI使用の開示 |
+| 生成記録 | [provenance.json](../assets/marketplace/provenance.json) | 原稿・描画ソース・画像の一覧、架空データの由来、AI使用の開示 |
 
 Marketplace 用の288pxアイコンは、プラグイン設定用の256 / 512pxアイコンとは別のファイルです。ギャラリーのキーは `nowPlayingImage` と `ScrollingText` の実装で生成しています。操作アイコンはプラグインの同梱画像です。拡大した表示例であり、実機撮影や物理デバイスの再現ではありません。文字は英語、タイトル `Daylight` とアーティスト `Sample` は架空、アルバム画像は生成スクリプト内の幾何図形です。画像生成モデルや第三者のジャケット画像は使用していません。
 

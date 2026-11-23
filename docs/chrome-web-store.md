@@ -50,7 +50,7 @@ npm run chrome:pack
 
 画像は [assets/chrome-web-store](../assets/chrome-web-store/) に保存する。スクリーンショットは無効状態の実拡張設定ページのキャプチャであり、接続成功や物理デバイスの動作を装わない。画像生成 AI や架空の接続状態は使用しない。再生成した画像は目視確認してから提出する。
 
-`chrome:store:check` は manifest、許可する同梱ファイル、権限、CSP、言語原稿と貼り付け用説明の一致、スクリーンショット・プロモーション画像の寸法とハッシュ、Limited Use 開示と README のポリシーリンクを検査する。`npm run chrome:release:check` はローカル原稿の公開 URL・問い合わせ先 URL が未設定、または更新対象の確認記録が不足すると失敗する。ストアの公開状態を取得する検査ではなく、外部 URL の到達性や申告の正しさは別途確認する。
+`chrome:store:check` は manifest、許可する同梱ファイル、権限、CSP、言語原稿と貼り付け用説明の一致、スクリーンショット・プロモーション画像の形式と寸法、Limited Use 開示と README のポリシーリンクを検査する。`npm run chrome:release:check` はローカル原稿の公開 URL・問い合わせ先 URL が未設定、または更新対象の確認記録が不足すると失敗する。ストアの公開状態を取得する検査ではなく、外部 URL の到達性や申告の正しさは別途確認する。
 
 `chrome:pack` は検査後に `media-bridge-<version>.zip` を作成する。ZIP の直下に manifest があり、Windows の実行ファイル、node_modules、秘密トークン、ストア用原稿は含めない。生成物はローカルの提出候補であり、公開済みパッケージそのものの検証記録ではない。更新を提出する場合は、ストアの公開済みバージョンを確認し、更新番号を先に変更する。
 

@@ -13,7 +13,7 @@ for (const name of ['typescript', 'esbuild', 'sharp', 'icuewidget-cli']) {
 const git = spawnSync('git', ['--version'], { encoding: 'utf8', windowsHide: true });
 report(git.status === 0, 'Git', 'Install Git and add it to PATH.');
 const cargo = spawnSync('cargo', ['--version'], { encoding: 'utf8', windowsHide: true });
-console.log(`INFO Native build: platform=${process.platform}, arch=${process.arch}, cargo=${cargo.status === 0 ? 'available' : 'missing'}. Requires Windows x64 and Visual Studio C++ build tools.`);
+console.log(`INFO Native build: platform=${process.platform}, arch=${process.arch}, cargo=${cargo.status === 0 ? 'available' : 'missing'}. Windows helpers require Windows x64 and Visual Studio C++ build tools; macOS uses system osascript (no Rust build).`);
 console.log('INFO Browser E2E requires npm run test:chrome:install. Hardware acceptance requires Stream Deck.');
 console.log('INFO This checks prerequisites only; run node scripts/check-fast.mjs to verify source.');
 process.exitCode = failures ? 1 : 0;

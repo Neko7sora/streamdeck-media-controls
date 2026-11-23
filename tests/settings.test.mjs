@@ -96,9 +96,9 @@ test('Chrome setup link opens and focuses setup without registering or overridin
   assert.equal(pi.elements.get('chrome-setup-summary').focused,true);
   assert.equal(pi.messages.length,messages);
   pi.receive('sendToPropertyInspector',{chromeConnection:{state:'connected',sessions:0}});
-  assert.equal(pi.elements.get('chrome-setup-link').hidden,true);
+  assert.equal(pi.elements.get('chrome-setup-link').hidden,false);
   assert.equal(pi.elements.get('chrome-setup').open,true);
-  pi.close();assert.equal(pi.elements.get('chrome-setup-link').hidden,true);
+  pi.close();assert.equal(pi.elements.get('chrome-setup-link').hidden,false);
 });
 
 test('action heading identifies the edited key and follows the Stream Deck language',()=>{
@@ -375,7 +375,7 @@ test("registration timeout and disconnect report a result without retrying",()=>
 test('registration validation focuses the invalid field and clears feedback while correcting it',()=>{
   for(const language of ['en','ja']) {
     const pi=inspector({},{language}),input=pi.elements.get('chrome-extension-id');
-    assert.equal(input.attributes['aria-invalid'],undefined,'do not show an error before interaction');
+    assert.equal(input.attributes['aria-invalid'],'false','do not show an error before interaction');
     for(const value of ['', 'a'.repeat(31), 'a'.repeat(33), 'z'.repeat(32)]) {
       input.value=value;const before=pi.messages.length;
       assert.equal(pi.submit(),true,'prevent navigation for invalid submissions');
@@ -385,7 +385,7 @@ test('registration validation focuses the invalid field and clears feedback whil
       assert.match(input.validationMessage,/32/);
       assert.equal(pi.elements.get('chrome-registration-status').dataset.state,'invalid');
       input.value='b';input.listeners.input();
-      assert.equal(input.attributes['aria-invalid'],undefined);
+      assert.equal(input.attributes['aria-invalid'],'false');
       assert.equal(input.validationMessage,'');
       assert.equal(pi.elements.get('chrome-registration-status').textContent,'');
     }
@@ -614,4 +614,90 @@ test('Chrome registration requires an explicit valid ID and forwards exactly tha
   }
   pi.elements.get('chrome-extension-id').value='b'.repeat(32);pi.click('register-chrome');
   assert.equal(pi.messages.at(-1).payload.extensionId,'b'.repeat(32));
+});
+
+test('deep link setup fills the extension ID and waits for explicit registration',()=>{
+  for(const payload of [{response:'chromeSetup',extensionId:'a'.repeat(32)},{chromeSetupExtensionId:'a'.repeat(32)}]) {
+    const pi=inspector();
+    const count=pi.messages.length;
+    pi.receive('sendToPropertyInspector',payload);
+    assert.equal(pi.elements.get('chrome-extension-id').value,'a'.repeat(32));
+    assert.equal(pi.elements.get('chrome-setup').open,true);
+    assert.equal(pi.messages.length,count);
+    pi.receive('sendToPropertyInspector',{response:'chromeSetup',extensionId:'invalid'});
+    assert.equal(pi.elements.get('chrome-extension-id').value,'a'.repeat(32));
+  }
+});
+
+test('deep link setup clears stale validation feedback without registering or hiding registration results',()=>{
+  for(const payload of [{response:'chromeSetup',extensionId:'a'.repeat(32)},{chromeSetupExtensionId:'a'.repeat(32)}]) {
+    const pi=inspector(),input=pi.elements.get('chrome-extension-id'),status=pi.elements.get('chrome-registration-status');
+    pi.submit();
+    assert.equal(status.dataset.state,'invalid');
+    const count=pi.messages.length;
+    pi.receive('sendToPropertyInspector',payload);
+    assert.equal(input.validationMessage,'');
+    assert.equal(input.attributes['aria-invalid'],'false');
+    assert.equal(input.focused,true);
+    assert.equal(status.textContent,'');
+    assert.equal(status.dataset.state,undefined);
+    assert.equal(pi.messages.length,count,'receiving an ID must not register automatically');
+    status.textContent='Registration result';
+    pi.receive('sendToPropertyInspector',payload);
+    assert.equal(status.textContent,'Registration result');
+  }
+});
+
+test('Chrome switch confirms disconnect and reconnect without changing action settings or registration',()=>{
+  const pi=inspector({mediaTarget:'saved-target'},{language:'en'}),toggle=pi.elements.get('chrome-enabled'),id='a'.repeat(32);
+  assert.equal(toggle.disabled,true);
+  pi.receive('sendToPropertyInspector',{chromeIntegration:{enabled:true,ready:true,state:'running',extensionId:id},chromeConnection:{state:'connected',sessions:1}});
+  assert.equal(toggle.disabled,false);assert.equal(toggle.checked,true);
+  assert.equal(pi.elements.get('chrome-extension-id').value,id);
+  assert.equal(pi.elements.get('chrome-setup-link').hidden,false);
+  pi.change('chrome-enabled',false);
+  const request=pi.messages.at(-1).payload;
+  assert.equal(request.request,'setChromeIntegration');assert.equal(request.enabled,false);
+  assert.equal(toggle.disabled,true);assert.equal(toggle.checked,true);
+  assert.equal(pi.elements.get('register-chrome').disabled,true);
+  const count=pi.messages.length;pi.click('register-chrome');assert.equal(pi.messages.length,count);
+  pi.receive('sendToPropertyInspector',{response:'chromeIntegration',requestId:'old',chromeIntegration:{enabled:false,ready:true,state:'disabled'}});
+  assert.equal(toggle.disabled,true);
+  pi.receive('sendToPropertyInspector',{response:'chromeIntegration',requestId:request.requestId,chromeIntegration:{enabled:false,ready:true,state:'disabled',extensionId:id},chromeConnection:{state:'unavailable'}});
+  assert.equal(toggle.checked,false);assert.equal(toggle.disabled,false);
+  assert.equal(pi.elements.get('chrome-connection-title').textContent,'Chrome: Integration off');
+  assert.equal(pi.elements.get('chrome-extension-id').value,id);
+  pi.change('chrome-enabled',true);
+  pi.receive('sendToPropertyInspector',{response:'chromeIntegration',requestId:pi.messages.at(-1).payload.requestId,failed:true,chromeIntegration:{enabled:false,ready:true,state:'disabled'}});
+  assert.equal(toggle.checked,false);assert.match(pi.elements.get('chrome-integration-status').textContent,/Could not save/);
+  pi.change('chrome-enabled',true);pi.timeout();
+  assert.equal(toggle.disabled,true);assert.equal(pi.messages.at(-1).payload.request,'options');
+  pi.receive('sendToPropertyInspector',{chromeIntegration:{enabled:true,ready:true,state:'running',extensionId:id},chromeConnection:{state:'disconnected'}});
+  assert.equal(toggle.disabled,false);assert.equal(toggle.checked,true);
+  assert.match(pi.elements.get('chrome-integration-status').textContent,/Integration is on/);
+  assert.equal(pi.elements.get('media').value,'saved-target');
+  assert.equal(pi.messages.some(m=>m.event==='setSettings'||m.payload?.request==='registerChromeHost'),false);
+  pi.advance(6100);assert.equal(toggle.disabled,true);
+  pi.close();assert.equal(toggle.disabled,true);
+  pi.open();assert.equal(toggle.disabled,true);
+});
+
+test('Chrome saved ID refresh never overwrites an edited or deep-linked ID and registering blocks disconnect',()=>{
+  const id='a'.repeat(32),next='b'.repeat(32),pi=inspector({},{language:'en'});
+  pi.receive('sendToPropertyInspector',{chromeIntegration:{enabled:true,ready:true,state:'running',extensionId:id}});
+  const field=pi.elements.get('chrome-extension-id');
+  field.value=next;field.listeners.input();
+  pi.receive('sendToPropertyInspector',{chromeIntegration:{enabled:true,ready:true,state:'running',extensionId:id}});
+  assert.equal(field.value,next);
+  pi.click('register-chrome');
+  assert.equal(pi.messages.at(-1).payload.extensionId,next);
+  assert.equal(pi.elements.get('chrome-enabled').disabled,true);
+  pi.receive('sendToPropertyInspector',{response:'chromeHostRegistration',requestId:pi.messages.at(-1).payload.requestId,status:'registered',message:'Registered',chromeIntegration:{enabled:true,ready:true,state:'running',extensionId:next}});
+  assert.equal(pi.elements.get('chrome-enabled').disabled,false);
+  field.value='';field.listeners.input();
+  pi.receive('sendToPropertyInspector',{chromeIntegration:{enabled:true,ready:true,state:'running',extensionId:next}});
+  assert.equal(field.value,'','clearing the field is an edit, too');
+  pi.receive('sendToPropertyInspector',{response:'chromeSetup',extensionId:id});
+  pi.receive('sendToPropertyInspector',{chromeIntegration:{enabled:true,ready:true,state:'running',extensionId:next}});
+  assert.equal(field.value,id);
 });

@@ -11,8 +11,8 @@ const baseline=process.argv.find(x=>x.startsWith('--baseline='))?.slice(11);
 if(!baseline||!/^[a-f0-9]{40}$/.test(baseline)) throw Error('Use --baseline=<40-character Git commit>');
 const old=file=>execFileSync('git',['show',`${baseline}:${file}`],{encoding:'utf8'});
 async function measure(before) {
-  const plugin={name:'baseline-server',setup(build){build.onLoad({filter:/chrome-server\.ts$/},()=>({contents:old('src/chrome-server.ts'),loader:'ts'}));}};
-  const bridge=await load('chrome-server',before?[plugin]:[]),token='d'.repeat(64);
+  const plugin={name:'baseline-server',setup(build){build.onLoad({filter:/chrome-server\.ts$/},()=>({contents:old('src/chrome-server.ts').replaceAll('./media-state.js','../media/media-state.js').replaceAll('./platform-paths.js','../platform-paths.js'),loader:'ts'}));}};
+  const bridge=await load('chrome/chrome-server',before?[plugin]:[]),token='d'.repeat(64);
   const server=bridge.startChromeServer(()=>{},{token,...(before?{}:{tls}),port:0});await once(server,'listening');
   await mkdir(new URL('../tests/.generated/',import.meta.url),{recursive:true});
   const root=await mkdtemp(fileURLToPath(new URL('../tests/.generated/latency-',import.meta.url)));
