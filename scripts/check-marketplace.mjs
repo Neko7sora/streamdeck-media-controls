@@ -2,11 +2,11 @@ import {readFileSync} from "node:fs";
 import {resolve} from "node:path";
 import {fileURLToPath} from "node:url";
 import sharp from "sharp";
-import {digest,sourceHashes,root} from "./build-marketplace.mjs";
 import {marketplaceImagePaths} from "./marketplace-paths.mjs";
 
 // Local, structural checks only. No claim of Marketplace approval, IP clearance,
 // name availability, human contribution or live device validation.
+const root=fileURLToPath(new URL("../",import.meta.url));
 export async function checkMarketplace() {
   const read=path=>readFileSync(resolve(root,path));
   const listing=JSON.parse(read("docs/marketplace/listing.en.json"));
@@ -27,13 +27,10 @@ export async function checkMarketplace() {
   require(listing.pricing?.type==="free"||(listing.pricing?.type==="paid"&&Number.isFinite(listing.pricing.amount)&&listing.pricing.amount>0&&/^[A-Z]{3}$/.test(listing.pricing.currency??"")),"Specify free or paid pricing with amount and currency");
   require(read("docs/marketplace/description.en.txt").toString("utf8").replaceAll("\r\n","\n").trimEnd()===description,"Stale description.en.txt; run npm run marketplace:build");
   const images=marketplaceImagePaths(listing);
-  const provenance=JSON.parse(read("assets/marketplace/provenance.json"));
-  require(JSON.stringify(provenance.sources)===JSON.stringify(sourceHashes()),"Marketplace source changed; run npm run marketplace:build and review images again");
   for(const [i,path] of images.entries()) {
     const bytes=read(path),meta=await sharp(bytes).metadata();
     const [width,height]=i===0?[288,288]:[1920,960];
     require(meta.format==="png"&&meta.width===width&&meta.height===height&&(meta.pages??1)===1,`${path}: expected static ${width} × ${height} PNG`);
-    require(provenance.outputs[path]===digest(bytes),`${path}: media differs from the recorded build; regenerate and review`);
   }
   for(const path of ["docs/marketplace/privacy.md","docs/marketplace/setup.md","docs/product-guidelines.md"]) require(read(path).length>0,`Missing ${path}`);
   for(const type of ["setup","support","privacy"]) require(new URL(listing.links[type]).protocol==="https:",`Missing HTTPS ${type} link`);

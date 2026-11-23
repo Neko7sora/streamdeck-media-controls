@@ -27,7 +27,7 @@ function copy(name,from=process.cwd()) {
 }
 copy("sharp");
 mkdirSync(resolve(root,"native"),{recursive:true});
-for(const file of ["register-chrome-native-host.ps1","chrome-native-host.mjs"]) cpSync(resolve("scripts",file),resolve(root,"native",file));
+for(const file of ["register-chrome-native-host.ps1","register-chrome-native-host-macos.mjs","chrome-native-host.mjs"]) cpSync(resolve("scripts",file),resolve(root,"native",file));
 // Bundled CommonJS dependencies (including ws) still require Node built-ins.
 const options={entryPoints:["src/plugin.ts"],bundle:true,platform:"node",format:"esm",target:"node24",banner:{js:'import { createRequire as createBundleRequire } from "node:module"; const require = createBundleRequire(import.meta.url);'},external:["sharp"],outfile:resolve(root,"bin/plugin.js")};
 if(process.argv.includes("--watch")) {const ctx=await context(options);await ctx.watch();}

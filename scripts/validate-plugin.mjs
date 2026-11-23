@@ -12,12 +12,12 @@ export function assertValidationResult(result) {
   if(!/Validation successful/i.test(output)) throw new Error('Elgato CLI did not confirm validation');
 }
 
-export function validatePlugin() {
-  const result=spawnSync(process.execPath,[resolve('node_modules/@elgato/cli/bin/streamdeck.mjs'),'validate',resolve('dev.n7s.media-controls.sdPlugin')],{
+export function validatePlugin(directory=resolve('dev.n7s.media-controls.sdPlugin')) {
+  const result=spawnSync(process.execPath,[resolve('node_modules/@elgato/cli/bin/streamdeck.mjs'),'validate',resolve(directory)],{
     encoding:'utf8',windowsHide:true,timeout:60000,maxBuffer:10*1024*1024
   });
   process.stdout.write(result.stdout??'');
   process.stderr.write(result.stderr??'');
   assertValidationResult(result);
 }
-if(process.argv[1]&&import.meta.url===pathToFileURL(resolve(process.argv[1])).href) validatePlugin();
+if(process.argv[1]&&import.meta.url===pathToFileURL(resolve(process.argv[1])).href) validatePlugin(process.argv[2]);

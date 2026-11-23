@@ -1,7 +1,7 @@
 import {chooseCurrent, type MediaItem, type MediaSnapshot, type AudioTarget} from "./media-model.js";
 import {validateMedia} from "./media-validation.js";
-import {startNative} from "./native-client.js";
-import {chromeFrameKey} from "./chrome-identity.js";
+import {startNative} from "../native/native-client.js";
+import {chromeFrameKey} from "../chrome/chrome-identity.js";
 
 let windows:MediaSnapshot={current:null,sessions:[]};
 let autoSession:string|undefined;
@@ -28,6 +28,7 @@ export function audioTargets():AudioTarget[] {return [...(windows.audio?.master 
 export function subscribe(fn:()=>void):()=>void {listeners.add(fn);return ()=>{listeners.delete(fn);};}
 export function subscribeChanges(fn:()=>void):()=>void {changeListeners.add(fn);return ()=>{changeListeners.delete(fn);};}
 export function publish(changed=true):void {for(const fn of listeners) fn();if(changed) for(const fn of changeListeners) fn();}
+export function clearChromeSessions():void {if(chrome.size) {chrome.clear();publish();}}
 export function ingestChrome(tabId:number,frameId:number,data:unknown,sequence=0,documentId="",clientId=""):boolean {
   if(!Number.isSafeInteger(tabId)||tabId<0||!Number.isSafeInteger(frameId)||frameId<0) return false;
   const id=`chrome:${chromeFrameKey(tabId,frameId,clientId)}`;

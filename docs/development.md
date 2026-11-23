@@ -29,13 +29,17 @@ node --test --test-name-pattern="seek" tests/media-seek.test.mjs
 |---|---|
 | アクション・対象選択 | `tests/plugin-routing.test.mjs`、`tests/media-model.test.mjs`、`tests/media-state.test.mjs` |
 | シーク | `tests/media-seek.test.mjs`、`tests/plugin-routing.test.mjs` |
-| 設定画面 | `tests/settings.test.mjs`、`tests/localization.test.mjs` |
+| 設定画面 | `tests/settings.test.mjs`、`tests/localization.test.mjs`。実ブラウザでの接続解除・再設定・日本語／英語レイアウトは `node tests/settings-e2e.mjs`（初回は `npm run test:chrome:install`） |
 | 描画・画像 | `tests/artwork.test.mjs`、`tests/control-display.test.mjs`、`tests/scrolling-text.test.mjs`。`npm run marketplace:build` 後に `npm run marketplace:check` |
 | Chrome 通信・権限 | `tests/chrome-*.test.mjs`、`npm run chrome:security:check`。実ブラウザ確認は `npm run test:chrome:e2e` |
 | Rust・ネイティブ通信 | `tests/native-client.test.mjs`、`npm run test:native`、`npm run build`、`npm run test:smoke` |
 | 翻訳 | `npm run locales:build` 後に `npm run locales:check`、`tests/localization.test.mjs` |
 | iCUE ウィジェット／内蔵・独立ブリッジ | `tests/icue-widget.test.mjs`、`tests/icue-server.test.mjs`、`tests/icue-runtime.test.mjs`、`tests/icue-integration.test.mjs`、`tests/plugin-routing.test.mjs`、`tests/settings.test.mjs`、`npm run icue:check`、`npm run test:icue:e2e`、`npm run icue:pack`、`npm run icue:bridge:pack`。ネイティブ変更時はRustテストとビルドも実施。実機確認は別途 iCUE / XENEON EDGE で実施 |
 | 文書・コマンド・バージョン | `npm run consistency:check` |
+
+macOS のビルド・権限・検証は [macOS ガイド](macos.md) を参照してください。`npm run build` はホスト OS に対応するヘルパーを同梱します。
+
+[GitHub Actions](../.github/workflows/build.yml) は3環境のビルドを `scripts/assemble-universal.mjs` で統合します。共通ファイルが一致し、Windows x64・macOS arm64・macOS x64 の資産とライセンス一覧が揃っていることを検査します。統合後に `npm run build` や `npm run pack:review` を実行すると画像ランタイムがホスト用だけに作り直されるため、統合先へ直接 `scripts/check-package.mjs --universal --plugin <パス>` と `scripts/validate-plugin.mjs <パス>` を実行し、Elgato CLI でパッケージ化します。最終インストーラーは全3環境で展開・検査します。手動実行と成果物の取得は [README](../README.md#github-actions-でビルド) を参照してください。
 
 Rust のビルド・テストは Windows x64 の Developer PowerShell for Visual Studio と C++ ビルドツールが必要です。実ブラウザテストの初回準備は `npm run test:chrome:install` です。これらを実行できない場合は未検証として記録します。
 

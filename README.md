@@ -1,5 +1,7 @@
 # Stream Deck Media Controls v1.0.1 (STABLE)
 
+macOS 対応の開発実装を追加しています。対応機能・ローカル導入・未検証項目は [macOS ガイド](docs/macos.md) を参照してください。以下の公開版情報は Windows 版についての説明です。
+
 Windows のメディア再生、音量調整、メディア情報の表示を Stream Deck から操作できるプラグインです。**Elgato Marketplace で無料公開中**。任意の Chrome 拡張も **Chrome Web Store で公開中**です。
 
 XENEON EDGE用のiCUEウィジェットは [Edge Media Deck](icue-widget/README.md) を参照してください。メディア情報・アート・再生操作・シーク・プレーヤー選択・マスター／アプリ別音量と任意のChrome連携を使用できます。iCUE用ブリッジはStream Deckプラグイン起動時に自動起動し、メディア状態とChrome接続を共有します。Stream Deckアプリを使わない独立ブリッジも利用できます。`npm run icue:pack` と `npm run icue:bridge:pack` でウィジェットと独立ブリッジの配布物を生成します。
@@ -103,6 +105,14 @@ npm run restart
 
 プラグインの `.sdPlugin/node_modules` は sharp のネイティブ画像処理ランタイムです。`bin` / `native` と一緒に配布してください。ビルドはその生成済み node_modules を毎回作り直します。依存のライセンスファイルも同梱します。
 
+### GitHub Actions でビルド
+
+[Build Windows and macOS](.github/workflows/build.yml) は push・プルリクエスト・手動実行に対応しています。GitHub の **Actions → Build Windows and macOS → Run workflow** からも開始できます。Windows x64・macOS Apple Silicon（arm64）・macOS Intel（x64）で Node.js 24 とロック済み依存を使用して検査・ビルドし、Windows では Rust MSVC のテストも実行します。
+
+各環境のヘルパー・sharp 画像処理ランタイム・ライセンス一覧を1つの `.streamDeckPlugin` に統合します。共通ファイルの不一致や資産の欠落があれば失敗させ、Elgato CLI で検証してからパッケージを作成します。完成したインストーラーを3環境で展開し、同梱ランタイムによる画像描画も確認します。
+
+ワークフロー全体が成功した実行の **Artifacts** から `media-controls-windows-macos-<コミットSHA>` をダウンロードし、ZIP 内の `dev.n7s.media-controls.streamDeckPlugin` を展開してインストールしてください。同じファイルを Windows と Mac で使用できます。成果物の保存期間は14日です。これは動作確認用の候補であり、正式公開に必要な確認記録や実機テストは [配布前の手順](docs/development.md#配布前) に従って別途実施します。CI では Stream Deck 実機、Windows API のスモークテスト、Chrome の実ブラウザテストは実行しません。
+
 ## 設定と操作
 
 各アクションには、その操作で使う対象の設定を表示します。Now Playing 通常キーは表示・再生対象、音量操作は音量対象を選びます。Now Playing + は表示・再生対象と音量対象を別々に選べます。
@@ -144,7 +154,7 @@ Now Playing / Now Playing + の「表示する項目」で、タイトル、ア�
 
 Chrome 公式のセキュリティ要件との対応と自動検査は [Chrome 拡張のセキュリティ要件への対応](docs/chrome-extension-security.md) を参照してください。
 
-1. プラグインを起動します。Native Messaging ホストからの中継を受けるため、`127.0.0.1:39761` にだけ待ち受けます。
+1. プラグインを起動します。Chrome 連携が有効なとき、Native Messaging ホストからの中継を受けるため、`127.0.0.1:39761` にだけ待ち受けます。
 2. [Chrome Web Store](https://chromewebstore.google.com/detail/stream-deck-media-metadat/iagfcpchjohmpnnlcgppdcadehinhdpa) から拡張をインストールします。ストア版の拡張 ID は `iagfcpchjohmpnnlcgppdcadehinhdpa` です。開発時は、代わりに `chrome://extensions` の開発者モードで、このリポジトリの `chrome-extension` を「パッケージ化されていない拡張機能」として読み込めます。その場合の ID はストア版と異なることがあるため、実際に読み込んだ拡張の ID を確認してください。
 3. Stream Deck アプリで Media Controls のアクションを選択し、「Chrome 連携の設定」を開きます。拡張の導入元を確認し、拡張の設定の「はじめての設定」に自動表示される ID を「ID をコピー」でコピーして貼り付け、「Chrome 連携を登録」をクリックします。入力した拡張機能 ID のみを許可し、現在のユーザーの HKCU に Native Messaging ホストを登録します。起動時や定期的な登録は行わず、ボタンを押したときだけ実行します。未導入の場合は Chrome で拡張をインストールしてから再度クリックしてください。Stream Deck に同梱された Node.js 24 を使い、ホストを LOCALAPPDATA にコピーします。管理者権限や別途 Node.js のインストールは不要です。拡張のオプションで送信を有効にして保存してください。トークンの貼り付けは不要です。
 
@@ -157,6 +167,10 @@ Chrome 公式のセキュリティ要件との対応と自動検査は [Chrome �
    `-ExtensionId` は必須で、1つの ID だけを登録します。`-NodePath C:\path\to\node.exe` も指定できます。`-DetectOnly` は指定した ID の形式確認と表示だけを行い、インストール元の検証は行いません。Chrome のプロファイルから登録対象を選ぶことはありません。
 4. 既に開いていたメディアページを再読み込みして、再生を開始します。Stream Deck の設定に Chrome の各フレームが現れるか確認してください。
 5. 拡張更新後は Chrome で拡張を再読み込みしてください。ホスト更新や拡張 ID の変更後は「Chrome 連携を登録」を再度クリックします。HTTP 方式からの更新時は、送信を無効にして保存し、プラグイン更新・再起動後に再登録して、Chrome を完全に終了・再起動してから送信を有効にしてください。更新前のホストプロセスには新しい保護が適用されません。登録と送信の有効化は自動では変更しません。
+
+Stream Deck の設定画面上部の「Chrome 連携の設定」は接続中も開けます。「Chrome 連携を有効にする」をオフにすると、iCUE を含むプラグイン全体の Chrome 受信・操作を停止し、Chrome セッションを直ちに消去します。オフの状態は再起動後も維持します。Native Messaging の登録情報と拡張の送信設定は保持し、オンに戻すと再接続します。拡張側の観測・画像取得も止める場合は、拡張の送信も無効にして保存してください。
+
+再設定や拡張 ID の変更は、ID を確認・変更して「Chrome 連携を登録」を再度クリックします。この画面で登録に成功した ID は保存し、次回の入力欄に表示します。登録すると Chrome 連携もオンになります。以前のバージョンで登録した ID が未保存の場合は、拡張から再度コピーしてください。
 
 Chrome の拡張ボタンにも、緑の `ON`（Stream Deck に接続済み）、オレンジの `!`（未接続）、グレーの `OFF`（送信無効）を表示します。ツールバーに固定すると常時確認できます。ボタンをクリックすると接続状態と送信設定が開きます。未接続時には復旧手順を表示します。接続確認は既存の通信とメタデータや画像を含まない通知を使い、送信無効時は行いません。
 

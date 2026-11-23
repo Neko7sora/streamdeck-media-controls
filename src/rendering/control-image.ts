@@ -1,6 +1,6 @@
 import sharp from "sharp";
 import {fileURLToPath} from "node:url";
-import type {MediaCommand} from "./windows-media.js";
+import type {MediaCommand} from "../native/windows-media.js";
 
 const icons=new Map<string,Promise<Buffer>>();
 const bytes=(image:string)=>Buffer.from(image.slice(image.indexOf(",")+1),"base64");

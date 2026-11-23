@@ -7,10 +7,10 @@ test("Now Playing operates the session last sent to the display, and never falls
   const a={source:"windows",session_id:"A",title:"Track",controls:{toggle:true}},b={...a,session_id:"B"};
   const driver={instances:[],commands:[],mediaKeys:[],audioRequests:[],inspectorReplies:[],current:a,sessions:[a,b]};globalThis.__mediaTest=driver;
   const mocks={
-    sdk:`const d=globalThis.__mediaTest;export class SingletonAction{actions=[];} export function action(){return c=>c;} export default {info:{application:{language:"ja"}},actions:{registerAction(a){d.instances.push(a);}},ui:{get action(){return d.inspectorAction;},onSendToPlugin(fn){d.onSendToPlugin=fn;},async sendToPropertyInspector(payload){d.inspectorReplies.push(payload);}},settings:{async getGlobalSettings(){return d.globalSettings??{};},async setGlobalSettings(value){d.globalSettings=value;},onDidReceiveGlobalSettings(fn){d.onGlobalSettings=fn;return {dispose(){}};}},logger:{warn(){},error(){},info(){}},async connect(){}};`,
+    sdk:`const d=globalThis.__mediaTest;export class SingletonAction{actions=[];} export function action(){return c=>c;} export default {info:{application:{language:"ja"}},system:{onDidReceiveDeepLink(fn){d.onDeepLink=fn;}},actions:{registerAction(a){d.instances.push(a);}},ui:{get action(){return d.inspectorAction;},onSendToPlugin(fn){d.onSendToPlugin=fn;},async sendToPropertyInspector(payload){d.inspectorReplies.push(payload);}},settings:{async getGlobalSettings(){return d.globalSettings??{};},async setGlobalSettings(value){d.globalSettings=value;},onDidReceiveGlobalSettings(fn){d.onGlobalSettings=fn;return {dispose(){}};}},logger:{warn(){},error(){},info(){}},async connect(){}};`,
     state:`const d=globalThis.__mediaTest;export function currentMedia(id="auto"){return id==="auto"?d.current:d.sessions.find(x=>x.session_id===id)??null;}export function availableSessions(){return d.sessions;}export function audioTarget(id){d.audioRequests.push(id);return d.audioById?d.audioById[id??"master"]??null:"audio" in d?d.audio:{name:id,volume:0.5,muted:false};}export function audioTargets(){return [];}export function subscribe(){}export function subscribeChanges(fn){d.onStateChanged=fn;}export function startMediaPolling(){return ()=>{};}`,
     native:`export async function nativeCommand(c){const d=globalThis.__mediaTest;d.commands.push(c);await d.command?.(c);}`,
-    chrome:`export function chromeConnectionStatus(){return {state:"connected",lastSeen:123,sessions:0};}export function startChromeServer(){return {close(){},closeAllConnections(){}};}export async function chromeCommand(...args){const d=globalThis.__mediaTest;if(!d.chromeCommands) throw Error("Unexpected Chrome command");d.chromeCommands.push(args);await d.chromeCommand?.(...args);}`,
+    chrome:`import {EventEmitter} from 'node:events';export const PORT=39761;export function chromeConnectionStatus(){return {state:"connected",lastSeen:123,sessions:0};}export function startChromeServer(){const d=globalThis.__mediaTest;const s=new EventEmitter();s.close=callback=>{s.listening=false;d.chromeCloses=(d.chromeCloses??0)+1;callback?.();};s.closeAllConnections=()=>{};queueMicrotask(()=>{s.listening=true;s.emit('listening');});return s;}export async function chromeCommand(...args){const d=globalThis.__mediaTest;if(!d.chromeCommands) throw Error("Unexpected Chrome command");d.chromeCommands.push(args);await d.chromeCommand?.(...args);}`,
     icue:`import {EventEmitter} from 'node:events';export function startIcueBridge(){const d=globalThis.__mediaTest;d.icueStarts=(d.icueStarts??0)+1;d.icueServer=new EventEmitter();d.icueServer.close=callback=>{d.icueServer.listening=false;d.icueCloses=(d.icueCloses??0)+1;callback?.();};d.icueServer.closeAllConnections=()=>{d.icueConnectionsClosed=true;};queueMicrotask(()=>{d.icueServer.listening=true;d.icueServer.emit('listening');});return {server:d.icueServer,tokenFile:'test-token-path'};}`,
     registration:`export function registerChromeHost(){const d=globalThis.__mediaTest;d.registrations=(d.registrations??0)+1;return d.registration??Promise.resolve({status:"registered",message:"Registered"});}export function stopChromeRegistration(){}`,
     art:`export async function artworkLoadingImage(){return undefined;} export async function artwork(){await globalThis.__mediaTest.artwork?.();return undefined;} export async function applicationIcon(m){return m?.favicon_data_url??m?.app_icon_data_url;}`,
@@ -18,7 +18,7 @@ test("Now Playing operates the session last sent to the display, and never falls
   };
   const plugin={name:"test-ports",setup(build){
     build.onLoad({filter:/control-image\.ts$/},args=>({contents:readFileSync(args.path,"utf8").replaceAll("import.meta.url",JSON.stringify(new URL("../dev.n7s.media-controls.sdPlugin/bin/plugin.js",import.meta.url).href)),loader:"ts"}));
-    build.onResolve({filter:/@elgato\/streamdeck$|\.\/media-state\.js$|\.\/native-client\.js$|\.\/chrome-server\.js$|\.\/icue-runtime\.js$|\.\/chrome-registration\.js$|\.\/artwork\.js$|\.\/windows-media\.js$/},args=>({path:args.path==="@elgato/streamdeck"?"sdk":args.path.includes("media-state")?"state":args.path.includes("native-client")?"native":args.path.includes("chrome-server")?"chrome":args.path.includes("icue-runtime")?"icue":args.path.includes("chrome-registration")?"registration":args.path.includes("windows-media")?"keys":"art",namespace:"test"}));
+    build.onResolve({filter:/@elgato\/streamdeck$|\/media-state\.js$|\/native-client\.js$|\/chrome-server\.js$|\/icue-runtime\.js$|\/chrome-registration\.js$|\/artwork\.js$|\/windows-media\.js$/},args=>({path:args.path==="@elgato/streamdeck"?"sdk":args.path.includes("media-state")?"state":args.path.includes("native-client")?"native":args.path.includes("chrome-server")?"chrome":args.path.includes("icue-runtime")?"icue":args.path.includes("chrome-registration")?"registration":args.path.includes("windows-media")?"keys":"art",namespace:"test"}));
     build.onLoad({filter:/.*/,namespace:"test"},args=>({contents:mocks[args.path],loader:"js"}));
   }};
   await load("plugin",[plugin]);
@@ -28,6 +28,10 @@ test("Now Playing operates the session last sent to the display, and never falls
   assert.equal(driver.icueConnectionsClosed,true);
   assert.equal(driver.registrations??0,0,"startup must not register a Chrome host");
   const nextTurn=()=>new Promise(resolve=>setImmediate(resolve));
+  const setupId='a'.repeat(32);
+  const setupUrl={href:`/chrome/setup?extensionId=${setupId}`,path:'/chrome/setup',fragment:'',queryParameters:new URLSearchParams({extensionId:setupId})};
+  driver.onDeepLink({url:setupUrl});
+  assert.equal(driver.registrations??0,0,'deep links must never authorize registration');
   // The Stream Deck socket survives a plugin restart, so an already-open PI
   // continues sending alive/watch rather than the initial options request.
   const recoveringInspector={id:'recovering-inspector',async getSettings(){return {mediaTarget:'A'};}};
@@ -43,6 +47,10 @@ test("Now Playing operates the session last sent to the display, and never falls
   driver.onSendToPlugin({action:recoveringInspector,payload:{request:'alive'}});
   await nextTurn();
   assert.equal(driver.inspectorReplies.at(-1).optionsRequired,undefined,'registered inspectors keep lightweight probes');
+  assert.equal(driver.inspectorReplies.find(reply=>reply.chromeSetupExtensionId)?.chromeSetupExtensionId,setupId);
+  driver.onDeepLink({url:setupUrl});await nextTurn();
+  assert.deepEqual(driver.inspectorReplies.at(-1),{response:'chromeSetup',extensionId:setupId});
+  assert.equal(driver.registrations??0,0);
   driver.sessions=[b];driver.onStateChanged();await nextTurn();
   assert.equal(driver.inspectorReplies.at(-1).response,'optionsChanged');
   assert.deepEqual(driver.inspectorReplies.at(-1).sessions.map(item=>item.id),['B']);
@@ -81,15 +89,28 @@ test("Now Playing operates the session last sent to the display, and never falls
     {request:"setIcueIntegration",requestId:'bad',enabled:false}]) driver.onSendToPlugin({action:currentInspector,payload});
   driver.onSendToPlugin({action:{id:'inactive'},payload:{request:"setIcueIntegration",requestId,enabled:false}});await nextTurn();
   assert.equal(driver.globalSettings.icueBridgeEnabled,true,'malformed and inactive inspector requests cannot change global settings');
-  driver.onSendToPlugin({action:currentInspector,payload:{request:"registerChromeHost",requestId}});await nextTurn();
+  driver.onSendToPlugin({action:currentInspector,payload:{request:"registerChromeHost",requestId,extensionId:setupId}});await nextTurn();
   assert.equal(driver.registrations,1);
-  assert.deepEqual(driver.inspectorReplies.at(-1),{response:"chromeHostRegistration",requestId,status:"registered",message:"Registered"});
+  const registrationReply=driver.inspectorReplies.at(-1);
+  assert.equal(registrationReply.response,"chromeHostRegistration");
+  assert.equal(registrationReply.requestId,requestId);
+  assert.equal(registrationReply.status,"registered");
+  assert.equal(registrationReply.chromeIntegration.extensionId,setupId);
+  assert.equal(driver.globalSettings.chromeExtensionId,setupId);
+  driver.onSendToPlugin({action:currentInspector,payload:{request:"setChromeIntegration",requestId,enabled:false}});await nextTurn();
+  assert.equal(driver.globalSettings.chromeBridgeEnabled,false);
+  assert.equal(driver.globalSettings.icueBridgeEnabled,true);
+  assert.equal(driver.chromeCloses,1);
+  assert.equal(driver.inspectorReplies.findLast(reply=>reply.response==='chromeIntegration').chromeIntegration.state,'disabled');
+  for(const payload of [{request:"setChromeIntegration",requestId,enabled:'false'}, {request:"setChromeIntegration",requestId:'bad',enabled:true}]) driver.onSendToPlugin({action:currentInspector,payload});
+  driver.onSendToPlugin({action:{id:'inactive'},payload:{request:"setChromeIntegration",requestId,enabled:true}});await nextTurn();
+  assert.equal(driver.globalSettings.chromeBridgeEnabled,false);
   let finishRegistration;driver.registration=new Promise(resolve=>{finishRegistration=resolve;});
-  driver.onSendToPlugin({action:currentInspector,payload:{request:"registerChromeHost",requestId}});
+  driver.onSendToPlugin({action:currentInspector,payload:{request:"registerChromeHost",requestId,extensionId:setupId}});
   driver.inspectorAction={id:"different-inspector"};
-  const replyCount=driver.inspectorReplies.length;finishRegistration({status:"not-found",message:"Missing"});await nextTurn();
+  await nextTurn();const replyCount=driver.inspectorReplies.length;finishRegistration({status:"not-found",message:"Missing"});await nextTurn();
   assert.equal(driver.inspectorReplies.length,replyCount,"registration results must not be sent to a different action");
-  driver.onSendToPlugin({action:currentInspector,payload:{request:"registerChromeHost",requestId}});
+  driver.onSendToPlugin({action:currentInspector,payload:{request:"registerChromeHost",requestId,extensionId:setupId}});
   assert.equal(driver.registrations,2,"requests from an inactive inspector cannot register a host");
   driver.inspectorAction=currentInspector;
   driver.onSendToPlugin({action:currentInspector,payload:{request:"registerChromeHost",requestId:"invalid"}});

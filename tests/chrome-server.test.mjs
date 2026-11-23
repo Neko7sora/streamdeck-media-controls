@@ -7,7 +7,7 @@ import {execFileSync} from "node:child_process";
 import {fileURLToPath} from "node:url";
 import {load} from "./load.mjs";
 import {tls,httpsFetch as fetch} from './tls-fixture.mjs';
-const bridge=await load("chrome-server");
+const bridge=await load("chrome/chrome-server");
 test("loopback bridge authenticates, validates, routes exact-frame commands and acknowledges errors",async t=>{
   const token="a".repeat(64),server=bridge.startChromeServer(()=>{},{token,tls,port:0});
   await once(server,"listening");

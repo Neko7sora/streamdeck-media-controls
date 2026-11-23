@@ -1,14 +1,14 @@
 import streamDeck from "@elgato/streamdeck";
 import {setLanguage} from "./localization.js";
-import {startChromeServer} from "./chrome-server.js";
-import {initializeIcueIntegration,stopIcueIntegration} from "./icue-integration.js";
-import {stopChromeRegistration} from "./chrome-registration.js";
-import {startMediaPolling,subscribe} from "./media-state.js";
-import {ANIMATION_INTERVAL_MS} from "./scrolling-text.js";
-import {PlayPause,Previous,Next,Stop,Mute,VolumeUp,VolumeDown,VolumeDial} from "./control-actions.js";
-import {NowPlaying,NowPlayingDial} from "./now-playing-actions.js";
-import {startPropertyInspector,refreshInspectorConnection} from "./property-inspector.js";
-import {startStreamDeckKeepalive} from "./streamdeck-keepalive.js";
+import {initializeChromeIntegration,stopChromeIntegration} from "./streamdeck/chrome-integration.js";
+import {initializeIcueIntegration,stopIcueIntegration} from "./streamdeck/icue-integration.js";
+import {stopChromeRegistration} from "./chrome/chrome-registration.js";
+import {startMediaPolling,subscribe} from "./media/media-state.js";
+import {ANIMATION_INTERVAL_MS} from "./rendering/scrolling-text.js";
+import {PlayPause,Previous,Next,Stop,Mute,VolumeUp,VolumeDown,VolumeDial} from "./streamdeck/control-actions.js";
+import {NowPlaying,NowPlayingDial} from "./streamdeck/now-playing-actions.js";
+import {startPropertyInspector,refreshInspectorConnection} from "./streamdeck/property-inspector.js";
+import {startStreamDeckKeepalive} from "./streamdeck/streamdeck-keepalive.js";
 
 setLanguage(streamDeck.info.application.language);
 const visualActions=[
@@ -24,15 +24,12 @@ subscribe(()=>{
 const stop=startMediaPolling(msg=>streamDeck.logger.warn(msg));
 const animation=setInterval(()=>{for(const a of visualActions) a.animate();},ANIMATION_INTERVAL_MS);
 animation.unref();
-let closeBridge=()=>{};
-try {const server=startChromeServer(msg=>streamDeck.logger.info(msg));closeBridge=()=>{server.close();server.closeAllConnections();};}
-catch(e) {streamDeck.logger.error(`Chrome bridge: ${String(e)}`);}
 let stopped=false;
 let stopKeepalive=()=>{};
 function shutdown() {
   if(stopped) return;
   stopped=true;
-  stopKeepalive();clearInterval(animation);stop();stopChromeRegistration();stopIcueIntegration();closeBridge();
+  stopKeepalive();clearInterval(animation);stop();stopChromeRegistration();stopIcueIntegration();stopChromeIntegration();
 }
 process.once("exit",shutdown);
 for(const signal of ["SIGINT","SIGTERM"] as const) process.once(signal,()=>{shutdown();process.exit(0);});
@@ -40,4 +37,4 @@ await streamDeck.connect();
 // With hidden actions there may be no SDK traffic for hours. A read-only
 // round trip prevents the host's idle watchdog from disabling the whole plugin.
 stopKeepalive=startStreamDeckKeepalive(()=>streamDeck.settings.getGlobalSettings(),msg=>streamDeck.logger.warn(msg));
-await initializeIcueIntegration();
+await Promise.all([initializeChromeIntegration(),initializeIcueIntegration()]);

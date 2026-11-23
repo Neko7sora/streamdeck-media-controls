@@ -1,12 +1,16 @@
 import { readFileSync, existsSync } from "node:fs";
 import { join, resolve } from "node:path";
 import {createRequire} from "node:module";
-import {displayFont} from "../src/display-font.ts";
+import {displayFont} from "../src/rendering/display-font.ts";
 import {checkGuidelines} from "./check-guidelines.mjs";
 import {buildNotices} from "./build-notices.mjs";
-const plugin = resolve("dev.n7s.media-controls.sdPlugin");
+import {parseArgs} from "node:util";
+import {checkUniversalBundle} from "./assemble-universal.mjs";
+const {values}=parseArgs({options:{plugin:{type:'string'},universal:{type:'boolean',default:false}}});
+const plugin = resolve(values.plugin??"dev.n7s.media-controls.sdPlugin");
 await checkGuidelines(plugin);
-buildNotices(true);
+buildNotices(true,{directory:plugin,universal:values.universal});
+if(values.universal) checkUniversalBundle(plugin);
 for(const file of ["LICENSE","LICENSE-MIT","LICENSE-APACHE"]) {
   if(readFileSync(join(plugin,file),'utf8')!==readFileSync(resolve(file),'utf8')) throw new Error(`Stale project license: ${file}`);
 }
@@ -28,7 +32,7 @@ for (const a of m.Actions) {
   for (const state of a.States) checkImage(state.Image);
   if(a.Encoder?.layout&&!a.Encoder.layout.startsWith("$")&&!existsSync(join(plugin,a.Encoder.layout))) throw new Error(`Missing layout: ${a.Encoder.layout}`);
 }
-for (const file of [m.CodePath, "native/media-keys.exe", "native/media-info.exe", "native/register-chrome-native-host.ps1", "native/chrome-native-host.mjs", "ui/settings.html", "ui/settings.css", "ui/settings.js", "ui/localization.js", "layouts/now-playing.json", "node_modules/sharp/package.json"]) {
+for (const file of [m.CodePath, ...(process.platform==="darwin"?["native/media-info.mjs","native/media.js","native/register-chrome-native-host-macos.mjs"]:["native/media-keys.exe", "native/media-info.exe"]), "native/register-chrome-native-host.ps1", "native/chrome-native-host.mjs", "ui/settings.html", "ui/settings.css", "ui/settings.js", "ui/localization.js", "layouts/now-playing.json", "node_modules/sharp/package.json"]) {
   if (!existsSync(join(plugin,file))) throw new Error(`Missing build output: ${file}`);
 }
 console.log(`Manifest and assets: OK (${m.Actions.length} actions)`);

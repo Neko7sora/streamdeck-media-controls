@@ -2,6 +2,13 @@ import { execFileSync } from "node:child_process";
 import { copyFileSync, mkdirSync, existsSync } from "node:fs";
 import { resolve } from "node:path";
 
+if (process.platform === "darwin") {
+  const target=resolve("dev.n7s.media-controls.sdPlugin/native");
+  mkdirSync(target,{recursive:true});
+  for(const file of ["media-info.mjs","media.js"]) copyFileSync(resolve("native/macos",file),resolve(target,file));
+  console.log("macOS automation helper copied into plugin bundle.");
+  process.exit(0);
+}
 if (process.platform !== "win32") {
   console.error("Native helper must be built on Windows. Use a Windows x64 terminal.");
   process.exit(1);
