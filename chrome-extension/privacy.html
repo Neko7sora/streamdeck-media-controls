@@ -5,13 +5,14 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="color-scheme" content="light dark">
   <meta name="referrer" content="no-referrer">
-  <title>Media Bridge — Data and privacy</title>
+  <title data-i18n="extension.policy.title">Media Bridge — Data and privacy</title>
   <link rel="stylesheet" href="options.css">
 </head>
-<body>
-  <main class="privacy-document">
-    <h1 data-i18n="extension.privacy.link">Data and privacy</h1>
-    <p class="intro" data-i18n="extension.policy.intro">Media Bridge connects browser media to the Media Controls plugin on your Windows PC. No account, advertising, analytics or developer-operated media upload service.</p>
+<body class="privacy-page">
+<main>
+  <article class="privacy-document" aria-labelledby="privacy-title">
+    <h1 id="privacy-title" data-i18n="extension.policy.title">Media Bridge — Data and privacy</h1>
+    <p class="intro" data-i18n="extension.policy.intro">Media Bridge connects browser media to the Media Controls plugin on Windows or macOS. It uses no account, advertising, analytics or developer-operated media upload service.</p>
     <section aria-labelledby="policy-data">
       <h2 id="policy-data" data-i18n="extension.policy.data.title">Information used</h2>
       <p data-i18n="extension.policy.data">When you enable sending and save, media pages share available titles, artists, albums, playback state, timeline, HTML media element state, artwork and favicons with the local plugin. Page titles, page addresses without credentials, queries or fragments, and tab/frame/document identifiers identify media targets. Empty observations clear a target without sending page titles or addresses. Audio/video streams, cookies, passwords and DRM data are not read.</p>
@@ -36,14 +37,18 @@
     <section aria-labelledby="policy-support">
       <h2 id="policy-support" data-i18n="extension.support.link">Support</h2>
       <p data-i18n="extension.policy.support">Use GitHub Issues for questions and support. Issues are public: do not post personal information, private media details, tokens or unreviewed logs. Remove local media data and settings on your PC using the steps above; the developer does not store a remote copy. Opening support is optional and contacts GitHub under its own privacy practices.</p>
-      <p><a href="https://github.com/Neko7sora/streamdeck-media-controls/issues" target="_blank" rel="noopener noreferrer" data-i18n="extension.support.link">Support</a> · <a href="options.html" data-i18n="extension.policy.settings">Sharing settings</a></p>
+      <ul>
+        <li><a href="https://github.com/Neko7sora/streamdeck-media-controls/issues" target="_blank" rel="noopener noreferrer" data-i18n="extension.support.link">Support</a></li>
+        <li><a href="options.html" data-i18n="extension.policy.settings">Sharing settings</a></li>
+      </ul>
     </section>
     <section aria-labelledby="policy-limited-use">
       <h2 id="policy-limited-use" data-i18n="extension.policy.limitedUse.title">Limited Use</h2>
       <p data-i18n="extension.policy.limitedUse">Media Bridge's use of information received from Chrome APIs adheres to the Chrome Web Store User Data Policy, including the Limited Use requirements. Information is used and transferred only to provide the local media bridge. It is not sold or used for advertising, tracking, credit or lending decisions. The developer has no access to live media data; support data is read only when you choose to share specific information for help.</p>
       <p><a href="https://developer.chrome.com/docs/webstore/program-policies/policies#limited-use" target="_blank" rel="noopener noreferrer">Chrome Web Store User Data Policy — Limited Use</a></p>
     </section>
-  </main>
+  </article>
+</main>
   <script src="localization.js"></script>
   <script src="privacy.js"></script>
 </body>

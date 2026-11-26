@@ -18,7 +18,7 @@ body { margin: 0 auto; padding: 20px 14px 16px; min-width: 0; max-width: 560px; 
 .brand-mark svg { width: 23px; height: 23px; }
 h1 { font-size: 18px; line-height: 1.4; letter-spacing: -.2px; margin: 0; font-weight: 650; overflow-wrap: anywhere; }
 .page-heading .eyebrow { margin: 0 0 3px; color: var(--muted); font-size: 10px; letter-spacing: .6px; }
-main { display: grid; gap: 10px; }
+#action-settings { display: grid; gap: 10px; }
 .card { min-width: 0; margin: 0; padding: 15px; border: 1px solid var(--border); border-radius: 12px; background: var(--surface); }
 .targets { border-top: 2px solid #6bbdaa; }
 h2, legend { font: inherit; font-weight: 650; color: #f4f5f7; }

@@ -80,14 +80,14 @@
       <div class="content">
         <div class="topline">
           <span class="now-label" role="status"><img id="appIcon" alt="" hidden /><span id="playbackStatus"><span class="dot" id="statusDot" aria-hidden="true"></span> <span id="statusText">iCUEに接続しています</span></span></span>
-          <span class="brand" id="brandLabel">EDGE <span class="brand-sep">/</span> MEDIA</span>
+          <span class="brand" id="brandLabel" aria-hidden="true">EDGE <span class="brand-sep">/</span> MEDIA</span>
           <p id="bridgeNotice" class="bridge-notice" role="status">Windowsブリッジを待機中</p>
         </div>
 
         <div class="metadata" aria-live="polite" aria-atomic="true">
           <h1 id="songName" title="" tabindex="0" aria-keyshortcuts="ArrowLeft ArrowRight Home End"><span id="songTitleText">メディアを待機中</span></h1>
-          <div class="artist" id="artist" title="">再生中のメディア情報を表示します</div>
-          <div class="album-line" id="album" title=""></div>
+          <p class="artist" id="artist" title="">再生中のメディア情報を表示します</p>
+          <p class="album-line" id="album" title=""></p>
         </div>
 
         <div class="bridge-panel" id="bridgePanel" hidden>
@@ -119,9 +119,9 @@
             </button>
           </div>
           <div id="bridgeExtra" hidden class="extra-controls" role="group" aria-label="追加の再生操作">
-            <button id="rewindButton" type="button" disabled>−10秒</button><button id="stopButton" type="button" disabled>停止</button><button id="forwardButton" type="button" disabled>＋10秒</button>
+            <button id="rewindButton" type="button" disabled>−10秒</button><button id="stopButton" type="button" disabled>停止</button><button id="forwardButton" type="button" disabled>+10秒</button>
           </div>
-          <div class="hint" id="footerBrand">CORSAIR iCUE <span class="hint-separator">•</span> MEDIA CONTROLS</div>
+          <div class="hint" id="footerBrand" aria-hidden="true">CORSAIR iCUE <span class="hint-separator">•</span> MEDIA CONTROLS</div>
         </div>
       </div>
     </section>

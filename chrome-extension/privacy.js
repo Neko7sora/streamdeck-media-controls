@@ -1,3 +1,2 @@
-MediaI18n.setLanguage(chrome.i18n.getUILanguage());
+MediaI18n.setLanguage(globalThis.chrome?.i18n?.getUILanguage() ?? navigator.language);
 MediaI18n.localizePage(document);
-document.title=MediaI18n.t("extension.privacy.link");

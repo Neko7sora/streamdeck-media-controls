@@ -67,9 +67,12 @@ h2 { font-size: 13px; font-weight: 650; line-height: 1.5; }
 #copy-id-status:empty { display: none; }
 a { color: var(--accent); text-underline-offset: 3px; }
 a:focus-visible { outline: 3px solid var(--accent); outline-offset: 4px; }
-.privacy-document section { margin-top: 22px; }
-.privacy-document h2 { margin-bottom: 6px; }
-.privacy-document p + p { margin-top: 10px; }
+.privacy-page { width: min(100%, 72ch); min-width: 0; font-size: 1rem; line-height: 1.7; }
+.privacy-document h1 { font-size: 1.75rem; }
+.privacy-document section { margin-block-start: 1.5em; }
+.privacy-document h2 { margin-block-end: .35em; font-size: 1.125rem; }
+.privacy-document p + p, .privacy-document ul { margin-block-start: .65em; }
+.privacy-document ul { padding-inline-start: 1.5em; }
 .setting-row { display: flex; align-items: center; justify-content: space-between; gap: 18px; min-height: 52px; cursor: pointer; }
 .setting-copy { display: block; }
 .setting-title { display: block; font-weight: 500; line-height: 1.5; }
@@ -112,9 +115,9 @@ button:disabled { background: var(--surface-soft); color: var(--muted); cursor: 
 .setup-card summary:hover { background: var(--surface-soft); }
 .setup-card summary svg { width: 16px; height: 16px; flex: none; stroke: var(--muted); stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; transition: transform .15s; }
 .setup-card[open] summary svg { transform: rotate(180deg); }
-.setup-card ol { counter-reset: setup; list-style: none; margin: 0; padding: 0 18px 18px; }
-.setup-card li { position: relative; padding-left: 28px; margin-top: 8px; color: var(--muted); font-size: 12px; }
-.setup-card li::before { counter-increment: setup; content: counter(setup); position: absolute; left: 0; top: 0; display: grid; place-items: center; width: 19px; height: 19px; border: 1px solid var(--border); border-radius: 50%; background: var(--surface); color: var(--muted); font-size: 10px; font-weight: 600; line-height: 1; }
+.setup-card ol { margin: 0; padding: 0 18px 18px 36px; }
+.setup-card li { padding-inline-start: 4px; margin-top: 8px; color: var(--muted); font-size: 12px; }
+.setup-card li::marker { font-weight: 600; }
 .privacy { display: flex; align-items: flex-start; gap: 9px; margin-top: 22px; padding-top: 17px; border-top: 1px solid var(--border); }
 .privacy svg { width: 17px; height: 17px; margin-top: 1px; flex: none; stroke: var(--muted); stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
 .privacy h2 { font-size: 11px; color: var(--muted); }

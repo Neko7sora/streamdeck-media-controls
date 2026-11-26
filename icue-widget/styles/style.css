@@ -87,6 +87,7 @@ button { font: inherit; }
 .brand { opacity: .55; letter-spacing: .16em; font-size: calc(var(--font-label) * var(--label-scale, 1)); white-space: nowrap; font-weight: 700; }
 .brand-sep { color: var(--accent); }
 .metadata { min-inline-size: 0; inline-size: 100%; }
+:where(.metadata) p { margin: 0; }
 .metadata h1 {
   margin: 0 0 calc(var(--layout-unit) * 2.5); font-size: calc(var(--font-hero) * var(--title-scale, 1)); line-height: 1.2;
   letter-spacing: -.025em; font-weight: 700; font-variant-numeric: tabular-nums;

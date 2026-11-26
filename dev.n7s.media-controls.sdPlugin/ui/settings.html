@@ -7,19 +7,20 @@
   <link rel="stylesheet" href="settings.css">
 </head>
 <body>
+<main aria-labelledby="action-heading">
   <header class="page-heading">
     <span class="brand-mark" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none"><path d="M5 9v6m5-10v14m5-12v10m5-7v4" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/></svg></span>
     <div><p class="eyebrow">Media Controls</p><h1 id="action-heading" data-i18n="settings.subtitle">Customize this key or dial</h1></div>
   </header>
-  <aside class="connection" id="chrome-connection" data-state="checking">
+  <div class="connection" id="chrome-connection" data-state="checking">
     <div role="status" aria-live="polite" aria-atomic="true">
     <strong id="chrome-connection-title"><span data-i18n="chrome.checking.connection">Chrome: Checking connection</span></strong>
     <p id="chrome-connection-detail"><span data-i18n="waiting.for.the.plugin.to.respond">Waiting for the plugin to respond.</span></p>
     </div>
     <a id="chrome-setup-link" href="#chrome-setup" data-i18n="settings.chromeSetup">Chrome integration settings</a>
-  </aside>
+  </div>
   <p class="feedback connection-feedback" id="status" role="status" aria-live="polite"><span data-i18n="connecting.to.the.plugin">Connecting to the plugin…</span></p>
-  <main id="action-settings" hidden>
+  <div id="action-settings" hidden>
     <section class="card targets" aria-labelledby="targets-heading">
       <h2 id="targets-heading" data-i18n="settings.targets">Control targets</h2>
       <div class="field" id="media-settings">
@@ -96,7 +97,7 @@
       <label class="check-row" for="chrome-enabled"><input type="checkbox" id="chrome-enabled" name="chromeBridgeEnabled" aria-describedby="chrome-integration-help chrome-integration-status" disabled><span data-i18n="settings.chrome.enabled">Enable Chrome integration</span></label>
       <p class="help" id="chrome-integration-help" data-i18n="settings.chrome.help">Turning this off disconnects Chrome for the whole plugin, including iCUE, and is saved across restarts. Registration and the extension's sending preference are kept. Turn it back on to reconnect.</p>
       <p class="feedback" id="chrome-integration-status" role="status" aria-live="polite" aria-atomic="true"></p>
-      <p class="help" id="chrome-registration-help" data-i18n="chrome.registration.help">Verify the companion extension’s source, then open its “First-time setup” and copy the automatically displayed ID below. Names alone do not identify the intended extension.</p>
+      <p class="help" id="chrome-registration-help" data-i18n="chrome.registration.help">Verify the companion extension’s source. Copy the ID from its “First-time setup” and paste it into “Chrome extension ID” here. Names alone do not identify the intended extension.</p>
       <p class="help"><a id="setup-guide" href="https://github.com/Neko7sora/streamdeck-media-controls#chrome-拡張任意オプトイン" data-i18n="settings.setupGuide">Setup guide &amp; troubleshooting</a></p>
       <form id="chrome-registration-form" novalidate>
         <div class="field">
@@ -104,7 +105,7 @@
           <input id="chrome-extension-id" name="extensionId" type="text" aria-invalid="false" required pattern="[a-p]{32}" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" enterkeyhint="done" aria-describedby="chrome-registration-help chrome-registration-status">
         </div>
         <button id="register-chrome" type="submit" aria-describedby="chrome-registration-status" disabled data-i18n="register.chrome.integration">Register Chrome integration</button>
-        <p class="help" data-i18n="settings.chrome.reconfigureHelp">To set up again or change extensions, verify the ID above and register again. Registration enables integration.</p>
+        <p class="help" data-i18n="settings.chrome.reconfigureHelp">To set up again or change extensions, verify the Chrome extension ID and register again. Registration enables integration.</p>
       </form>
       <p class="feedback" id="chrome-registration-status" role="status" aria-live="polite" aria-atomic="true"></p>
     </details>
@@ -112,8 +113,9 @@
       <summary data-i18n="metadata.sources.and.timestamps">Metadata, sources and timestamps</summary>
       <pre id="details"><span data-i18n="waiting.for.information">Waiting for information</span></pre>
     </details>
-  </main>
-  <footer><p class="save-note" data-i18n="settings.autoApply">Changes apply immediately to this key or dial.</p></footer>
+  </div>
+  <p class="save-note" data-i18n="settings.autoApply">Changes apply immediately to this key or dial.</p>
+</main>
   <script src="localization.js"></script>
   <script src="settings.js"></script>
 </body>

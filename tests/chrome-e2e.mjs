@@ -92,12 +92,19 @@ for(const language of ['en','ja']) {
     privacy.on('console',message=>{if(message.type()==='error') errors.push(message.text());});
     await privacy.waitForLoadState();
     assert.equal(await privacy.locator('html').getAttribute('lang'),language);
+    const article=privacy.getByRole('article');
+    assert.equal(await article.getByRole('heading',{level:1}).innerText(),await privacy.title());
+    assert.deepEqual(await article.getByRole('heading',{level:2}).evaluateAll(headings=>headings.map(heading=>heading.id)),[
+      'policy-data','policy-network','policy-storage','policy-control','policy-permissions','policy-support','policy-limited-use'
+    ]);
     assert.equal(await privacy.locator('#policy-network').isVisible(),true);
     assert.equal(await privacy.locator('#policy-limited-use').isVisible(),true);
     assert.equal(await privacy.locator('#policy-support + p').isVisible(),true);
     assert.match(await privacy.locator('[data-i18n="extension.policy.support"]').innerText(),/GitHub/);
     assert.match(await privacy.locator('[data-i18n="extension.policy.limitedUse"]').innerText(),/Chrome Web Store User Data Policy/);
     assert.equal(await privacy.locator('script[src^="http"]').count(),0);
+    await privacy.setViewportSize({width:320,height:800});
+    assert.ok(await privacy.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));
     await privacy.close();
     // Exercise saving without a registered host: the error is presented as a
     // disconnected state and disabling remains available.
