@@ -98,11 +98,15 @@ test('iCUE volume and mute stay on the selected audio session and reject missing
   assert.equal((await f.command(unknown.view,'mute')).status,409);
   assert.equal(f.calls.length,0);
 });
-test('iCUE streams deliver large artwork intact, sanitize URLs, push changes and release subscribers', async t => {
+test('iCUE streams deliver large artwork intact, sanitize URLs, push changes and release subscribers', {timeout:10000}, async t => {
   const f = await setup(t);
   f.windows.artwork_data_url = 'data:image/png;base64,'+'A'.repeat(200000);
   f.windows.favicon_data_url = 'https://untrusted.example/icon.png';
-  const response = await fetch(f.url+'/events',{headers:f.headers}), reader = response.body.getReader();
+  const [[, serverResponse], response] = await Promise.all([
+    once(f.server, 'request', {signal:t.signal}),
+    fetch(f.url+'/events',{headers:f.headers}),
+  ]);
+  const reader = response.body.getReader();
   let pending = ''; const decoder = new TextDecoder();
   const next = async () => {
     while (!pending.includes('\n')) {const value = await reader.read(); pending += decoder.decode(value.value);}
@@ -112,7 +116,7 @@ test('iCUE streams deliver large artwork intact, sanitize URLs, push changes and
   assert.equal(initial.media.artwork_data_url.length,200022); assert.equal(initial.media.favicon_data_url,undefined);
   f.windows.title = 'Updated'; f.emit(); f.emit();
   assert.equal((await next()).media.title,'Updated');
-  await reader.cancel();
-  await new Promise(resolve => setTimeout(resolve,30));
+  const closed = once(serverResponse, 'close', {signal:t.signal});
+  await Promise.all([closed, reader.cancel()]);
   assert.equal(f.listeners.size,0);
 });
