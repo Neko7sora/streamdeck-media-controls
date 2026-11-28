@@ -30,7 +30,7 @@ XENEON EDGE の全8枠に対応します。ポンプ／キーボードLCDは対�
 
 ## ビルドと導入
 
-リポジトリのルートで実行します。公式 `icuewidget-cli` 0.5.1 は開発依存としてロックされています。
+リポジトリのルートで実行します。公式 `icuewidget-cli` 0.5.2 は開発依存としてロックされています。
 
 ```powershell
 npm ci
@@ -149,7 +149,7 @@ Chrome連携は696px角を基準に画像候補を選び、350KBの取得上限�
 
 ### iCUE 5.52.93と公式CLIの権限表記の差
 
-実アプリのインポーターは `self-signed-certificate`（ハイフン）と `domain` フィールドを使用します。公式資料とCLI 0.5.1の `self_signed_certificate` / `host` とは表記が異なります。iCUE 5.52.93の実ログで、アンダースコア表記の「無効な権限タイプ」と、`host`指定による「Missing domain field in permission」を確認しました。ソースmanifestと配布パッケージは次の定義を使用し、ファイルを直接開いた実iCUEで権限確認画面まで進むことを確認済みです。権限承認後の最終インポートと実機タッチ操作は別途確認が必要です。
+実アプリのインポーターは `self-signed-certificate`（ハイフン）と `domain` フィールドを使用します。公式資料とCLI 0.5.2の `self_signed_certificate` / `host` とは表記が異なります。iCUE 5.52.93の実ログで、アンダースコア表記の「無効な権限タイプ」と、`host`指定による「Missing domain field in permission」を確認しました。ソースmanifestと配布パッケージは次の定義を使用し、ファイルを直接開いた実iCUEで権限確認画面まで進むことを確認済みです。権限承認後の最終インポートと実機タッチ操作は別途確認が必要です。
 
 ```json
 { "type": "self-signed-certificate", "domain": "127.0.0.1" }

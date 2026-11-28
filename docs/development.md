@@ -47,7 +47,7 @@ iCUEのブラウザテストも既存のPlaywright / Chromiumを共用します�
 
 ## 配布前
 
-iCUE 5.52.93のインポーターと公式CLI 0.5.1では自己署名証明書の権限タイプ名と項目名が異なります。`npm run icue:check` は `scripts/check-icue.mjs` 経由で一時コピーだけをCLI表記へ変換し、ソースと配布manifestの `self-signed-certificate` / `domain` を維持します。詳細は [互換性の説明](../icue-widget/README.md#icue-55293と公式cliの権限表記の差) を参照してください。
+iCUE 5.52.93のインポーターと公式CLI 0.5.2では自己署名証明書の権限タイプ名と項目名が異なります。`npm run icue:check` は `scripts/check-icue.mjs` 経由で一時コピーだけをCLI表記へ変換し、ソースと配布manifestの `self-signed-certificate` / `domain` を維持します。詳細は [互換性の説明](../icue-widget/README.md#icue-55293と公式cliの権限表記の差) を参照してください。
 
 従来の `npm run check` は Rust release ビルドとパッケージ資産の検査を含む完全な検査です。`check:fast` で代替しません。正式配布は [README のビルド手順](../README.md#windows-x64-ビルド) と [総合監査](guideline-audit.md) に従います。実機確認・公開者確認の記録は自動テストとは別に必要です。
 

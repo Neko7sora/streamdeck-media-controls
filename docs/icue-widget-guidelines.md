@@ -6,7 +6,7 @@
 
 | 公式資料・確認項目 | 対応と確認方法 |
 |---|---|
-| [Specification](https://docs.elgato.com/icue/widgets/specification/): 必須ファイル・manifest | `icue-widget/` にHTML、manifest、アイコンを配置。Windows、iCUE 5.52、Widget API 1.9.0を宣言。`npm run icue:check` で公式CLI 0.5.1を実行 |
+| [Specification](https://docs.elgato.com/icue/widgets/specification/): 必須ファイル・manifest | `icue-widget/` にHTML、manifest、アイコンを配置。Windows、iCUE 5.52、Widget API 1.9.0を宣言。`npm run icue:check` で公式CLI 0.5.2を実行 |
 | HTMLと設定 | 大文字DOCTYPE、XMLとして整形式のhead、`tr('Edge Media Deck')` のtitle、公式のmetaと設定グループを使用。CLIに加え、設定IDの重複、ラベル欠落、グループの未宣言ID・重複参照を検査 |
 | 選択画面のプレビュー | `x-icue-widget-preview` の画像を128×56pxに修正。実際のUIと公開テストデータから生成し、縦横比を保持して余白を追加。`icue:check` とパッケージ生成で寸法・参照先を検査 |
 | [Controls](https://docs.elgato.com/icue/widgets/references/controls/): 設定値 | `switch`、`textfield`、`slider`、`color` を使用。既存ID・初期値・保存済み設定の互換性を維持。プロパティ変更は `onDataUpdated` で反映 |

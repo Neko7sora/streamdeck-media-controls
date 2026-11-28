@@ -2,7 +2,7 @@ import {readFile} from 'node:fs/promises';
 import {isAbsolute, join, relative, resolve} from 'node:path';
 import sharp from 'sharp';
 
-// Supplement CLI 0.5.1: it does not check preview dimensions, translation
+// Supplement CLI 0.5.2: it does not check preview dimensions, translation
 // coverage, duplicate property IDs or references to undeclared properties.
 // https://docs.elgato.com/icue/widgets/specification/
 // https://docs.elgato.com/icue/widgets/references/translations/

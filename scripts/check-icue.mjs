@@ -11,7 +11,7 @@ export function cliValidationManifest(manifest) {
   const copy = structuredClone(manifest);
   if (Array.isArray(copy.permissions)) for (const permission of copy.permissions) {
     // iCUE 5.52.93's importer uses self-signed-certificate/domain. Its internal
-    // store and the docs / CLI 0.5.1 use self_signed_certificate/host.
+    // store and the docs / CLI 0.5.2 use self_signed_certificate/host.
     if (permission?.type === 'self_signed_certificate') {
       throw new Error('iCUE manifest must use self-signed-certificate (hyphens); the underscore spelling fails import in iCUE 5.52.93');
     }
@@ -40,7 +40,7 @@ export async function validateIcueWidget(source) {
       env:{...process.env, ICUEWIDGET_NO_UPDATE_CHECK:'1'}});
     if (result.error || result.status !== 0) throw result.error ?? new Error(`iCUE validation failed (${result.status})`);
     await checkIcuePresentation(staging);
-    console.log('iCUE validation: CLI 0.5.1 certificate type/domain adapted on a temporary copy; runtime permissions preserved.');
+    console.log('iCUE validation: CLI 0.5.2 certificate type/domain adapted on a temporary copy; runtime permissions preserved.');
   } finally {
     const inside = relative(resolve(generated), resolve(staging));
     if (!inside || inside.startsWith('..') || isAbsolute(inside)) throw new Error('Unsafe validation cleanup path');
